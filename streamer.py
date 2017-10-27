@@ -19,14 +19,16 @@ class StreamerProtocol(WebSocketClientProtocol):
         self.length = 0
         
     def new_question(self, msg):
+        print('[streamer] new question')
+        print('[streamer]', msg['text'])
         self.qid = msg['qid']
         self.text = msg['text']
         if isinstance(self.text, str):
             self.text = self.text.split()
         self.length = len(self.text)
         self.position = 0
-        msg = {'type': MSG_TYPE_NEW, 'qid': self.qid}
-        self.sendMessage(json.dumps(msg))
+        self.sendMessage(json.dumps(msg).encode('utf-8'))
+        print('[streamer] ready for question {}'.format(self.qid))
 
     def update_question(self, msg):
         if msg['qid'] != self.question['qid']:
@@ -38,18 +40,19 @@ class StreamerProtocol(WebSocketClientProtocol):
         else:
             msg = {'type': MSG_TYPE_EOQ, 'text': self.text[self.position],
                     'qid': self.qid, 'position': self.position}
-        self.sendMessage(json.dumps(msg))
+        self.sendMessage(json.dumps(msg).encode('utf-8'))
             
 
     def onMessage(self, payload, isBinary):
-        msg = json.loads(payload)
+        msg = json.loads(payload.decode('utf-8'))
         if msg['type'] == MSG_TYPE_NEW:
             self.new_question(msg)
         elif msg['type'] == MSG_TYPE_RESUME:
             self.update_question(msg)
 
+
 if __name__ == '__main__':
     factory = WebSocketClientFactory(u"ws://127.0.0.1:9000")
-    factory.protocol = MessageBasedHashClientProtocol
+    factory.protocol = StreamerProtocol
     connectWS(factory)
     reactor.run()
