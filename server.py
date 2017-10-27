@@ -241,8 +241,51 @@ class BroadcastServerFactory(WebSocketServerFactory):
             return
 
     def handle_end_of_question(self):
-        # TODO
-        pass
+        # TODO update states to the end of question
+        
+        buzzing_inds = []
+        for i, user in enumerate(users):
+            if self.buzzed[user.peer] is False:
+                buzzing_inds.append(i)
+
+        if len(buzzing_inds) == 0:
+            return
+
+        random.shuffle(buzzing_inds)
+        buzzing_idx = buzzing_inds[0]
+
+        print('[server] player {} please provide answer'.format(buzzing_idx))
+        
+        red_msg = {'type': MSG_TYPE_BUZZING_RED, 'qid': self.question['qid']}
+        for i, user in enumerate(self.users):
+            if i != buzzing_idx:
+                user.sendMessage(json.dumps(red_msg))
+        
+        green_msg = {'type': MSG_TYPE_BUZZING_GREEN, 'qid': self.question['qid']}
+        b_user = users[buzzing_idx]
+        b_user.sendMessage(json.dumps(green_msg))
+
+        n_attempts = 0
+        while n_attempts < 5:
+            if not self._check_user(b_user.peer, 'type', MSG_TYPE_BUZZING_ANSWER):
+                yield sleep(1)
+                n_attempts += 1
+        else:
+            print('[server] player {} did not answer in time'.format(buzzing_idx))
+            return
+
+        # evaluation
+        self.buzzed[b_user.peer] = True
+        answer = self.user_responses[b_user.peer]
+        if answer == self.question['answer']:
+            print('[server] answer is correct')
+            self.scores[b_user.peer] += 10
+            terminate = True
+        else:
+            print('[server] answer is wrong')
+
+        self.new_question()
+        return
 
     def receive_user_msg(self, msg, user):
         msg = json.loads(msg)
