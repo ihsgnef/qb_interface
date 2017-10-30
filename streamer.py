@@ -6,7 +6,7 @@ from autobahn.twisted.websocket import WebSocketClientFactory, \
     WebSocketClientProtocol, \
     connectWS
 
-from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_EOQ, \
+from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED
 
@@ -38,13 +38,15 @@ class StreamerProtocol(WebSocketClientProtocol):
             msg = {'type': MSG_TYPE_RESUME, 'text': self.text[self.position],
                     'qid': self.qid, 'position': self.position}
         else:
-            msg = {'type': MSG_TYPE_EOQ, 'text': self.text[self.position],
+            msg = {'type': MSG_TYPE_END, 'text': self.text[self.position],
                     'qid': self.qid, 'position': self.position}
         self.sendMessage(json.dumps(msg).encode('utf-8'))
             
 
     def onMessage(self, payload, isBinary):
         msg = json.loads(payload.decode('utf-8'))
+        print('[streamer] msg received:')
+        print(msg)
         if msg['type'] == MSG_TYPE_NEW:
             self.new_question(msg)
         elif msg['type'] == MSG_TYPE_RESUME:

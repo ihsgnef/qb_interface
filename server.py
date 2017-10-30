@@ -2,6 +2,7 @@ import sys
 import json
 import time
 import random
+from threading import Thread
 from collections import defaultdict
 
 from twisted.internet import reactor
@@ -16,7 +17,7 @@ from autobahn.twisted.websocket import WebSocketServerFactory, \
     WebSocketServerProtocol, \
     listenWS
 
-from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_EOQ, \
+from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED
 
@@ -57,15 +58,18 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         print('[server] number of questions: {}'.format(len(self.questions)))
 
-        # self.sanity_check()
+        self.start_game()
 
-    @inlineCallbacks
-    def sanity_check(self):
+    def start_game(self):
         # TODO game start
         while True:
+            print('[server] {} user'.format(len(self.users)))
             if len(self.users) == 0:
-                yield sleep(1)
+                time.sleep(1)
+            else:
+                break
         print('[server] game begin')
+
         self.new_question()
     
     def end_of_game(self):
@@ -80,6 +84,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.unregister(user)
 
     def new_question(self):
+        print('new question')
         # forward question index
         self.question_idx += 1
         if self.question_idx >= len(self.questions):
@@ -87,6 +92,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
             return
 
         self.question = self.questions[self.question_idx]
+        print('[server] question')
+        print(self.question)
 
         # notify streamer of a new question
         msg = {'type': MSG_TYPE_NEW, 'qid': self.question['qid'], 
@@ -128,10 +135,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     'qid': 0}
             self.users[-1].sendMessage(json.dumps(msg).encode('utf-8'))
 
-            if len(self.users) > 0:
-                self.new_question()
-        # when reaches two users, wait and start game
-
     def unregister(self, client):
         if client == self.streamer:
             print("[server] unregistered streamer {}".format(client.peer))
@@ -146,7 +149,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             if uid not in self.user_responses or \
                     key not in self.user_responses[uid] or \
                     self.user_responses[uid][key] != value:
-                sleep(1)
+                time.sleep(1)
                 n_attempts += 1
         else:
             return False
@@ -158,13 +161,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
             if self.streamer_response is None or \
                     key not in self.streamer_response or \
                     self.streamer_response[key] != value:
-                sleep(1)
+                time.sleep(1)
                 n_attempts += 1
         else:
             return False
         return True
     
-    @inlineCallbacks
     def receive_streamer_msg(self, msg):
         ''' main game logic here '''
         self.streamer_response = msg
@@ -190,7 +192,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             # 3. ask the streamer for another one
             msg = {'type': MSG_TYPE_RESUME, 'qid': self.question['qid']}
             self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
-        elif msg['type'] == MSG_TYPE_EOQ:
+        elif msg['type'] == MSG_TYPE_END:
             self.handle_end_of_question()
             self.new_question()
             return
@@ -297,7 +299,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             return
         
         if client == self.streamer:
-            self.receive_streamer_msg(msg)
+            Thread(target=self.receive_streamer_msg, args=[msg]).start()
         elif client in self.users:
             self.user_responses[client.peer] = msg
         else:
