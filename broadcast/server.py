@@ -45,34 +45,60 @@ class BroadcastServerFactory(WebSocketServerFactory):
             print("unregistered client {}".format(client.peer))
             self.clients.remove(client)
 
-    def _compare(self, value):
-        return self.count > value
-
     def get_deferred(self, delay=3):
         d = Deferred()
         d.addTimeout(delay, reactor)
         return d
 
-    def _check(self, value):
-        self._condition = partial(self._compare, value)
-        d = self._deferred = self.get_deferred()
-        return d
+    def check0(self):
+        _condition = lambda: self.count > 0
+
+        def _callback(x):
+            print('check0 pass')
+            self.check1()
+
+        if _condition():
+            _callback(None)
+        else:
+            self._deferred = Deferred()
+            self._condition = _condition
+            self._deferred.addTimeout(3, reactor)
+            self._deferred.addCallback(_callback)
+            self._deferred.addErrback(lambda x: print('check0 time out'))
+
+    def check1(self):
+        _condition = lambda: self.count > 1
+
+        def _callback(x):
+            print('check1 pass')
+            self.check2()
+
+        if _condition():
+            _callback(None)
+        else:
+            self._deferred = Deferred()
+            self._condition = _condition
+            self._deferred.addTimeout(3, reactor)
+            self._deferred.addCallback(_callback)
+            self._deferred.addErrback(lambda x: print('check1 time out'))
+        
+    def check2(self):
+        _condition = lambda: self.count > 2
+
+        def _callback(x):
+            print('check2 pass')
+
+        if _condition():
+            _callback(None)
+        else:
+            self._deferred = Deferred()
+            self._condition = _condition
+            self._deferred.addTimeout(3, reactor)
+            self._deferred.addCallback(_callback)
+            self._deferred.addErrback(lambda x: print('check2 time out'))
 
     def check(self):
-        print('check0')
-        self.d = self._check(0)
-        self.d.addCallback(lambda x: print('check0 pass'))
-        self.d.addErrback(lambda x: print('check0 timeout'))
-
-        self.d.addCallback(lambda x: print('check1'))
-        self.d.addCallback(self._check, 1)
-        self.d.addCallback(lambda x: print('check1 pass'))
-        self.d.addErrback(lambda x: print('check1 timeout'))
-
-        self.d.addCallback(lambda x: print('check2'))
-        self.d.addCallback(self._check, 2)
-        self.d.addCallback(lambda x: print('check2 pass'))
-        self.d.addErrback(lambda x: print('check2 timeout'))
+        self.check0()
 
     def receive(self, msg, client):
         if msg:
@@ -81,6 +107,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         else:
             self.count += 1
             if self._condition():
+                print('firing callback')
                 if self._deferred and not self._deferred.called:
                     self._deferred.callback(None)
             print('self.count', self.count)

@@ -3,6 +3,7 @@ import json
 import time
 import random
 from threading import Thread
+from functools import partial
 from collections import defaultdict
 
 from twisted.internet import reactor
@@ -10,12 +11,10 @@ from twisted.python import log
 from twisted.web.server import Site
 from twisted.web.static import File
 
-from twisted.internet.defer import Deferred, \
-    inlineCallbacks
+from twisted.internet.defer import Deferred, inlineCallbacks
 
 from autobahn.twisted.websocket import WebSocketServerFactory, \
-    WebSocketServerProtocol, \
-    listenWS
+    WebSocketServerProtocol, listenWS
 
 from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
@@ -59,8 +58,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         print('[server] number of questions: {}'.format(len(self.questions)))
         
         # a bunch of callbacks and their corresponding conditions
-        self._deferred = None
-        self._conditions = None
+        self._deferreds = []
 
     def end_of_game(self):
         print('****** Game Over ******')
@@ -77,16 +75,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
         if self.streamer_response is None or \
                 key not in self.streamer_response or \
                 self.streamer_response[key] != value:
-            return True
-        else:
             return False
+        else:
+            return True
 
     def new_question(self):
-        self.d = self._new_question_0()
-        self.d.addCallback(_new_question_1)
-        
-    def new_question_0(self):
-        print('new question')
+        self._new_question_0()
+
+    def _new_question_0(self):
+        print('new question 0')
         # forward question index
         self.question_idx += 1
         if self.question_idx >= len(self.questions):
@@ -94,47 +91,69 @@ class BroadcastServerFactory(WebSocketServerFactory):
             return
 
         self.question = self.questions[self.question_idx]
-        print('[server] question')
-        print(self.question)
 
         # notify streamer of a new question
         msg = {'type': MSG_TYPE_NEW, 'qid': self.question['qid'], 
                 'text': self.question['text']}
         self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
 
-    def _new_question(self):
-        print('new question')
-        # forward question index
-        self.question_idx += 1
-        if self.question_idx >= len(self.questions):
-            self.end_of_game()
-            return
+        def callback(x):
+            print('[server] streamer check passed')
+            self._new_question_1()
 
-        self.question = self.questions[self.question_idx]
-        print('[server] question')
-        print(self.question)
+        condition = partial(self._check_streamer, 'qid', self.question['qid'])
+        if condition():
+            callback(None)
+        else:
+            deferred = Deferred()
+            deferred.addTimeout(3, reactor)
+            deferred.addCallbacks(callback,
+                    lambda x: print('[server] streamer timed out'))
+            self._deferreds.append((deferred, condition, 'streamer check'))
 
-        # notify streamer of a new question
+    def _new_question_1(self):
+        print('[server] new question 1')
         msg = {'type': MSG_TYPE_NEW, 'qid': self.question['qid'], 
-                'text': self.questions['text']}
-        self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
-
-        # verify that streamer is updated
-        streamer_check = yield self._check_streamer('qid', self.question['qid'])
-        if not streamer_check:
-            print('[server] streamer cannot be updated')
-
-        # notify users of a new question
-        self.user_responses = dict()
-        msg = {'type': MSG_TYPE_NEW, 'qid': self.question['qid'], 
-                'text': 'new question'}
+                'text': 'new question 1'}
         for user in self.users:
             user.sendMessage(json.dumps(msg).encode('utf-8'))
-            user_check = yield self._check_user(user.peer, 'qid', self.question['qid'])
-            if not user_check:
-                print('[server] user {} cannot be updated'.format(user.peer))
-                self.unregister(user)
         self.buzzed = defaultdict(lambda: False)
+
+        _qid = self.question['qid']
+        try:
+            for user in self.users:
+                def callback(x):
+                    print('[server] user {} ready'.format(user.peer))
+                
+                def errback(x):
+                    print('[server] user {} timed out'.format(user.peer))
+                    self.unregister(user)
+
+                condition = partial(self._check_user, user.peer, 'qid', _qid)
+
+                if condition():
+                    callback(None)
+                else:
+                    deferred = Deferred()
+                    deferred.addTimeout(3, reactor)
+                    deferred.addCallbacks(callback, errback)
+                    self._deferreds.append((deferred, condition, 'user check'))
+        except Exception as e:
+            print(e)
+
+        condition = lambda: len(self._deferreds) == 1
+        def callback():
+            if len(self._deferreds) == 0:
+                print('[server] starting game')
+                self._new_question_2()
+            else:
+                print('[server] cannot start game')
+        reactor.callLater(3, callback)
+
+    def _new_question_2(self):
+        print('[server] new question 2')
+        msg = {'type': MSG_TYPE_RESUME, 'qid': self.question['qid']}
+        self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
 
     def register(self, client):
         # assume that the first client is the streamer
@@ -164,28 +183,21 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.users.remove(client)
 
     def _check_user(self, uid, key, value, wait=5):
-        n_attempts = 0
-        while n_attempts < wait:
-            if uid not in self.user_responses or \
-                    key not in self.user_responses[uid] or \
-                    self.user_responses[uid][key] != value:
-                time.sleep(1)
-                n_attempts += 1
-        else:
+        if uid not in self.user_responses or \
+                key not in self.user_responses[uid] or \
+                self.user_responses[uid][key] != value:
             return False
-        return True
-
+        else:
+            return True
 
     def receive_streamer_msg(self, msg):
-        ''' main game logic here '''
-        self.streamer_response = msg
-        if msg['type'] == MSG_TYPE_NEW:
-            pass
-        elif msg['type'] == MSG_TYPE_RESUME:
+        if msg['type'] == MSG_TYPE_RESUME:
+            for user in self.users:
+                print('sent to user', user.peer)
+                user.sendMessage(json.dumps(msg).encode('utf-8'))
+            '''
             # TODO
             # 0. include game state in message
-            for user in self.users:
-                user.sendMessage(json.dumps(msg).encode('utf-8'))
                 user_check = yield self._check_user(
                         user.peer, 'qid', self.question['qid'])
                 if not user_check:
@@ -201,9 +213,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
             # 3. ask the streamer for another one
             msg = {'type': MSG_TYPE_RESUME, 'qid': self.question['qid']}
             self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
+            '''
+        '''
         elif msg['type'] == MSG_TYPE_END:
             self.handle_end_of_question()
             self.new_question()
+        '''
 
     def handle_buzzing(self):
         # TODO
@@ -298,6 +313,17 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         self.new_question()
 
+    def check_deferreds(self):
+        keep_ids = []
+        for i, (deferred, cond, info) in enumerate(self._deferreds):
+            if deferred.called:
+                continue
+            elif cond():
+                deferred.callback(None)
+            else:
+                keep_ids.append(i)
+        self._deferreds = [self._deferreds[i] for i in keep_ids]
+
     def receive(self, msg, client):
         try:
             msg = json.loads(msg.decode('utf-8'))
@@ -306,9 +332,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
             return
         
         if client == self.streamer:
-            Thread(target=self.receive_streamer_msg, args=[msg]).start()
+            self.streamer_response = msg
+            self.check_deferreds()
+            self.receive_streamer_msg(msg)
         elif client in self.users:
             self.user_responses[client.peer] = msg
+            self.check_deferreds()
         else:
             print("[server] unknown source {}".format(client))
             print("[server] message: {}".format(msg))

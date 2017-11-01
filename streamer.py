@@ -1,4 +1,5 @@
 import json
+import time
 
 from twisted.internet import reactor
 
@@ -31,7 +32,7 @@ class StreamerProtocol(WebSocketClientProtocol):
         print('[streamer] ready for question {}'.format(self.qid))
 
     def update_question(self, msg):
-        if msg['qid'] != self.question['qid']:
+        if msg['qid'] != self.qid:
             raise ValueError("[streamer] inconsistent qids")
         self.position += 1
         if self.position < self.length:
@@ -41,17 +42,17 @@ class StreamerProtocol(WebSocketClientProtocol):
             msg = {'type': MSG_TYPE_END, 'text': self.text[self.position],
                     'qid': self.qid, 'position': self.position}
         self.sendMessage(json.dumps(msg).encode('utf-8'))
+        print('sent', msg)
             
 
     def onMessage(self, payload, isBinary):
         msg = json.loads(payload.decode('utf-8'))
-        print('[streamer] msg received:')
-        print(msg)
         if msg['type'] == MSG_TYPE_NEW:
             self.new_question(msg)
         elif msg['type'] == MSG_TYPE_RESUME:
+            # TODO
+            time.sleep(1)
             self.update_question(msg)
-
 
 if __name__ == '__main__':
     factory = WebSocketClientFactory(u"ws://127.0.0.1:9000")
