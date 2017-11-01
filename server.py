@@ -57,21 +57,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.question_idx = -1
 
         print('[server] number of questions: {}'.format(len(self.questions)))
+        
+        # a bunch of callbacks and their corresponding conditions
+        self._deferred = None
+        self._conditions = None
 
-        self.start_game()
-
-    def start_game(self):
-        # TODO game start
-        while True:
-            print('[server] {} user'.format(len(self.users)))
-            if len(self.users) == 0:
-                time.sleep(1)
-            else:
-                break
-        print('[server] game begin')
-
-        self.new_question()
-    
     def end_of_game(self):
         print('****** Game Over ******')
         print('Final Score:')
@@ -83,7 +73,36 @@ class BroadcastServerFactory(WebSocketServerFactory):
         for user in self.users:
             self.unregister(user)
 
+    def _check_streamer(self, key, value, wait=5):
+        if self.streamer_response is None or \
+                key not in self.streamer_response or \
+                self.streamer_response[key] != value:
+            return True
+        else:
+            return False
+
     def new_question(self):
+        self.d = self._new_question_0()
+        self.d.addCallback(_new_question_1)
+        
+    def new_question_0(self):
+        print('new question')
+        # forward question index
+        self.question_idx += 1
+        if self.question_idx >= len(self.questions):
+            self.end_of_game()
+            return
+
+        self.question = self.questions[self.question_idx]
+        print('[server] question')
+        print(self.question)
+
+        # notify streamer of a new question
+        msg = {'type': MSG_TYPE_NEW, 'qid': self.question['qid'], 
+                'text': self.question['text']}
+        self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
+
+    def _new_question(self):
         print('new question')
         # forward question index
         self.question_idx += 1
@@ -101,7 +120,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
 
         # verify that streamer is updated
-        n_attempts = 0
         streamer_check = yield self._check_streamer('qid', self.question['qid'])
         if not streamer_check:
             print('[server] streamer cannot be updated')
@@ -134,6 +152,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     'text': 'Welcome, player {}'.format(len(self.users) - 1),
                     'qid': 0}
             self.users[-1].sendMessage(json.dumps(msg).encode('utf-8'))
+        if len(self.users) > 0:
+            self.new_question()
 
     def unregister(self, client):
         if client == self.streamer:
@@ -155,18 +175,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             return False
         return True
 
-    def _check_streamer(self, key, value, wait=5):
-        n_attempts = 0
-        while n_attempts < wait:
-            if self.streamer_response is None or \
-                    key not in self.streamer_response or \
-                    self.streamer_response[key] != value:
-                time.sleep(1)
-                n_attempts += 1
-        else:
-            return False
-        return True
-    
+
     def receive_streamer_msg(self, msg):
         ''' main game logic here '''
         self.streamer_response = msg
@@ -195,7 +204,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
         elif msg['type'] == MSG_TYPE_END:
             self.handle_end_of_question()
             self.new_question()
-            return
 
     def handle_buzzing(self):
         # TODO
@@ -289,7 +297,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
             print('[server] answer is wrong')
 
         self.new_question()
-        return
 
     def receive(self, msg, client):
         try:
