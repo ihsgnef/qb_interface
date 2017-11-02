@@ -32,7 +32,6 @@ class UserProtocol(WebSocketClientProtocol):
         return self.position > 5
 
     def update_question(self, msg):
-        self.position += 1
         print(msg['text'])
         self.text += msg['text']
         if self.buzz():
@@ -44,6 +43,7 @@ class UserProtocol(WebSocketClientProtocol):
             msg = {'type': MSG_TYPE_RESUME, 'text': 'no answer',
                     'qid': self.qid, 'position': self.position}
             self.sendMessage(json.dumps(msg).encode('utf-8'))
+        self.position += 1
 
     def send_answer(self, msg):
         print('[player] answering')
