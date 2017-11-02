@@ -182,7 +182,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             print("[server] unregistered user {}".format(client.peer))
             self.users.remove(client)
 
-    def _check_user(self, uid, key, value, wait=5):
+    def _check_user(self, uid, key, value):
         if uid not in self.user_responses or \
                 key not in self.user_responses[uid] or \
                 self.user_responses[uid][key] != value:
@@ -193,27 +193,17 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def receive_streamer_msg(self, msg):
         if msg['type'] == MSG_TYPE_RESUME:
             for user in self.users:
-                print('sent to user', user.peer)
                 user.sendMessage(json.dumps(msg).encode('utf-8'))
-            '''
-            # TODO
-            # 0. include game state in message
-                user_check = yield self._check_user(
-                        user.peer, 'qid', self.question['qid'])
-                if not user_check:
-                    print('[server] user {} cannot be updated'.format(user.peer))
-                    self.unregister(user)
             # if any one wants to buzz, check who wins the buzz
-            if any(x['type'] == MSG_TYPE_BUZZING_REQUEST for x in
-                    self.user_responses):
+            if any([x['type'] == MSG_TYPE_BUZZING_REQUEST 
+                for x in self.user_responses.values()]):
                 terminate = self.handle_buzzing()
-                if not terminate:
-                    self.handle_end_of_question()
-                    self.new_question()
-            # 3. ask the streamer for another one
+                # if not terminate:
+                #     self.handle_end_of_question()
+                #     self.new_question()
+            # ask the streamer for another one
             msg = {'type': MSG_TYPE_RESUME, 'qid': self.question['qid']}
             self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
-            '''
         '''
         elif msg['type'] == MSG_TYPE_END:
             self.handle_end_of_question()
@@ -226,13 +216,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         for i, user in enumerate(self.users):
             if self.buzzed[user.peer]:
                 continue
-            # user_check = yield self._check_user(
-            #         user.peer, 'type', MSG_TYPE_BUZZING_REQUEST)
-            # if user_check:
-            #     buzzing_inds.append(i)
             if self.user_responses[user.peer]['type'] == MSG_TYPE_BUZZING_REQUEST:
                 buzzing_inds.append(i)
-
 
         if len(buzzing_inds) == 0:
             return
@@ -242,24 +227,37 @@ class BroadcastServerFactory(WebSocketServerFactory):
         buzzing_idx = buzzing_inds[0]
 
         print('[server] player {} please provide answer'.format(buzzing_idx))
-        
+
         red_msg = {'type': MSG_TYPE_BUZZING_RED, 'qid': self.question['qid']}
         for i, user in enumerate(self.users):
             if i != buzzing_idx:
                 user.sendMessage(json.dumps(red_msg).encode('utf-8'))
         
         green_msg = {'type': MSG_TYPE_BUZZING_GREEN, 'qid': self.question['qid']}
-        b_user = users[buzzing_idx]
+        b_user = self.users[buzzing_idx]
         b_user.sendMessage(json.dumps(green_msg).encode('utf-8'))
 
-        user_check = yield self._check_user(b_user.peer, 'type', MSG_TYPE_BUZZING_ANSWER)
-        if not user_check:
-            print('[server] player {} did not answer in time'.format(buzzing_idx))
-            return
+        self.buzzed[b_user.peer] = True
 
+        try:
+            condition = partial(self._check_user, b_user.peer, 
+                    'type', MSG_TYPE_BUZZING_ANSWER)
+            if condition():
+                callback(None)
+            else:
+                deferred = Deferred()
+                deferred.addTimeout(5, reactor)
+                deferred.addCallbacks(self.handle_buzzing_1,
+                        lambda x: print('[server] user answer time out'))
+                self._deferreds.append(
+                        (deferred, condition, 'wait for user answer'))
+        except Exception as e:
+            print(e)
+
+    def handle_buzzing_1(self):
         # evaluation
         terminate = False
-        self.buzzed[b_user.peer] = True
+
         answer = self.user_responses[b_user.peer]
         if answer == self.question['answer']:
             print('[server] answer is correct')

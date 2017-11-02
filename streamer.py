@@ -50,9 +50,8 @@ class StreamerProtocol(WebSocketClientProtocol):
         if msg['type'] == MSG_TYPE_NEW:
             self.new_question(msg)
         elif msg['type'] == MSG_TYPE_RESUME:
-            # TODO
-            time.sleep(1)
-            self.update_question(msg)
+            # TODO better sleeping mechanism
+            reactor.callLater(1, self.update_question, msg)
 
 if __name__ == '__main__':
     factory = WebSocketClientFactory(u"ws://127.0.0.1:9000")

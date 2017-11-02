@@ -29,14 +29,14 @@ class UserProtocol(WebSocketClientProtocol):
         print('[user] ready for question {}'.format(self.qid))
 
     def buzz(self):
-        return self.position > 10
+        return self.position > 5
 
     def update_question(self, msg):
         self.position += 1
         print(msg['text'])
         self.text += msg['text']
-        '''
         if self.buzz():
+            print('===== buzzing =====')
             msg = {'type': MSG_TYPE_BUZZING_REQUEST, 'text': 'buzzing',
                     'qid': self.qid, 'position': self.position}
             self.sendMessage(json.dumps(msg).encode('utf-8'))
@@ -44,7 +44,6 @@ class UserProtocol(WebSocketClientProtocol):
             msg = {'type': MSG_TYPE_RESUME, 'text': 'no answer',
                     'qid': self.qid, 'position': self.position}
             self.sendMessage(json.dumps(msg).encode('utf-8'))
-        '''
 
     def send_answer(self, msg):
         print('[player] answering')
@@ -59,7 +58,7 @@ class UserProtocol(WebSocketClientProtocol):
         elif msg['type'] == MSG_TYPE_RESUME:
             self.update_question(msg)
         elif msg['type'] == MSG_TYPE_BUZZING_GREEN:
-            # I'm buzzing, send answer
+            print("I'm buzzing, send answer")
             self.send_answer(msg)
         elif msg['type'] == MSG_TYPE_BUZZING_RED:
             pass
