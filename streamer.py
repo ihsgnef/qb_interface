@@ -12,8 +12,8 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('streamer')
 
 class StreamerProtocol(WebSocketClientProtocol):
 
@@ -60,7 +60,8 @@ class StreamerProtocol(WebSocketClientProtocol):
     def onMessage(self, payload, isBinary):
         msg = json.loads(payload.decode('utf-8'))
         if msg['type'] == MSG_TYPE_NEW:
-            self.new_question(msg)
+            if msg['qid'] != 0:
+                self.new_question(msg)
         elif msg['type'] == MSG_TYPE_RESUME:
             reactor.callLater(0.5, self.update_question, msg)
         elif msg['type'] == MSG_TYPE_END:

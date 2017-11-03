@@ -23,7 +23,7 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
 
 
 logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('server')
 
 class BroadcastServerProtocol(WebSocketServerProtocol):
 
