@@ -12,11 +12,11 @@ from qanta.guesser.abstract import AbstractGuesser
 from qanta.guesser.experimental.elasticsearch_instance_of import ElasticSearchWikidataGuesser
 from qanta.new_expo.agent import RNNBuzzer
 
-from client import UserProtocol
+from client import PlayerProtocol
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger('elasticsearch').setLevel(logging.WARNING)
-logger = logging.getLogger('client')
+logger = logging.getLogger('guesser_buzzer_client')
 
 class GuesserBuzzer:
     
@@ -48,13 +48,7 @@ class GuesserBuzzer:
 
 guesser_buzzer = GuesserBuzzer()
 
-class GuesserBuzzerProtocol(UserProtocol):
-
-    def onOpen(self):
-        self.qid = None
-        self.text = ''
-        self.position = 0
-        self.answer = ''
+class GuesserBuzzerProtocol(PlayerProtocol):
 
     def new_question(self, msg):
         guesser_buzzer.new_question()

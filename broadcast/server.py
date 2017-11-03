@@ -39,6 +39,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         if client not in self.clients:
             print("registered client {}".format(client.peer))
             self.clients.append(client)
+            reactor.callLater(3, client.sendMessage, json.dumps('alwkjdh').encode('utf-8'))
 
     def unregister(self, client):
         if client in self.clients:

@@ -249,19 +249,19 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         condition = partial(self._check_user, b_user.peer, 
                 'type', MSG_TYPE_BUZZING_ANSWER)
+        callback = partial(self.handle_buzzing_1, b_user)
+        errback = partial(self.handle_buzzing_2, b_user)
+
         if condition():
             callback(None)
         else:
             deferred = Deferred()
             deferred.addTimeout(5, reactor)
-            deferred.addCallbacks(partial(self.handle_buzzing_1, b_user), 
-                    lambda x: logger.warning(
-                        '[buzzing] Player answer time out'))
+            deferred.addCallbacks(callback, errback)
             self._deferreds.append(
                     (deferred, condition, 'wait for user answer'))
 
     def handle_buzzing_1(self, b_user, x):
-        terminate = False
         answer = self.user_responses[b_user.peer]['text']
         if answer == self.question['answer']:
             logger.info('[buzzing] answer [{}] is correct'.format(answer))
@@ -273,7 +273,16 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.scores[b_user.peer] -= 5
             msg = {'type': MSG_TYPE_BUZZING_ANSWER, 'qid': self.qid, 'text': False}
             b_user.sendMessage(json.dumps(msg).encode('utf-8'))
+        msg = {'type': MSG_TYPE_END}
+        self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
 
+    def handle_buzzing_2(self, b_user, x):
+        logger.warning('[buzzing] Player answer time out')
+        self.user_responses[b_user.peer] = {'type': MSG_TYPE_BUZZING_ANSWER,
+                'qid': self.qid, 'text': '_TIME_OUT_'}
+        self.scores[b_user.peer] -= 5
+        msg = {'type': MSG_TYPE_BUZZING_ANSWER, 'qid': self.qid, 'text': False}
+        b_user.sendMessage(json.dumps(msg).encode('utf-8'))
         msg = {'type': MSG_TYPE_END}
         self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
 

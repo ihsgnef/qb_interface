@@ -29,7 +29,8 @@ class StreamerProtocol(WebSocketClientProtocol):
     def new_question(self, msg):
         self.qid = msg['qid']
         self.text = msg['text']
-        logging.info("New quetion qid: {}".format(self.qid))
+        logger.info('')
+        logger.info("New quetion qid: {}".format(self.qid))
         if isinstance(self.text, str):
             self.text = self.text.split()
         self.length = len(self.text)
@@ -59,6 +60,7 @@ class StreamerProtocol(WebSocketClientProtocol):
                'qid': self.qid, 'position': self.position}
         self.sendMessage(json.dumps(msg).encode('utf-8'))
         print(msg['text'], flush=True)
+        print('--------')
             
     def onMessage(self, payload, isBinary):
         msg = json.loads(payload.decode('utf-8'))

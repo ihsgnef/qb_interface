@@ -12,9 +12,9 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('client')
 
-class UserProtocol(WebSocketClientProtocol):
+class PlayerProtocol(WebSocketClientProtocol):
 
     def onOpen(self):
         self.qid = None
@@ -26,6 +26,7 @@ class UserProtocol(WebSocketClientProtocol):
         logger.warning('Connection closed')
 
     def new_question(self, msg):
+        logger.info('')
         logger.info('New question')
         self.qid = msg['qid']
         self.text = ''
@@ -80,6 +81,6 @@ class UserProtocol(WebSocketClientProtocol):
 
 if __name__ == '__main__':
     factory = WebSocketClientFactory(u"ws://127.0.0.1:9000")
-    factory.protocol = UserProtocol
+    factory.protocol = PlayerProtocol
     connectWS(factory)
     reactor.run()
