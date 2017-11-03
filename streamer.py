@@ -35,8 +35,8 @@ class StreamerProtocol(WebSocketClientProtocol):
 
     def update_question(self, msg):
         if msg['qid'] != self.qid:
-            logger.error("Inconsistent qids: expect {}, received {}".\
-                    format(self.qid, msg['qid']))
+            logger.error("Inconsistent qids: expect {}, received {}"\
+                    .format(self.qid, msg['qid']))
             raise ValueError()
         if self.position < self.length:
             msg = {'type': MSG_TYPE_RESUME, 'text': self.text[self.position],
@@ -62,8 +62,7 @@ class StreamerProtocol(WebSocketClientProtocol):
         if msg['type'] == MSG_TYPE_NEW:
             self.new_question(msg)
         elif msg['type'] == MSG_TYPE_RESUME:
-            # TODO better sleeping mechanism
-            reactor.callLater(1, self.update_question, msg)
+            reactor.callLater(0.5, self.update_question, msg)
         elif msg['type'] == MSG_TYPE_END:
             self.send_rest()
 

@@ -39,7 +39,7 @@ class BroadcastServerProtocol(WebSocketServerProtocol):
 
 class BroadcastServerFactory(WebSocketServerFactory):
 
-    def __init__(self, url):
+    def __init__(self, url, questions):
         WebSocketServerFactory.__init__(self, url)
         self.streamer = None
         self.users = []
@@ -51,16 +51,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.scores = defaultdict(lambda: 0)
         self.buzzed = defaultdict(lambda: False)
 
-        with open('sample_questions.json', 'r') as f:
-            self.questions = json.loads(f.read())[:3]
+        self.questions = questions
         self.question_idx = -1
-
-        logger.info('Loaded {} questions.'.format(len(self.questions)))
+        logger.info('Loaded {} questions'.format(len(self.questions)))
         
         # a bunch of callbacks and their corresponding conditions
         self._deferreds = []
-
-
 
     def register(self, client):
         # assume that the first client is the streamer
@@ -287,7 +283,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
 
 if __name__ == '__main__':
-    factory = BroadcastServerFactory(u"ws://127.0.0.1:9000")
+    with open('data/sample_questions.json', 'r') as f:
+        questions = json.loads(f.read())[:3]
+    factory = BroadcastServerFactory(u"ws://127.0.0.1:9000", questions)
     factory.protocol = BroadcastServerProtocol
     listenWS(factory)
 

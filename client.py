@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 class UserProtocol(WebSocketClientProtocol):
 
     def onOpen(self):
-        # TODO initialize model
         self.qid = None
         self.text = ''
         self.position = 0
