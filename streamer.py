@@ -23,8 +23,8 @@ class StreamerProtocol(WebSocketClientProtocol):
         self.position = 0
         self.length = 0
 
-    def onClose(self):
-        reactor.stop()
+    def onClose(self, wasClean, code, reason):
+        logger.warning('Connection closed')
         
     def new_question(self, msg):
         self.qid = msg['qid']

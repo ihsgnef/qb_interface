@@ -38,13 +38,13 @@ class GuesserBuzzer:
         guesses = self.guesser.guess_single(text)
         if not isinstance(guesses, dict):
             guesses = {x[0]: x[1] for x in guesses}
-        buzzing = False
+        buzz_scores = [0, 1]
         if self.ok_to_buzz:
-            buzzing = self.buzzer.buzz(guesses)
+            buzz_scores = self.buzzer.buzz(guesses)
         guesses = sorted(guesses.items(), key=lambda x: x[1])[::-1]
         if len(guesses) > 0:
             self.answer = guesses[0][0]
-        return buzzing
+        return buzz_scores
 
 guesser_buzzer = GuesserBuzzer()
 
@@ -61,10 +61,13 @@ class GuesserBuzzerProtocol(UserProtocol):
         super(GuesserBuzzerProtocol, self).new_question(msg)
 
     def buzz(self):
-        buzzing_scores = guesser_buzzer.buzz(self.text)
+        buzz_scores = guesser_buzzer.buzz(self.text)
         self.answer = guesser_buzzer.answer
-        print(buzzing_scores, self.answer)
-        return buzzing_scores[0] > buzzing_scores[1]
+        print(buzz_scores, self.answer)
+        buzzing = buzz_scores[0] > buzz_scores[1]
+        if buzzing:
+            guesser_buzzer.ok_to_buzz = False
+        return buzzing
 
 
 if __name__ == '__main__':

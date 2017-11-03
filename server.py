@@ -266,10 +266,14 @@ class BroadcastServerFactory(WebSocketServerFactory):
         if answer == self.question['answer']:
             logger.info('[buzzing] answer [{}] is correct'.format(answer))
             self.scores[b_user.peer] += 10
-            terminate = True
+            msg = {'type': MSG_TYPE_BUZZING_ANSWER, 'qid': self.qid, 'text': True}
+            b_user.sendMessage(json.dumps(msg).encode('utf-8'))
         else:
             logger.info('[buzzing] answer [{}] is wrong'.format(answer))
             self.scores[b_user.peer] -= 5
+            msg = {'type': MSG_TYPE_BUZZING_ANSWER, 'qid': self.qid, 'text': False}
+            b_user.sendMessage(json.dumps(msg).encode('utf-8'))
+
         msg = {'type': MSG_TYPE_END}
         self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
 

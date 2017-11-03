@@ -22,8 +22,8 @@ class UserProtocol(WebSocketClientProtocol):
         self.position = 0
         self.answer = ''
 
-    def onClose(self):
-        reactor.stop()
+    def onClose(self, wasClean, code, reason):
+        logger.warning('Connection closed')
 
     def new_question(self, msg):
         logger.info('New question')
@@ -60,15 +60,22 @@ class UserProtocol(WebSocketClientProtocol):
     def onMessage(self, payload, isBinary):
         msg = json.loads(payload.decode('utf-8'))
         if msg['type'] == MSG_TYPE_NEW:
+            # a new question
             if msg['qid'] != 0:
                 self.new_question(msg)
         elif msg['type'] == MSG_TYPE_RESUME:
+            # update question text
             self.update_question(msg)
         elif msg['type'] == MSG_TYPE_BUZZING_GREEN:
+            # won buzzing, provide answer now
             self.send_answer(msg)
         elif msg['type'] == MSG_TYPE_BUZZING_RED:
-            logger.info("Did not win buzz")
-            pass
+            # did not win buzzing, cannot answer
+            logger.info('Did not win buzz')
+        elif msg['type'] == MSG_TYPE_BUZZING_ANSWER:
+            # result of answer
+            result = 'correct' if msg['text'] else 'wrong'
+            logger.info('Answer is {}'.format(result))
 
 
 if __name__ == '__main__':
