@@ -22,6 +22,9 @@ class UserProtocol(WebSocketClientProtocol):
         self.position = 0
         self.answer = ''
 
+    def onClose(self):
+        reactor.stop()
+
     def new_question(self, msg):
         logger.info('New question')
         self.qid = msg['qid']
@@ -36,7 +39,7 @@ class UserProtocol(WebSocketClientProtocol):
 
     def update_question(self, msg):
         print(msg['text'], end=' ', flush=True)
-        self.text += msg['text']
+        self.text += ' ' + msg['text']
         if self.buzz():
             logger.info("\nBuzzing on answer: {}".format(self.answer))
             msg = {'type': MSG_TYPE_BUZZING_REQUEST, 'text': 'buzzing',

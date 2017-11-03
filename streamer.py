@@ -22,6 +22,9 @@ class StreamerProtocol(WebSocketClientProtocol):
         self.text = None
         self.position = 0
         self.length = 0
+
+    def onClose(self):
+        reactor.stop()
         
     def new_question(self, msg):
         self.qid = msg['qid']
@@ -63,7 +66,7 @@ class StreamerProtocol(WebSocketClientProtocol):
             if msg['qid'] != 0:
                 self.new_question(msg)
         elif msg['type'] == MSG_TYPE_RESUME:
-            reactor.callLater(0.5, self.update_question, msg)
+            reactor.callLater(0.3, self.update_question, msg)
         elif msg['type'] == MSG_TYPE_END:
             self.send_rest()
 

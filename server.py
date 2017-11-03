@@ -204,7 +204,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         condition = lambda: len(self._deferreds) == 1
         def callback():
             if len(self._deferreds) == 0:
-                logger.info('Starting question qid: {}'.format(self.qid))
+                logger.info('Starting question qid: {} (Answer: {})'\
+                        .format(self.qid, self.question['answer']))
                 self.new_question_2()
             else:
                 logger.error('Cannot start game with {} deferreds'\
@@ -263,11 +264,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
         terminate = False
         answer = self.user_responses[b_user.peer]['text']
         if answer == self.question['answer']:
-            logger.info('[buzzing] answer {} is correct'.format(answer))
+            logger.info('[buzzing] answer [{}] is correct'.format(answer))
             self.scores[b_user.peer] += 10
             terminate = True
         else:
-            logger.info('[buzzing] answer {} is wrong'.format(answer))
+            logger.info('[buzzing] answer [{}] is wrong'.format(answer))
             self.scores[b_user.peer] -= 5
         msg = {'type': MSG_TYPE_END}
         self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
@@ -284,7 +285,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
 if __name__ == '__main__':
     with open('data/sample_questions.json', 'r') as f:
-        questions = json.loads(f.read())[:3]
+        questions = json.loads(f.read())
+        random.shuffle(questions)
+        questions = questions[:10]
+
     factory = BroadcastServerFactory(u"ws://127.0.0.1:9000", questions)
     factory.protocol = BroadcastServerProtocol
     listenWS(factory)

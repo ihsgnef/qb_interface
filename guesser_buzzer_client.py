@@ -61,8 +61,10 @@ class GuesserBuzzerProtocol(UserProtocol):
         super(GuesserBuzzerProtocol, self).new_question(msg)
 
     def buzz(self):
-        buzzing = guesser_buzzer.buzz(self.text)
-        return buzzing
+        buzzing_scores = guesser_buzzer.buzz(self.text)
+        self.answer = guesser_buzzer.answer
+        print(buzzing_scores, self.answer)
+        return buzzing_scores[0] > buzzing_scores[1]
 
 
 if __name__ == '__main__':
