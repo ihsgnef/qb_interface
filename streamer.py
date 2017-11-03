@@ -1,5 +1,6 @@
 import json
 import time
+import logging
 
 from twisted.internet import reactor
 
@@ -11,6 +12,9 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 class StreamerProtocol(WebSocketClientProtocol):
 
     def onOpen(self):
@@ -20,36 +24,38 @@ class StreamerProtocol(WebSocketClientProtocol):
         self.length = 0
         
     def new_question(self, msg):
-        print('[streamer]', msg['text'])
         self.qid = msg['qid']
         self.text = msg['text']
+        logging.info("New quetion qid: {}".format(self.qid))
         if isinstance(self.text, str):
             self.text = self.text.split()
         self.length = len(self.text)
         self.position = 0
         self.sendMessage(json.dumps(msg).encode('utf-8'))
-        print('[streamer] ready for question {}'.format(self.qid))
 
     def update_question(self, msg):
         if msg['qid'] != self.qid:
-            raise ValueError("[streamer] inconsistent qids")
+            logger.error("Inconsistent qids: expect {}, received {}".\
+                    format(self.qid, msg['qid']))
+            raise ValueError()
         if self.position < self.length:
             msg = {'type': MSG_TYPE_RESUME, 'text': self.text[self.position],
                     'qid': self.qid, 'position': self.position}
+            print(msg['text'], end=' ', flush=True)
         else:
             msg = {'type': MSG_TYPE_END,
                     'qid': self.qid, 'position': self.position}
         self.position += 1
         self.sendMessage(json.dumps(msg).encode('utf-8'))
-        print('sent', msg)
 
-    def end_of_question(self):
-        print('end of question')
+    def send_rest(self):
+        logger.info('\nSending the rest of question')
         text = ' '.join(self.text[self.position:])
         self.position = self.length
         msg = {'type': MSG_TYPE_RESUME, 'text': text,
                'qid': self.qid, 'position': self.position}
         self.sendMessage(json.dumps(msg).encode('utf-8'))
+        print(msg['text'], flush=True)
             
     def onMessage(self, payload, isBinary):
         msg = json.loads(payload.decode('utf-8'))
@@ -59,7 +65,7 @@ class StreamerProtocol(WebSocketClientProtocol):
             # TODO better sleeping mechanism
             reactor.callLater(1, self.update_question, msg)
         elif msg['type'] == MSG_TYPE_END:
-            self.end_of_question()
+            self.send_rest()
 
 if __name__ == '__main__':
     factory = WebSocketClientFactory(u"ws://127.0.0.1:9000")
