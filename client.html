@@ -1,0 +1,108 @@
+<!--
+Created using JS Bin
+http://jsbin.com
+
+Copyright (c) 2017 by anonymous (http://jsbin.com/perimununa/15/edit)
+
+Released under the MIT license: http://jsbin.mit-license.org
+-->
+<meta name="robots" content="noindex">
+<script src="https://code.jquery.com/jquery.min.js"></script>
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script><script src='script.js'></script> 
+<div class="container-fluid">
+	<div class="row">
+        <div class="col-md-8">
+          <div class="well">
+			<span id="readout">
+				Question
+			</span>
+          </div>
+		</div>
+    </div>
+	<div class="row">
+		<div class="col-md-8" align="center">
+            <button id="buzz-button" type="button" class="btn btn-default">
+				Buzz
+			</button>
+			<textarea id="answer-area">Answer</textarea> 
+			<button id="submit-button" type="button" class="btn btn-default">
+				Submit
+			</button>
+		</div>
+	</div>
+</div>
+<script id="jsbin-javascript">
+console.log("Javascript is working");
+var sockt = new WebSocket("ws://127.0.0.1:9000");
+var question_text = ""
+var textarea = document.getElementById('readout');
+var answerarea = document.getElementById('answer-area');
+var submit_button = document.getElementById("submit-button");
+var buzz_button = document.getElementById("buzz-button");
+var is_buzzing = false;
+var position = 0;
+var qid = 0;
+
+buzz_button.onclick = function() { buzzing(); }
+submit_button.onclick = function() { send_answer(); }
+
+sockt.onopen = function (event) {
+  console.log("websocket open");
+  textarea.textContent = "Hello";
+};
+
+function new_question (msg) {
+  console.log("new question", msg.qid);
+  qid = msg.qid;
+  position = 0;
+  question_text = "";
+  textarea.textContent = question_text;
+  answerarea.value = "";
+  buzz_button.disabled = false;
+  submit_button.disabled = true;
+  is_buzzing = false;
+  var m = {type: 0, qid: msg.qid};
+  console.log("Sending ready message");
+  sockt.send(JSON.stringify(m));
+}
+
+function update_question (msg) {
+  question_text = question_text + " " + msg.text
+  textarea.textContent = question_text;
+  if (is_buzzing === false) { 
+    var m = {type: 1, qid: msg.qid, position: position};
+    sockt.send(JSON.stringify(m));
+  } else {
+    var m = {type: 3, qid: msg.qid, position: position};
+    sockt.send(JSON.stringify(m));
+  }
+}
+
+function buzzing() {
+  is_buzzing = true;
+  buzz_button.disabled = true;
+}
+
+function send_answer () {
+  var answer = answerarea.value;
+  var m = {type: 4, qid: qid, position: position, text: answer};
+  sockt.send(JSON.stringify(m));
+  answer_button.disabled = true;
+  answerarea.value = "";
+}
+
+sockt.onmessage = function (event) {
+  var msg = JSON.parse(event.data);
+  
+  if (msg.type === 0) {
+    new_question(msg);
+  } else if (msg.type == 1) {
+    update_question(msg);
+  } else if (msg.type == 5) {
+    submit_button.disabled = false;
+  } else if (msg.type == 6) {
+    submit_button.disabled = true;
+  }
+};
+</script>
