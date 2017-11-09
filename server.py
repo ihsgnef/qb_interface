@@ -11,9 +11,7 @@ from twisted.internet import reactor
 from twisted.python import log
 from twisted.web.server import Site
 from twisted.web.static import File
-
 from twisted.internet.defer import Deferred, inlineCallbacks
-
 from autobahn.twisted.websocket import WebSocketServerFactory, \
     WebSocketServerProtocol, listenWS
 
@@ -39,7 +37,7 @@ class BroadcastServerProtocol(WebSocketServerProtocol):
 
 class BroadcastServerFactory(WebSocketServerFactory):
 
-    def __init__(self, url, questions):
+    def __init__(self, url, questions, loop=False):
         WebSocketServerFactory.__init__(self, url)
         self.streamer = None
         self.users = []
@@ -53,6 +51,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         self.questions = questions
         self.question_idx = -1
+        self.loop = loop
         logger.info('Loaded {} questions'.format(len(self.questions)))
         
         # a bunch of callbacks and their corresponding conditions
@@ -66,15 +65,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
             msg = {'type': MSG_TYPE_NEW, 'text': 'Welcome, streamer',
                     'qid': 0}
             self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
-
+            self.new_question()
         elif client not in self.users:
             self.users.append(client)
             logger.info("Registered user {}".format(client.peer))
             msg = {'type': MSG_TYPE_NEW, 'qid': 0,
                     'text': 'Welcome, player {}'.format(len(self.users) - 1)}
             self.users[-1].sendMessage(json.dumps(msg).encode('utf-8'))
-        if len(self.users) > 0:
-            self.new_question()
 
     def unregister(self, client):
         if client == self.streamer:
@@ -140,7 +137,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 msg = {'type': MSG_TYPE_RESUME, 'qid': self.qid}
                 self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
         elif msg['type'] == MSG_TYPE_END:
-            self.new_question()
+            reactor.callLater(3, self.new_question)
 
     def new_question(self):
         self.new_question_0()
@@ -149,8 +146,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # forward question index
         self.question_idx += 1
         if self.question_idx >= len(self.questions):
-            self.end_of_game()
-            return
+            if self.loop:
+                random.shuffle(self.questions)
+                self.question_idx = 0
+            else:
+                self.end_of_game()
+                return
 
         self.question = self.questions[self.question_idx]
         self.qid = self.question['qid']
@@ -210,7 +211,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             else:
                 logger.error('Cannot start game with {} deferreds'\
                         .format(len(self._deferreds)))
-        reactor.callLater(3, callback)
+        reactor.callLater(0.5, callback)
 
     def new_question_2(self):
         msg = {'type': MSG_TYPE_RESUME, 'qid': self.qid,
@@ -300,9 +301,9 @@ if __name__ == '__main__':
     with open('data/sample_questions.json', 'r') as f:
         questions = json.loads(f.read())
         random.shuffle(questions)
-        questions = questions[:10]
 
-    factory = BroadcastServerFactory(u"ws://127.0.0.1:9000", questions)
+    factory = BroadcastServerFactory(u"ws://127.0.0.1:9000", questions,
+            loop=True)
     factory.protocol = BroadcastServerProtocol
     listenWS(factory)
 
