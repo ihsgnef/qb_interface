@@ -132,8 +132,8 @@ function update_evidence(msg) {
     if (typeof evidence.guesses !== 'undefined') {
         var guesses = evidence.guesses;
         for (var i = 0; i < Math.min(5, guesses.length); i++) {
-        guesses_table.rows[i+1].cells[1].innerHTML = guesses[i][0];
-           guesses_table.rows[i+1].cells[2].innerHTML = guesses[i][1].toFixed(4);
+            guesses_table.rows[i+1].cells[1].innerHTML = guesses[i][0].substr(0, 20);
+            guesses_table.rows[i+1].cells[2].innerHTML = guesses[i][1].toFixed(4);
         }
     }
 }
@@ -143,13 +143,24 @@ function add_bell() {
     question_area.innerHTML = question_text;
 }
 
-function progress(timeleft, timetotal, $element) {
-    var progressBarWidth = timeleft * $element.width() / timetotal;
-    $element.find('div').animate({ width: progressBarWidth }, 500).html(
-        Math.floor(timeleft / 60) + ":"+ Math.floor(timeleft % 60));
+function progress(timeleft, timetotal, buzzing) {
+    var percentage = timeleft / timetotal * 100;
+    $('.progress-bar').css('width', percentage+'%');
+    if (buzzing == true) {
+        $('.progress-bar').css({
+            'background-image': 'none',
+            'background-color': '#d9534f'
+        });
+    } else {
+        $('.progress-bar').css({
+            'background-image': 'none',
+            'background-color': '#428bca'
+        });
+    }
+    document.getElementById("bar").innerHTML = Math.floor(timeleft/60) + ":" + Math.floor(timeleft%60);
     if(timeleft > 0) {
         timer_timeout = setTimeout(function() {
-            progress(timeleft - 1, timetotal, $element);
+            progress(timeleft - 1, timetotal, buzzing);
         }, 1000);
     }
 };
@@ -160,7 +171,9 @@ sockt.onmessage = function (event) {
         new_question(msg);
     } else if (msg.type === MSG_TYPE_RESUME) {
         if (timer_set === false) {
-           progress((msg.length - msg.position) / 2, msg.length / 2, $('#progressBar'));
+            var timetotal = msg.length / 2;
+            var timeleft = (msg.length - msg.position) / 2;
+            progress(timeleft, timetotal, false);
             timer_set = true;
         }
         update_question(msg);
@@ -170,12 +183,12 @@ sockt.onmessage = function (event) {
     } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
         clearTimeout(timer_timeout);
         answer_button.disabled = false;
-        progress(5, 5, $('#progressBar'));
+        progress(5, 5, true);
         add_bell();
     } else if (msg.type === MSG_TYPE_BUZZING_RED) {
         clearTimeout(timer_timeout);
         answer_button.disabled = true;
-        progress(5, 5, $('#progressBar'));
+        progress(5, 5, true);
         add_bell();
     } else if (msg.type === MSG_TYPE_RESULT_MINE) {
         clearTimeout(timer_timeout);
