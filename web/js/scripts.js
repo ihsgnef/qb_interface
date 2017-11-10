@@ -1,5 +1,5 @@
 // Empty JS for your own code to be here
-var sockt = new WebSocket("ws://127.0.0.1:9000");
+var sockt = new WebSocket("ws://34.209.31.242:9000");
 
 var question_area = document.getElementById('question_area');
 var answer_area = document.getElementById('answer_area');
@@ -145,8 +145,7 @@ function add_bell() {
 
 function progress(timeleft, timetotal, $element) {
     var progressBarWidth = timeleft * $element.width() / timetotal;
-    $element.find('div').animate({ width: progressBarWidth }, 500).html(
-        Math.floor(timeleft/60) + ":"+ timeleft % 60);
+    $element.find('div').animate({ width: progressBarWidth }, 500).html(timeleft);
     if(timeleft > 0) {
         timer_timeout = setTimeout(function() {
             progress(timeleft - 1, timetotal, $element);
