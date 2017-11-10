@@ -145,7 +145,8 @@ function add_bell() {
 
 function progress(timeleft, timetotal, $element) {
     var progressBarWidth = timeleft * $element.width() / timetotal;
-    $element.find('div').animate({ width: progressBarWidth }, 500).html(timeleft);
+    $element.find('div').animate({ width: progressBarWidth }, 500).html(
+        Math.floor(timeleft / 60) + ":"+ Math.floor(timeleft % 60));
     if(timeleft > 0) {
         timer_timeout = setTimeout(function() {
             progress(timeleft - 1, timetotal, $element);
