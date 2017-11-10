@@ -9,7 +9,8 @@ from autobahn.twisted.websocket import WebSocketClientFactory, \
 
 from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
-        MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED
+        MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
+        MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('client')
@@ -61,20 +62,15 @@ class PlayerProtocol(WebSocketClientProtocol):
     def onMessage(self, payload, isBinary):
         msg = json.loads(payload.decode('utf-8'))
         if msg['type'] == MSG_TYPE_NEW:
-            # a new question
             if msg['qid'] != 0:
                 self.new_question(msg)
         elif msg['type'] == MSG_TYPE_RESUME:
-            # update question text
             self.update_question(msg)
         elif msg['type'] == MSG_TYPE_BUZZING_GREEN:
-            # won buzzing, provide answer now
             self.send_answer(msg)
         elif msg['type'] == MSG_TYPE_BUZZING_RED:
-            # did not win buzzing, cannot answer
-            logger.info('Did not win buzz')
-        elif msg['type'] == MSG_TYPE_BUZZING_ANSWER:
-            # result of answer
+            logger.info('Not buzzing')
+        elif msg['type'] == MSG_TYPE_RESULT_MINE:
             result = 'correct' if msg['text'] else 'wrong'
             logger.info('Answer is {}'.format(result))
 

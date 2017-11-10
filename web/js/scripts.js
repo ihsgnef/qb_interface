@@ -4,8 +4,8 @@ var sockt = new WebSocket("ws://127.0.0.1:9000");
 var question_area = document.getElementById('question_area');
 var answer_area = document.getElementById('answer_area');
 var score_area = document.getElementById('score_area');
-var guesses_area = document.getElementById('guesses_area');
-var evidence_tabs = document.getElementById("tabs");
+var evidence_tabs = document.getElementById("evidence_tabs");
+var guesses_table = document.getElementById("guesses_table");
 
 var answer_button = document.getElementById("answer_button");
 var buzz_button = document.getElementById("buzz_button");
@@ -99,7 +99,7 @@ function handle_result_mine(msg) {
 function handle_result_others(msg) {
     answer_button.disabled = true;
     if (typeof msg.evidence !== 'undefined') {
-        question_text += "<br /><br />Player" + msg.evidence.uid;
+        question_text += "<br /><br />Player " + msg.evidence.uid;
         question_text += " answer: " + msg.evidence.guess;
         if (msg.text === false) {
             question_text += " (Wrong)<br /><br />";
@@ -126,8 +126,11 @@ function update_evidence(msg) {
         question_area.innerHTML = question_text;
     }
     if (typeof evidence.guesses !== 'undefined') {
-        var guesses_text = "<br />".concat(evidence.guesses);
-        guesses_area.innerHTML = guesses_text;
+        var guesses = evidence.guesses;
+        for (var i = 0; i < Math.min(5, guesses.length); i++) {
+        guesses_table.rows[i+1].cells[1].innerHTML = guesses[i][0];
+           guesses_table.rows[i+1].cells[2].innerHTML = guesses[i][1].toFixed(4);
+        }
     }
 }
 
