@@ -1,5 +1,9 @@
 import json
 import logging
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 from twisted.internet import reactor
 
@@ -21,6 +25,18 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger('elasticsearch').setLevel(logging.WARNING)
 logger = logging.getLogger('guesser_buzzer_client')
+
+
+def colorize(words, color_array):
+    # words is a list of words
+    # color_array is an array of numbers between 0 and 1 of length equal to words
+    cmap = matplotlib.cm.get_cmap('RdBu')
+    template = '<span class="barcode"; style="color: black; background-color: {}">{}</span>'
+    colored_string = ''
+    for word, color in zip(words, color_array):
+        color = matplotlib.colors.rgb2hex(cmap(color)[:3])
+        colored_string += template.format(color, '&nbsp' + word + '&nbsp')
+    return colored_string
 
 class StupidBuzzer:
 
@@ -74,11 +90,14 @@ class GuesserBuzzerProtocol(PlayerProtocol):
     def onOpen(self):
         self.qid = None
         self.text = ''
+        self.highlight = ''
         self.position = 0
         self.answer = ''
         self.evidence = dict()
 
     def new_question(self, msg):
+        self.text = ''
+        self.highlight = ''
         guesser_buzzer.new_question()
         self.evidence = dict()
         super(GuesserBuzzerProtocol, self).new_question(msg)
@@ -86,7 +105,10 @@ class GuesserBuzzerProtocol(PlayerProtocol):
     def buzz(self):
         buzz_scores = guesser_buzzer.buzz(self.text) # [wait, buzz]
         self.answer = guesser_buzzer.answer
-        self.evidence = {'guesses': guesser_buzzer.guesses}
+        if self.evidence is None:
+            self.evidence = dict()
+        self.evidence['guesses'] = guesser_buzzer.guesses
+        self.evidence['highlight'] = self.highlight
         print(buzz_scores, self.answer)
         buzzing = buzz_scores[0] > buzz_scores[1] # [wait, buzz]
         if buzzing:
@@ -96,6 +118,7 @@ class GuesserBuzzerProtocol(PlayerProtocol):
     def update_question(self, msg):
         # print(msg['text'], end=' ', flush=True)
         self.text += ' ' + msg['text']
+        self.highlight += '_' + msg['text']
         if self.evidence is None:
             self.evidence = dict()
         msg = {'type': MSG_TYPE_BUZZING_REQUEST,
