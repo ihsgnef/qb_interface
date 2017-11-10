@@ -16,6 +16,8 @@ var is_buzzing = false;
 var position = 0;
 var qid = 0;
 var score = 0;
+var timer_set = false;
+var timer_timeout;
 
 var MSG_TYPE_NEW = 0; // beginning of a new question
 var MSG_TYPE_RESUME = 1; // continue
@@ -46,6 +48,7 @@ function new_question(msg) {
     buzz_button.disabled = false;
     answer_button.disabled = true;
     is_buzzing = false;
+    timer_set = false;
     var m = {type: MSG_TYPE_NEW, qid: msg.qid};
     sockt.send(JSON.stringify(m));
 }
@@ -66,6 +69,7 @@ function update_question(msg) {
 function buzzing() {
     is_buzzing = true;
     buzz_button.disabled = true;
+    answer_area.focus();
 }
 
 function send_answer() {
@@ -93,7 +97,7 @@ function handle_result_mine(msg) {
     } else {
         score += 10;
     }
-    score_area.innerHTML = 'Your score:' + score;
+    score_area.innerHTML = 'Your score: ' + score;
 }
 
 function handle_result_others(msg) {
@@ -139,24 +143,45 @@ function add_bell() {
     question_area.innerHTML = question_text;
 }
 
+function progress(timeleft, timetotal, $element) {
+    var progressBarWidth = timeleft * $element.width() / timetotal;
+    $element.find('div').animate({ width: progressBarWidth }, 500).html(
+        Math.floor(timeleft/60) + ":"+ timeleft % 60);
+    if(timeleft > 0) {
+        timer_timeout = setTimeout(function() {
+            progress(timeleft - 1, timetotal, $element);
+        }, 1000);
+    }
+};
+
 sockt.onmessage = function (event) {
     var msg = JSON.parse(event.data);
     if (msg.type === MSG_TYPE_NEW) {
         new_question(msg);
     } else if (msg.type === MSG_TYPE_RESUME) {
+        if (timer_set === false) {
+           progress((msg.length - msg.position) / 2, msg.length / 2, $('#progressBar'));
+            timer_set = true;
+        }
         update_question(msg);
         update_evidence(msg);
     } else if (msg.type === MSG_TYPE_END) {
         update_evidence(msg);
     } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
+        clearTimeout(timer_timeout);
         answer_button.disabled = false;
+        progress(5, 5, $('#progressBar'));
         add_bell();
     } else if (msg.type === MSG_TYPE_BUZZING_RED) {
+        clearTimeout(timer_timeout);
         answer_button.disabled = true;
+        progress(5, 5, $('#progressBar'));
         add_bell();
     } else if (msg.type === MSG_TYPE_RESULT_MINE) {
+        clearTimeout(timer_timeout);
         handle_result_mine(msg);
     } else if (msg.type === MSG_TYPE_RESULT_OTHER) {
+        clearTimeout(timer_timeout);
         handle_result_others(msg);
     }
 };

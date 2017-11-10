@@ -162,6 +162,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 return
 
         self.question = self.questions[self.question_idx]
+        self.question_length = len(self.question['text'].split())
         self.qid = self.question['qid']
 
         # notify streamer of a new question
@@ -186,7 +187,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
     def new_question_1(self):
         msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
-                'text': 'new question'}
+                'text': 'new question', 
+                'length': self.question_length}
         self.broadcast(self.users, msg)
         self.buzzed = defaultdict(lambda: False)
 
