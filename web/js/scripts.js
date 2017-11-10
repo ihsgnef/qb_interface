@@ -26,6 +26,8 @@ var MSG_TYPE_BUZZING_RED = 6 // tell user you cannot buzz now
 var MSG_TYPE_RESULT_MINE = 7 // result of my answer
 var MSG_TYPE_RESULT_OTHER = 8 // result of someone else's answer
 
+var bell_str = ' <span class="inline-icon"><i class="glyphicon glyphicon-bell"></i></span> '
+
 buzz_button.onclick = function() { buzzing(); }
 answer_button.onclick = function() { send_answer(); }
 show_hide_button.onclick = function() { show_hide(); }
@@ -133,6 +135,11 @@ function update_evidence (msg) {
     }
 }
 
+function add_bell () {
+    question_text += bell_str;
+    question_area.innerHTML = question_text;
+}
+
 sockt.onmessage = function (event) {
   var msg = JSON.parse(event.data);
   if (msg.type === MSG_TYPE_NEW) {
@@ -144,8 +151,10 @@ sockt.onmessage = function (event) {
     update_evidence(msg);
   } else if (msg.type == MSG_TYPE_BUZZING_GREEN) {
     answer_button.disabled = false;
+    add_bell();
   } else if (msg.type == MSG_TYPE_BUZZING_RED) {
     answer_button.disabled = true;
+    add_bell();
   } else if (msg.type == MSG_TYPE_RESULT_MINE) {
     handle_result_mine(msg);
   } else if (msg.type == MSG_TYPE_RESULT_OTHER) {
