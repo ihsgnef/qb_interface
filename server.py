@@ -20,6 +20,7 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
         MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
 
+ANSWER_TIME_OUT = 8
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger('server')
@@ -213,13 +214,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         condition = lambda: len(self._deferreds) == 1
         def callback():
-            if len(self._deferreds) == 0:
-                logger.info('Starting question qid: {} (Answer: {})'\
-                        .format(self.qid, self.question['answer']))
-                self.new_question_2()
-            else:
-                logger.error('Cannot start game with {} deferreds'\
-                        .format(len(self._deferreds)))
+            self.new_question_2()
+            # if len(self._deferreds) == 0:
+            #     logger.info('Starting question qid: {} (Answer: {})'\
+            #             .format(self.qid, self.question['answer']))
+            # else:
+            #     logger.error('Cannot start game with {} deferreds'\
+            #             .format(len(self._deferreds)))
         reactor.callLater(0.5, callback)
 
     def new_question_2(self):
@@ -266,7 +267,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             callback(None)
         else:
             deferred = Deferred()
-            deferred.addTimeout(5, reactor)
+            deferred.addTimeout(ANSWER_TIME_OUT, reactor)
             deferred.addCallbacks(callback, errback)
             self._deferreds.append(
                     (deferred, condition, 'wait for user answer'))
