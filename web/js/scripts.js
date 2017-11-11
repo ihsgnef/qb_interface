@@ -9,8 +9,10 @@ var guesses_table = document.getElementById("guesses_table");
 
 var answer_button = document.getElementById("answer_button");
 var buzz_button = document.getElementById("buzz_button");
-var show_hide_button = document.getElementById("show_hide_button");
-var highlight_button = document.getElementById("highlight_button");
+var guesses_checkbox = document.getElementById("guesses_checkbox");
+var highlight_checkbox = document.getElementById("highlight_checkbox");
+var evidence_checkbox = document.getElementById("evidence_checkbox");
+guesses_checkbox.checked = true;
 
 var question_text = "";
 var question_text_highlight = "";
@@ -36,8 +38,8 @@ var bell_str = ' <span class="inline-icon"><i class="glyphicon glyphicon-bell"><
 
 buzz_button.onclick = function () { buzzing(); };
 answer_button.onclick = function () { send_answer(); };
-show_hide_button.onclick = function () { show_hide(); };
-highlight_button.onclick = function () { is_highlighting ^= true; };
+guesses_checkbox.onclick = function () { toggle_guesses(); };
+highlight_checkbox.onclick = function () { is_highlighting ^= true; };
 
 sockt.onopen = function () {
     question_area.innerHTML = "Hello";
@@ -134,15 +136,15 @@ function handle_result_others(msg) {
     }
 }
 
-function show_hide() {
-    if (evidence_tabs.style.display === "none") {
+function toggle_guesses() {
+    if (guesses_checkbox.checked) {
         evidence_tabs.style.display = "block";
     } else {
         evidence_tabs.style.display = "none";
     }
 }
 
-function update_evidence(msg) {
+function update_interpretation(msg) {
     var evidence = msg.evidence;
     if (typeof evidence === 'undefined') { return; }
     if (typeof evidence.answer !== 'undefined') {
@@ -152,7 +154,7 @@ function update_evidence(msg) {
     if (typeof evidence.guesses !== 'undefined') {
         var guesses = evidence.guesses;
         for (var i = 0; i < Math.min(5, guesses.length); i++) {
-            guesses_table.rows[i+1].cells[1].innerHTML = guesses[i][0].substr(0, 20);
+            guesses_table.rows[i+1].cells[1].innerHTML = '<button type="button" class="btn btn-link btn-sm">' + guesses[i][0].substr(0, 20)+ '</button>';
             guesses_table.rows[i+1].cells[2].innerHTML = guesses[i][1].toFixed(4);
         }
     }
@@ -196,9 +198,9 @@ sockt.onmessage = function (event) {
             timer_set = true;
         }
         update_question(msg);
-        update_evidence(msg);
+        update_interpretation(msg);
     } else if (msg.type === MSG_TYPE_END) {
-        update_evidence(msg);
+        update_interpretation(msg);
     } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
         clearTimeout(timer_timeout);
         answer_button.disabled = false;

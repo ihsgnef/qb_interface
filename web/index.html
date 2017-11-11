@@ -19,8 +19,6 @@
     <ul class="breadcrumb">QuizBowl</ul>
     <div class="row">
         <div class="col-md-4">
-			<button class="btn btn-default" id="show_hide_button"> Show / Hide </button>
-			<button class="btn btn-default" id="highlight_button"> Highlight </button>
             <div class="thumbnail" id="evidence_tabs">
                 <div class="tabbable">
                     <ul class="nav nav-tabs">
@@ -49,7 +47,7 @@
                 </div>
 		    </div>
         </div>
-        <div class="col-md-8">
+        <div class="col-md-6">
             <div class="thumbnail">
                 <h3 class="text-center text-primary" id="score_area"> Your score: 0 </h3>
             </div>
@@ -65,6 +63,20 @@
             </div>
 			<button type="submit" class="btn btn-danger" id="buzz_button"> Buzz </button>
 			<button type="submit" class="btn btn-primary" id="answer_button"> Answer </button>
+        </div>
+        <div class="col-md-2">
+            <div class="thumbnail">
+                <h4>Settings</h4>
+                <div class="checkbox">
+                    <label><input type="checkbox" value="" id="guesses_checkbox">Guesses</label>
+                </div>
+                <div class="checkbox">
+                    <label><input type="checkbox" value="" id="highlight_checkbox">Highlights</label>
+                </div>
+                <div class="checkbox">
+                    <label><input type="checkbox" value="" id="evidence_checkbox">Evidence</label>
+                </div>
+            </div>
         </div>
     </div>
 </div>
