@@ -45,6 +45,10 @@ sockt.onopen = function () {
     question_area.innerHTML = "Hello";
 };
 
+$(document).ready(function(){
+  $("#answer_area").fuzzyComplete(all_answers);
+});
+
 function update_question_display(text, append=true, normal=true, highlight=true) {
     if (append) {
         if (normal) {question_text += text;}
@@ -144,6 +148,10 @@ function toggle_guesses() {
     }
 }
 
+function set_guess(guess) {
+    answer_area.value = guess;
+}
+
 function update_interpretation(msg) {
     var evidence = msg.evidence;
     if (typeof evidence === 'undefined') { return; }
@@ -154,7 +162,12 @@ function update_interpretation(msg) {
     if (typeof evidence.guesses !== 'undefined') {
         var guesses = evidence.guesses;
         for (var i = 0; i < Math.min(5, guesses.length); i++) {
-            guesses_table.rows[i+1].cells[1].innerHTML = '<button type="button" class="btn btn-link btn-sm">' + guesses[i][0].substr(0, 20)+ '</button>';
+            var guess = guesses[i][0]
+            var guess_text = guess.substr(0, 20)
+            var button_text = '<a id="guesses_' + i + '"';
+            button_text += 'onclick=set_guess("' + guess + '")';
+            button_text += '>' + guess_text + '</a>';
+            guesses_table.rows[i+1].cells[1].innerHTML = button_text
             guesses_table.rows[i+1].cells[2].innerHTML = guesses[i][1].toFixed(4);
         }
     }

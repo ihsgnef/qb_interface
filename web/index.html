@@ -12,7 +12,8 @@
 
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
-
+    <link href="css/fuzzycomplete.css" rel="stylesheet">
+        
   </head>
 <body>
 <div class="container-fluid">
@@ -59,7 +60,22 @@
                     <div class="well" id="question_area"> Question </div>
                 </div>
             <div class="col-xs-6">
-                <input placeholder="Your guess" class="form-control" id="answer_area" type="text">
+                <datalist id="languages">
+  <option value="HTML">
+  <option value="CSS">
+  <option value="JavaScript">
+  <option value="Java">
+  <option value="Ruby">
+  <option value="PHP">
+  <option value="Go">
+  <option value="Erlang">
+  <option value="Python">
+  <option value="C">
+  <option value="C#">
+  <option value="C++">
+</datalist>
+                <input placeholder="Your guess" class="form-control" id="answer_area" type="text" list="languages">
+
             </div>
 			<button type="submit" class="btn btn-danger" id="buzz_button"> Buzz </button>
 			<button type="submit" class="btn btn-primary" id="answer_button"> Answer </button>
@@ -83,6 +99,9 @@
 
     <script src="js/jquery.min.js"></script>
     <script src="js/bootstrap.min.js"></script>
+    <script src="js/answers.js"></script>
+    <script src="js/fuse.min.js"></script>
+    <script src="js/fuzzycomplete.js"></script>
     <script src="js/scripts.js"></script>
   </body>
 </html>
