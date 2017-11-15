@@ -39,6 +39,11 @@ var bell_str = ' <span class="inline-icon"><i class="glyphicon glyphicon-bell"><
 buzz_button.onclick = function () { buzzing(); };
 answer_button.onclick = function () { send_answer(); };
 guesses_checkbox.onclick = function () { toggle_guesses(); };
+answer_area.onkeydown = function(event) {
+    if (event.keyCode === 13) {
+        answer_button.click();
+    }
+};
 
 sockt.onopen = function () {
     question_area.innerHTML = "Hello";
@@ -136,6 +141,9 @@ function buzzing() {
 }
 
 function send_answer() {
+    if (answer_button.disabled) {
+        return;
+    }
     var answer = answer_area.value;
     var m = {type: MSG_TYPE_BUZZING_ANSWER, qid: qid, position: position, text: answer};
     sockt.send(JSON.stringify(m));
@@ -185,6 +193,7 @@ function toggle_guesses() {
 
 function set_guess(guess) {
     answer_area.value = guess;
+    answer_area.focus();
 }
 
 function update_interpretation(msg) {
