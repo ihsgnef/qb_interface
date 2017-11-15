@@ -48,7 +48,7 @@ class StupidBuzzer:
     
     def buzz(self, guesses):
         self.step += 1
-        if self.step > 20:
+        if self.step > 40:
             return [1, 0]
         else:
             return [0, 1]
@@ -118,7 +118,9 @@ class GuesserBuzzerProtocol(PlayerProtocol):
     def update_question(self, msg):
         # print(msg['text'], end=' ', flush=True)
         self.text += ' ' + msg['text']
-        self.highlight += '_' + msg['text']
+        words = msg['text'].split()
+        weights = np.random.uniform(size=len(words))
+        self.highlight += colorize(words, weights)
         if self.evidence is None:
             self.evidence = dict()
         msg = {'type': MSG_TYPE_BUZZING_REQUEST,

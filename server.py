@@ -236,8 +236,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
         for i, user in enumerate(self.users):
             if self.buzzed[user.peer]:
                 continue
-            if self.user_responses[user.peer]['type'] == MSG_TYPE_BUZZING_REQUEST:
-                buzzing_inds.append(i)
+            if user.peer in self.user_responses and \
+                    'type' in self.user_responses[user.peer]:
+                rsp_type = self.user_responses[user.peer]['type']
+                if rsp_type == MSG_TYPE_BUZZING_REQUEST:
+                    buzzing_inds.append(i)
 
         if len(buzzing_inds) == 0:
             return
