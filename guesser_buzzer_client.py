@@ -26,15 +26,20 @@ logging.basicConfig(level=logging.DEBUG)
 logging.getLogger('elasticsearch').setLevel(logging.WARNING)
 logger = logging.getLogger('guesser_buzzer_client')
 
+cmap = matplotlib.cm.get_cmap('RdBu')
+
+def get_color(value):
+    return matplotlib.colors.rgb2hex(cmap(value)[:3])
+
 
 def colorize(words, color_array):
     # words is a list of words
     # color_array is an array of numbers between 0 and 1 of length equal to words
-    cmap = matplotlib.cm.get_cmap('RdBu')
+
     template = '<span class="barcode"; style="color: black; background-color: {}">{}</span>'
     colored_string = ''
     for word, color in zip(words, color_array):
-        color = matplotlib.colors.rgb2hex(cmap(color)[:3])
+        color = get_color(color)
         colored_string += template.format(color, '&nbsp' + word + '&nbsp')
     return colored_string
 
@@ -90,14 +95,14 @@ class GuesserBuzzerProtocol(PlayerProtocol):
     def onOpen(self):
         self.qid = None
         self.text = ''
-        self.highlight = ''
+        self.highlight = '#FFFFFF'
         self.position = 0
         self.answer = ''
         self.evidence = dict()
 
     def new_question(self, msg):
         self.text = ''
-        self.highlight = ''
+        self.highlight = '#FFFFFF'
         guesser_buzzer.new_question()
         self.evidence = dict()
         super(GuesserBuzzerProtocol, self).new_question(msg)
@@ -119,8 +124,8 @@ class GuesserBuzzerProtocol(PlayerProtocol):
         # print(msg['text'], end=' ', flush=True)
         self.text += ' ' + msg['text']
         words = msg['text'].split()
-        weights = np.random.uniform(size=len(words))
-        self.highlight += colorize(words, weights)
+        weight = np.random.uniform()
+        self.highlight = get_color(weight)
         if self.evidence is None:
             self.evidence = dict()
         msg = {'type': MSG_TYPE_BUZZING_REQUEST,
