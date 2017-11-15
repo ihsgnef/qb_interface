@@ -259,18 +259,18 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         logger.info('[buzzing] Player {} answering'.format(buzzing_idx))
 
-        red_msg = {'type': MSG_TYPE_BUZZING_RED, 'qid': self.qid, 
-                'evidence': {'buzzing': {'uid': buzzing_idx}}}
+        red_msg = {'type': MSG_TYPE_BUZZING_RED, 'qid': self.qid, 'uid':
+                buzzing_idx, 'length': 8}
         red_users = self.users[:buzzing_idx] + self.users[buzzing_idx+1:]
         self.broadcast(red_users, red_msg)
         
-        green_msg = {'type': MSG_TYPE_BUZZING_GREEN, 'qid': self.qid}
-        b_user = self.users[buzzing_idx]
-        b_user.sendMessage(json.dumps(green_msg).encode('utf-8'))
+        green_msg = {'type': MSG_TYPE_BUZZING_GREEN, 'qid': self.qid, 'length': 8}
+        green_user = self.users[buzzing_idx]
+        green_user.sendMessage(json.dumps(green_msg).encode('utf-8'))
 
-        self.buzzed[b_user.peer] = True
+        self.buzzed[green_user.peer] = True
 
-        condition = partial(self._check_user, b_user.peer, 
+        condition = partial(self._check_user, green_user.peer, 
                 'type', MSG_TYPE_BUZZING_ANSWER)
         callback = partial(self.handle_buzzing_1, buzzing_idx, end_of_question)
         errback = partial(self.handle_buzzing_2, buzzing_idx, end_of_question)
@@ -292,10 +292,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
             logger.info('[buzzing] answer [{}] is correct'.format(answer))
             self.scores[green_user.peer] += 10
             msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': True,
-                    'score': 10, 'evidence': {'uid': buzzing_idx, 'guess': answer}}
+                    'score': 10, 'uid': buzzing_idx, 'guess': answer}
             green_user.sendMessage(json.dumps(msg).encode('utf-8'))
-            msg = {'type': MSG_TYPE_RESULT_OTHER, 'qid': self.qid, 'text': True,
-                    'evidence': {'uid': buzzing_idx, 'guess': answer}}
+            msg = {'type': MSG_TYPE_RESULT_OTHER, 'qid': self.qid, 'result': True,
+                    'uid': buzzing_idx, 'guess': answer}
             self.broadcast(red_users, msg)
             end_of_question = True
         else:
@@ -303,17 +303,17 @@ class BroadcastServerFactory(WebSocketServerFactory):
             _score = 0 if end_of_question else -5
             self.scores[green_user.peer] +=  _score
             msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': False,
-                    'score': _score, 'evidence': {'uid': buzzing_idx, 'guess': answer}}
+                    'score': _score,'uid': buzzing_idx, 'guess': answer}
             green_user.sendMessage(json.dumps(msg).encode('utf-8'))
-            msg = {'type': MSG_TYPE_RESULT_OTHER, 'qid': self.qid, 'text': False,
-                    'evidence': {'uid': buzzing_idx, 'guess': answer}}
+            msg = {'type': MSG_TYPE_RESULT_OTHER, 'qid': self.qid, 'result': False,
+                    'uid': buzzing_idx, 'guess': answer}
             self.broadcast(red_users, msg)
         if end_of_question:
             self.eoq_send_answer()
             reactor.callLater(3, self.new_question)
         else:
             msg = {'type': MSG_TYPE_END}
-            self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
+            reactor.callLater(2, self.streamer.sendMessage, json.dumps(msg).encode('utf-8'))
 
     def handle_buzzing_2(self, buzzing_idx, end_of_question, x):
         logger.warning('[buzzing] Player answer time out')
@@ -324,17 +324,17 @@ class BroadcastServerFactory(WebSocketServerFactory):
         _score = 0 if end_of_question else -5
         self.scores[green_user.peer] +=  _score
         msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': False,
-                'score': _score, 'evidence': {'uid': buzzing_idx, 'guess': 'TIME OUT'}}
+                'score': _score, 'uid': buzzing_idx, 'guess': 'TIME OUT'}
         green_user.sendMessage(json.dumps(msg).encode('utf-8'))
-        msg = {'type': MSG_TYPE_RESULT_OTHER, 'qid': self.qid, 'text': False,
-                'evidence': {'uid': buzzing_idx, 'guess': 'TIME OUT'}}
+        msg = {'type': MSG_TYPE_RESULT_OTHER, 'qid': self.qid, 'result': False,
+                'uid': buzzing_idx, 'guess': 'TIME OUT'}
         self.broadcast(red_users, msg)
         if end_of_question:
             self.eoq_send_answer()
             reactor.callLater(3, self.new_question)
         else:
             msg = {'type': MSG_TYPE_END}
-            self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
+            reactor.callLater(2, self.streamer.sendMessage, json.dumps(msg).encode('utf-8'))
 
     def end_of_game(self):
         logger.info('Final Score:')
