@@ -57,7 +57,7 @@ voice_msg.pitch = 1; //0 to 2
 voice_msg.text = 'Hello World';
 voice_msg.lang = 'en-US';
 
-function update_question_display(text, append=true, bg_color="#FFFFFF") {
+function update_question_display(text, append=true, bg_color="#f4f4f4") {
     var colored_text = '<span style="background-color: ' + bg_color + '">' + text + '</span>';
     if (append) {
         question_text += text;
@@ -130,7 +130,7 @@ function handle_result_mine(msg) {
     answer_button.disabled = true;
     if (typeof msg.evidence !== 'undefined') {
         var text = "<br /><br />Your answer: " + msg.evidence.guess;
-        if (msg.text === false) {
+        if (msg.result === false) {
             text += " (Wrong)<br /><br />";
         } else {
             text += " (Correct)<br /><br />";
@@ -138,11 +138,7 @@ function handle_result_mine(msg) {
         update_question_display(text);
     }
 
-    if (msg.text === false) {
-        score -= 5;
-    } else {
-        score += 10;
-    }
+    score += msg.score;
     score_area.innerHTML = 'Your score: ' + score;
 }
 
@@ -233,16 +229,20 @@ sockt.onmessage = function (event) {
         update_question(msg);
         update_interpretation(msg);
     } else if (msg.type === MSG_TYPE_END) {
+        if (typeof msg.text != 'undefined') {
+            update_question(msg);
+        }
         update_interpretation(msg);
     } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
         clearTimeout(timer_timeout);
         answer_button.disabled = false;
-        progress(5, 5, true);
+        progress(8, 8, true);
         add_bell();
     } else if (msg.type === MSG_TYPE_BUZZING_RED) {
         clearTimeout(timer_timeout);
         answer_button.disabled = true;
-        progress(5, 5, true);
+        buzz_button.disabled = true;
+        progress(8, 8, true);
         add_bell();
     } else if (msg.type === MSG_TYPE_RESULT_MINE) {
         clearTimeout(timer_timeout);
