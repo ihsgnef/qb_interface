@@ -12,6 +12,7 @@ var buzz_button = document.getElementById("buzz_button");
 var guesses_checkbox = document.getElementById("guesses_checkbox");
 var highlight_checkbox = document.getElementById("highlight_checkbox");
 var evidence_checkbox = document.getElementById("evidence_checkbox");
+var voice_checkbox = document.getElementById("voice_checkbox");
 guesses_checkbox.checked = true;
 
 var question_text = "";
@@ -22,7 +23,6 @@ var qid = 0;
 var score = 0;
 var timer_set = false;
 var timer_timeout;
-var is_highlighting = false;
 
 var MSG_TYPE_NEW = 0; // beginning of a new question
 var MSG_TYPE_RESUME = 1; // continue
@@ -39,7 +39,6 @@ var bell_str = ' <span class="inline-icon"><i class="glyphicon glyphicon-bell"><
 buzz_button.onclick = function () { buzzing(); };
 answer_button.onclick = function () { send_answer(); };
 guesses_checkbox.onclick = function () { toggle_guesses(); };
-highlight_checkbox.onclick = function () { is_highlighting ^= true; };
 
 sockt.onopen = function () {
     question_area.innerHTML = "Hello";
@@ -49,6 +48,16 @@ $(document).ready(function(){
   $("#answer_area").fuzzyComplete(all_answers);
 });
 
+var voice_msg = new SpeechSynthesisUtterance();
+var voices = window.speechSynthesis.getVoices();
+voice_msg.voice = voices[10]; // Note: some voices don't support altering params
+voice_msg.voiceURI = 'native';
+voice_msg.volume = 1; // 0 to 1
+voice_msg.rate = 1.5; // 0.1 to 10
+voice_msg.pitch = 1; //0 to 2
+voice_msg.text = 'Hello World';
+voice_msg.lang = 'en-US';
+
 function update_question_display(text, append=true, normal=true, highlight=true) {
     if (append) {
         if (normal) {question_text += text;}
@@ -57,7 +66,7 @@ function update_question_display(text, append=true, normal=true, highlight=true)
         if (normal) {question_text = text;}
         if (highlight) {question_text_highlight = text;}
     }
-    if (is_highlighting) {question_area.innerHTML = question_text_highlight;}
+    if (highlight_checkbox.checked) {question_area.innerHTML = question_text_highlight;}
     else {question_area.innerHTML = question_text;}
 }
 
@@ -79,8 +88,16 @@ function update_question(msg) {
         var hilight = msg.evidence.highlight;
         update_question_display(" " + msg.text, true, true, false);
         update_question_display(hilight, false, false, true);
+        if (voice_checkbox.checked) {
+            voice_msg.text = msg.text;
+            speechSynthesis.speak(voice_msg);
+        }
     } else {
         update_question_display(" " + msg.text);
+        if (voice_checkbox.checked) {
+            voice_msg.text = msg.text;
+            speechSynthesis.speak(voice_msg);
+        }
     }
     var m = {type: MSG_TYPE_RESUME, qid: msg.qid, position: position};
     if (is_buzzing === false) {
