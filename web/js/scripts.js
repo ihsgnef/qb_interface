@@ -13,7 +13,6 @@ var guesses_checkbox = document.getElementById("guesses_checkbox");
 var highlight_checkbox = document.getElementById("highlight_checkbox");
 var evidence_checkbox = document.getElementById("evidence_checkbox");
 var voice_checkbox = document.getElementById("voice_checkbox");
-guesses_checkbox.checked = true;
 
 var question_text = "";
 var question_text_highlight = "";
@@ -58,16 +57,21 @@ voice_msg.pitch = 1; //0 to 2
 voice_msg.text = 'Hello World';
 voice_msg.lang = 'en-US';
 
-function update_question_display(text, append=true, normal=true, highlight=true) {
+function update_question_display(text, append=true, bg_color="#FFFFFF") {
+    var colored_text = '<span style="background-color: ' + bg_color + '">' + text + '</span>';
     if (append) {
-        if (normal) {question_text += text;}
-        if (highlight) {question_text_highlight += text;}
+        question_text += text;
+        question_text_highlight += colored_text;
     } else {
-        if (normal) {question_text = text;}
-        if (highlight) {question_text_highlight = text;}
+        question_text = text;
+        question_text_highlight = colored_text;
     }
-    if (highlight_checkbox.checked) {question_area.innerHTML = question_text_highlight;}
-    else {question_area.innerHTML = question_text;}
+    if (highlight_checkbox.checked) {
+        question_area.innerHTML = question_text_highlight;
+    }
+    else {
+        question_area.innerHTML = question_text;
+    }
 }
 
 function new_question(msg) {
@@ -86,17 +90,16 @@ function new_question(msg) {
 function update_question(msg) {
     if (typeof msg.evidence != 'undefined' && typeof msg.evidence.highlight != 'undefined') {
         var hilight = msg.evidence.highlight;
-        update_question_display(" " + msg.text, true, true, false);
-        update_question_display(hilight, false, false, true);
+        update_question_display(" " + msg.text, true, hilight);
         if (voice_checkbox.checked) {
             voice_msg.text = msg.text;
-            speechSynthesis.speak(voice_msg);
+            // speechSynthesis.speak(voice_msg);
         }
     } else {
         update_question_display(" " + msg.text);
         if (voice_checkbox.checked) {
             voice_msg.text = msg.text;
-            speechSynthesis.speak(voice_msg);
+            // speechSynthesis.speak(voice_msg);
         }
     }
     var m = {type: MSG_TYPE_RESUME, qid: msg.qid, position: position};
