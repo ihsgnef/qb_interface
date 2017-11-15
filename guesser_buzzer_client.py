@@ -52,11 +52,12 @@ class StupidBuzzer:
         self.step = 0
     
     def buzz(self, guesses):
-        self.step += 1
-        if self.step > 40:
-            return [1, 0]
-        else:
-            return [0, 1]
+        # self.step += 1
+        # if self.step > 40:
+        #     return [1, 0]
+        # else:
+        #     return [0, 1]
+        return [0, 1]
 
 class GuesserBuzzer:
     
@@ -95,14 +96,14 @@ class GuesserBuzzerProtocol(PlayerProtocol):
     def onOpen(self):
         self.qid = None
         self.text = ''
-        self.highlight = '#FFFFFF'
+        self.highlight = '#f4f4f4'
         self.position = 0
         self.answer = ''
         self.evidence = dict()
 
     def new_question(self, msg):
         self.text = ''
-        self.highlight = '#FFFFFF'
+        self.highlight = '#f4f4f4'
         guesser_buzzer.new_question()
         self.evidence = dict()
         super(GuesserBuzzerProtocol, self).new_question(msg)

@@ -71,7 +71,7 @@ class PlayerProtocol(WebSocketClientProtocol):
         elif msg['type'] == MSG_TYPE_BUZZING_RED:
             logger.info('Not buzzing')
         elif msg['type'] == MSG_TYPE_RESULT_MINE:
-            result = 'correct' if msg['text'] else 'wrong'
+            result = 'correct' if msg['result'] else 'wrong'
             logger.info('Answer is {}'.format(result))
 
 

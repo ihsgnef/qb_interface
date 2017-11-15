@@ -42,10 +42,14 @@ class StreamerProtocol(WebSocketClientProtocol):
             logger.error("Inconsistent qids: expect {}, received {}"\
                     .format(self.qid, msg['qid']))
             raise ValueError()
-        if self.position < self.length:
+        if self.position < self.length - 1:
             msg = {'type': MSG_TYPE_RESUME, 'text': self.text[self.position],
                     'qid': self.qid, 'position': self.position, 
                     'length': self.length}
+            print(msg['text'], end=' ', flush=True)
+        elif self.position == self.length - 1:
+            msg = {'type': MSG_TYPE_END, 'text': self.text[self.position],
+                    'qid': self.qid, 'position': self.position}
             print(msg['text'], end=' ', flush=True)
         else:
             msg = {'type': MSG_TYPE_END,
@@ -56,9 +60,10 @@ class StreamerProtocol(WebSocketClientProtocol):
     def send_rest(self):
         logger.info('\nSending the rest of question')
         text = ' '.join(self.text[self.position:])
-        self.position = self.length
-        msg = {'type': MSG_TYPE_RESUME, 'text': text,
+        self.position = self.length - 1
+        msg = {'type': MSG_TYPE_END, 'text': text,
                'qid': self.qid, 'position': self.position}
+        self.position += 1
         self.sendMessage(json.dumps(msg).encode('utf-8'))
         print(msg['text'], flush=True)
         print('--------')
