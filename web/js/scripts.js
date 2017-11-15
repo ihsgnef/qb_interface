@@ -41,7 +41,9 @@ answer_button.onclick = function () { send_answer(); };
 guesses_checkbox.onclick = function () { toggle_guesses(); };
 answer_area.onkeydown = function(event) {
     if (event.keyCode === 13) {
-        answer_button.click();
+        if (is_buzzing) {
+            answer_button.click();
+        }
     }
 };
 
@@ -130,7 +132,6 @@ function update_question(msg) {
     } else {
         m.type = MSG_TYPE_BUZZING_REQUEST;
         sockt.send(JSON.stringify(m));
-        is_buzzing = false;
     }
 }
 
@@ -149,9 +150,11 @@ function send_answer() {
     sockt.send(JSON.stringify(m));
     answer_button.disabled = true;
     answer_area.value = "";
+    is_buzzing = false;
 }
 
 function handle_result_mine(msg) {
+    is_buzzing = false;
     answer_button.disabled = true;
     var text = msg.guess + ' ';
     if (msg.result === true) {
@@ -165,6 +168,7 @@ function handle_result_mine(msg) {
 }
 
 function handle_result_others(msg) {
+    is_buzzing = false;
     answer_button.disabled = true;
     var text = msg.guess + ' ';
     if (msg.result === true) {
