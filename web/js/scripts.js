@@ -16,6 +16,7 @@ var voice_checkbox = document.getElementById("voice_checkbox");
 
 var question_text = "";
 var question_text_highlight = "";
+var info_text = "";
 var is_buzzing = false;
 var position = 0;
 var qid = 0;
@@ -67,10 +68,25 @@ function update_question_display(text, append=true, bg_color="#f4f4f4") {
         question_text_highlight = colored_text;
     }
     if (highlight_checkbox.checked) {
-        question_area.innerHTML = question_text_highlight;
+        question_area.innerHTML = question_text_highlight + '<br />' + info_text;
     }
     else {
-        question_area.innerHTML = question_text;
+        question_area.innerHTML = question_text + '<br />' + info_text;
+    }
+}
+
+function update_info_display(text, append=true) {
+    if (append) {
+        info_text += text;
+    }
+    else {
+        info_text = text;
+    }
+    if (highlight_checkbox.checked) {
+        question_area.innerHTML = question_text_highlight + '<br />' + info_text;
+    }
+    else {
+        question_area.innerHTML = question_text + '<br />' + info_text;
     }
 }
 
@@ -78,6 +94,7 @@ function new_question(msg) {
     qid = msg.qid;
     position = 0;
     update_question_display("", false);
+    update_info_display("", false);
     answer_area.value = "";
     buzz_button.disabled = false;
     answer_button.disabled = true;
@@ -128,32 +145,34 @@ function send_answer() {
 
 function handle_result_mine(msg) {
     answer_button.disabled = true;
-    if (typeof msg.evidence !== 'undefined') {
-        var text = "<br /><br />Your answer: " + msg.evidence.guess;
-        if (msg.result === false) {
-            text += " (Wrong)<br /><br />";
-        } else {
-            text += " (Correct)<br /><br />";
-        }
-        update_question_display(text);
+    var text = msg.guess + ' ';
+    if (msg.result === true) {
+        text += '<span class="label label-success">Correct</span><br />';
+    } else {
+        text += '<span class="label label-warning">Wrong</span>';
     }
-
+    update_info_display(text);
     score += msg.score;
     score_area.innerHTML = 'Your score: ' + score;
 }
 
 function handle_result_others(msg) {
     answer_button.disabled = true;
-    if (typeof msg.evidence !== 'undefined') {
-        var text = "<br /><br />Player " + msg.evidence.uid;
-        text += " answer: " + msg.evidence.guess;
-        if (msg.text === false) {
-            text += " (Wrong)<br /><br />";
-        } else {
-            text += " (Correct)<br /><br />";
-        }
-        update_question_display(text);
+    var text = msg.guess + ' ';
+    if (msg.result === true) {
+        text += '<span class="label label-success">Correct</span><br />';
+    } else {
+        text += '<span class="label label-warning">Wrong</span>';
     }
+    update_info_display(text);
+}
+
+function add_history() {
+    var iDiv = document.createElement('div');
+    iDiv.className = 'well';
+    iDiv.innerHTML = question_text + '<br />' + info_text;
+    var history_div = document.getElementById('history');
+    history_div.insertBefore(iDiv, history_div.childNodes[0]);
 }
 
 function toggle_guesses() {
@@ -172,8 +191,8 @@ function update_interpretation(msg) {
     var evidence = msg.evidence;
     if (typeof evidence === 'undefined') { return; }
     if (typeof evidence.answer !== 'undefined') {
-        var text = "<br /><br />Correct answer: " + evidence.answer;
-        update_question_display(text);
+        var text = "<br />Correct answer: " + evidence.answer;
+        update_info_display(text);
     }
     if (typeof evidence.guesses !== 'undefined') {
         var guesses = evidence.guesses;
@@ -213,11 +232,31 @@ function progress(timeleft, timetotal, buzzing) {
             progress(timeleft - 1, timetotal, buzzing);
         }, 1000);
     }
-};
+}
+
+function handle_buzzing_red(msg) {
+    clearTimeout(timer_timeout);
+    answer_button.disabled = true;
+    buzz_button.disabled = true;
+    progress(msg.length, msg.length, true);
+    add_bell();
+    var text = '</br><span class="label label-danger">Buzz</span> <span> Player ' + msg.uid + ' answer: </span>'
+    update_info_display(text);
+}
+
+function handle_buzzing_green(msg) {
+    clearTimeout(timer_timeout);
+    answer_button.disabled = false;
+    progress(msg.length, msg.length, true);
+    add_bell();
+    var text = '</br><span class="label label-danger">Buzz</span> <span> Your answer: </span>'
+    update_info_display(text);
+}
 
 sockt.onmessage = function (event) {
     var msg = JSON.parse(event.data);
     if (msg.type === MSG_TYPE_NEW) {
+        add_history();  
         new_question(msg);
     } else if (msg.type === MSG_TYPE_RESUME) {
         if (timer_set === false) {
@@ -234,16 +273,9 @@ sockt.onmessage = function (event) {
         }
         update_interpretation(msg);
     } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
-        clearTimeout(timer_timeout);
-        answer_button.disabled = false;
-        progress(8, 8, true);
-        add_bell();
+        handle_buzzing_green(msg);
     } else if (msg.type === MSG_TYPE_BUZZING_RED) {
-        clearTimeout(timer_timeout);
-        answer_button.disabled = true;
-        buzz_button.disabled = true;
-        progress(8, 8, true);
-        add_bell();
+        handle_buzzing_red(msg);
     } else if (msg.type === MSG_TYPE_RESULT_MINE) {
         clearTimeout(timer_timeout);
         handle_result_mine(msg);
