@@ -39,8 +39,6 @@ var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 
 var bell_str = ' <span class="inline-icon"><i class="glyphicon glyphicon-bell"></i></span> ';
 
-
-
 window.onkeyup = function(e) {
    var key = e.keyCode ? e.keyCode : e.which;
    if (key == 32) {
@@ -63,9 +61,9 @@ sockt.onopen = function () {
     question_area.innerHTML = "Hello";
 };
 
-//$(document).ready(function(){
-//   $("#answer_area").fuzzyComplete(all_answers);
-//});
+$(document).ready(function(){
+   $("#answer_area").fuzzyComplete(all_answers);
+});
 
 var voice_msg = new SpeechSynthesisUtterance();
 var voices = window.speechSynthesis.getVoices();
@@ -118,7 +116,7 @@ function new_question(msg) {
     buzz_button.disabled = false;
     answer_button.disabled = true;
     buzz_button.style.display = "initial";
-    answer_area.style.display = "none";
+    // answer_area.style.display = "none";
     answer_button.style.display = "none";
     is_buzzing = false;
     timer_set = false;

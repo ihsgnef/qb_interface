@@ -1,4 +1,4 @@
-var all_answers = [
+[
 "Robert_Herrick",
 "Amtrak",
 "Parthenon",
@@ -8767,5 +8767,5 @@ var all_answers = [
 "Billy_Bathgate",
 "Congo_River",
 "Heroin",
-"Antonio_da_Correggio",
-];
+"Antonio_da_Correggio"
+]
