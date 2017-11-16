@@ -202,7 +202,7 @@ function handle_result_mine(msg) {
     if (msg.result === true) {
         text += '<span class="label label-success">Correct</span><br />';
     } else {
-        text += '<span class="label label-warning">Wrong</span>';
+        text += '<span class="label label-warning">Wrong</span><br />';
     }
     update_info_display(text);
     score += msg.score;
@@ -216,7 +216,7 @@ function handle_result_others(msg) {
     if (msg.result === true) {
         text += '<span class="label label-success">Correct</span><br />';
     } else {
-        text += '<span class="label label-warning">Wrong</span>';
+        text += '<span class="label label-warning">Wrong</span><br />';
     }
     update_info_display(text);
 }
