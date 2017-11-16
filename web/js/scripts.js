@@ -40,10 +40,10 @@ var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 var bell_str = ' <span class="inline-icon"><i class="glyphicon glyphicon-bell"></i></span> ';
 
 window.onkeyup = function(e) {
-   var key = e.keyCode ? e.keyCode : e.which;
-   if (key == 32) {
-       buzz_button.click();
-   }
+    if(e.keyCode == 32 && e.target == document.body) {
+        buzz_button.click();
+        e.preventDefault();
+    }
 }
 
 buzz_button.onclick = function () { buzzing(); };
@@ -294,7 +294,7 @@ function handle_buzzing_red(msg) {
     clearTimeout(timer_timeout);
     answer_button.disabled = true;
     buzz_button.disabled = true;
-    progress(msg.length, msg.length, true);
+    progress(7, 7, true);
     add_bell();
     var text = '</br><span class="label label-danger">Buzz</span> <span> Player ' + msg.uid + ' answer: </span>'
     update_info_display(text);
@@ -306,7 +306,7 @@ function handle_buzzing_green(msg) {
     answer_area.focus();
     clearTimeout(timer_timeout);
     answer_button.disabled = false;
-    progress(msg.length, msg.length, true);
+    progress(7, 7, true);
     add_bell();
     var text = '</br><span class="label label-danger">Buzz</span> <span> Your answer: </span>'
     update_info_display(text);
