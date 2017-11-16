@@ -12,14 +12,14 @@
 
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
-    <link href="css/fuzzycomplete.css" rel="stylesheet">
+    <link href="css/horsey.css" rel="stylesheet">
         
   </head>
 <body>
 <div class="container-fluid">
     <ul class="breadcrumb">QuizBowl</ul>
     <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="thumbnail" id="evidence_tabs">
                 <div class="tabbable">
                     <ul class="nav nav-tabs">
@@ -49,25 +49,31 @@
 		    </div>
         </div>
         <div class="col-md-6">
-            <div class="thumbnail">
+            <div>
                 <h3 class="text-center text-primary" id="score_area"> Your score: 0 </h3>
             </div>
             <div class="progress progress-striped active">
                 <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="1" id="bar">0:00
                 </div>
             </div>
+            <button type="submit" class="btn btn-danger" id="buzz_button"> Buzz </button>
+            <div class="input-group" id="answer_group">
+                <input placeholder="Your guess" class="form-control" id="answer_area" type="text" autocomplete="off">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-primary" id="answer_button"> Answer </button>
+                </span>
+            </div>
+            <span><br /></span>
             <div class="readout" style="display: block; width: auto;">
                     <div class="well" id="question_area"> Question </div>
             </div>
-            <div class="col-xs-6">
-                <input placeholder="Your guess" class="form-control" id="answer_area" type="text">
-            </div>
-			<button type="submit" class="btn btn-danger" id="buzz_button"> Buzz </button>
-			<button type="submit" class="btn btn-primary" id="answer_button"> Answer </button>
-            <div><span><br /></span></div>
             <div id="history"><span></span></div>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
+            <div class="thumbnail">
+            
+            <div><span><br /></span></div>
+            </div>
             <div class="thumbnail">
                 <h4>Settings</h4>
                 <div class="checkbox">
@@ -91,7 +97,7 @@
     <script src="js/bootstrap.min.js"></script>
     <script src="js/answers.js"></script>
     <script src="js/fuse.min.js"></script>
-    <script src="js/fuzzycomplete.js"></script>
+    <script src="js/horsey.js"></script>
     <script src="js/scripts.js"></script>
   </body>
 </html>

@@ -14,6 +14,9 @@ var highlight_checkbox = document.getElementById("highlight_checkbox");
 var evidence_checkbox = document.getElementById("evidence_checkbox");
 var voice_checkbox = document.getElementById("voice_checkbox");
 
+// answer_area.style.display = "none";
+answer_button.style.display = "none";
+
 var question_text = "";
 var question_text_highlight = "";
 var info_text = "";
@@ -36,6 +39,15 @@ var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 
 var bell_str = ' <span class="inline-icon"><i class="glyphicon glyphicon-bell"></i></span> ';
 
+
+
+window.onkeyup = function(e) {
+   var key = e.keyCode ? e.keyCode : e.which;
+   if (key == 32) {
+       buzz_button.click();
+   }
+}
+
 buzz_button.onclick = function () { buzzing(); };
 answer_button.onclick = function () { send_answer(); };
 guesses_checkbox.onclick = function () { toggle_guesses(); };
@@ -51,9 +63,9 @@ sockt.onopen = function () {
     question_area.innerHTML = "Hello";
 };
 
-$(document).ready(function(){
-  $("#answer_area").fuzzyComplete(all_answers);
-});
+//$(document).ready(function(){
+//   $("#answer_area").fuzzyComplete(all_answers);
+//});
 
 var voice_msg = new SpeechSynthesisUtterance();
 var voices = window.speechSynthesis.getVoices();
@@ -105,6 +117,9 @@ function new_question(msg) {
     answer_area.value = "";
     buzz_button.disabled = false;
     answer_button.disabled = true;
+    buzz_button.style.display = "initial";
+    answer_area.style.display = "none";
+    answer_button.style.display = "none";
     is_buzzing = false;
     timer_set = false;
     var m = {type: MSG_TYPE_NEW, qid: msg.qid};
@@ -138,6 +153,7 @@ function update_question(msg) {
 function buzzing() {
     is_buzzing = true;
     buzz_button.disabled = true;
+    answer_area.value = "";
     answer_area.focus();
 }
 
@@ -248,6 +264,7 @@ function progress(timeleft, timetotal, buzzing) {
 }
 
 function handle_buzzing_red(msg) {
+    buzz_button.style.display = "none";
     clearTimeout(timer_timeout);
     answer_button.disabled = true;
     buzz_button.disabled = true;
@@ -258,6 +275,10 @@ function handle_buzzing_red(msg) {
 }
 
 function handle_buzzing_green(msg) {
+    buzz_button.style.display = "none";
+    answer_area.style.display = "initial";
+    answer_button.style.display = "initial";
+    answer_area.focus();
     clearTimeout(timer_timeout);
     answer_button.disabled = false;
     progress(msg.length, msg.length, true);
