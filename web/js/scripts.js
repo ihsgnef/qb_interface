@@ -92,7 +92,7 @@ function setsource(url, keys, output) {
     });
 }
 
-setsource("http://localhost:8000/answers.json");
+setsource("http://localhost:80/answers.json");
 
 var voice_msg = new SpeechSynthesisUtterance();
 var voices = window.speechSynthesis.getVoices();
