@@ -11,6 +11,7 @@
     <meta name="author" content="ihsgnef">
 
     <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/FuzzySearch.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
         
   </head>
@@ -51,28 +52,31 @@
             <div>
                 <h3 class="text-center text-primary" id="score_area"> Your score: 0 </h3>
             </div>
-            <div class="progress progress-striped active">
-                <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="1" id="bar">0:00
+            <div class="row">
+                <div class="col-md-10">
+                    <div class="progress progress-striped active">
+                        <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="1" id="bar">0:00</div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-danger" id="buzz_button"> Buzz </button>
                 </div>
             </div>
-            <button type="submit" class="btn btn-danger" id="buzz_button"> Buzz </button>
-            <div class="input-group" id="answer_group">
-                <input placeholder="Your guess" class="form-control" id="answer_area" type="text" autocomplete="off">
-                <span class="input-group-btn">
+            <div class="row" id="answer_area_button">
+                <div class="col-md-8">
+                <div class="typeahead">
+                <span class="twitter-typeahead" style="position: relative; display: inline-block;"><input class="twitter-typeahead tt-hint" autocomplete="off" type="text" readonly="" spellcheck="false" tabindex="-1" style="position: absolute; top: 0px; left: 0px; border-color: transparent; box-shadow: none; opacity: 1; background: none 0% 0% / auto repeat scroll padding-box border-box rgb(255, 255, 255);" dir="ltr"><input id="answer_area" class="twitter-typeahead tt-input" name="answer_area" autocomplete="off" type="text" spellcheck="false" dir="auto" style="position: relative; vertical-align: top; background-color: transparent;"><pre aria-hidden="true" style="position: absolute; visibility: hidden; white-space: pre; font-family: system-ui; font-size: 12px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; word-spacing: 0px; letter-spacing: 0px; text-indent: 0px; text-rendering: auto; text-transform: none;"></pre><div class="tt-menu" style="position: absolute; top: 100%; left: 0px; z-index: 100; display: none;"><div class="tt-dataset tt-dataset-movies"></div></div></span>
+                </div></div>
+                <div class="col-md-2">
                     <button type="submit" class="btn btn-primary" id="answer_button"> Answer </button>
-                </span>
+                </div>
             </div>
-            <span><br /></span>
             <div class="readout" style="display: block; width: auto;">
                     <div class="well" id="question_area"> Question </div>
             </div>
             <div id="history"><span></span></div>
         </div>
         <div class="col-md-3">
-            <div class="thumbnail">
-            
-            <div><span><br /></span></div>
-            </div>
             <div class="thumbnail">
                 <h4>Settings</h4>
                 <div class="checkbox">
@@ -93,10 +97,10 @@
 </div>
 
     <script src="js/jquery.min.js"></script>
+    <script src="js/jquery-ui.min.js"></script>
     <script src="js/bootstrap.min.js"></script>
-    <script src="js/answers.js"></script>
-    <script src="js/fuse.min.js"></script>
-    <script src="js/fuzzycomplete.js"></script>
+    <script src="js/typeahead.jquery.min.js"></script>
+    <script src="js/FuzzySearch.min.js"></script>
     <script src="js/scripts.js"></script>
   </body>
 </html>

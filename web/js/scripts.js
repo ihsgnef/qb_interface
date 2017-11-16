@@ -13,9 +13,9 @@ var guesses_checkbox = document.getElementById("guesses_checkbox");
 var highlight_checkbox = document.getElementById("highlight_checkbox");
 var evidence_checkbox = document.getElementById("evidence_checkbox");
 var voice_checkbox = document.getElementById("voice_checkbox");
+var answer_group = document.getElementById("answer_area_button");
 
-// answer_area.style.display = "none";
-answer_button.style.display = "none";
+answer_group.style.display = "none";
 
 var question_text = "";
 var question_text_highlight = "";
@@ -61,9 +61,38 @@ sockt.onopen = function () {
     question_area.innerHTML = "Hello";
 };
 
-$(document).ready(function(){
-   $("#answer_area").fuzzyComplete(all_answers);
+var fuzzyhound = new FuzzySearch();
+
+fuzzyhound.setOptions({
+    score_test_fused: true
 });
+
+$('#answer_area').typeahead({
+        minLength: 2,
+        highlight: false //let FuzzySearch handle highlight
+    },
+    {
+        name: 'answers',
+        source: fuzzyhound,
+        templates: {
+        suggestion: function(result){return "<div>"+fuzzyhound.highlight(result)+"</div>"}
+        }
+    }
+);
+
+$.ajaxSetup({cache: true});
+
+function setsource(url, keys, output) {
+    $.getJSON(url).then(function (response) {
+        fuzzyhound.setOptions({
+            source: response,
+            keys: keys,
+            output_map: output
+        })
+    });
+}
+
+setsource("http://localhost:8001/answers.json");
 
 var voice_msg = new SpeechSynthesisUtterance();
 var voices = window.speechSynthesis.getVoices();
@@ -116,8 +145,7 @@ function new_question(msg) {
     buzz_button.disabled = false;
     answer_button.disabled = true;
     buzz_button.style.display = "initial";
-    // answer_area.style.display = "none";
-    answer_button.style.display = "none";
+    answer_group.style.display = "none";
     is_buzzing = false;
     timer_set = false;
     var m = {type: MSG_TYPE_NEW, qid: msg.qid};
@@ -274,8 +302,7 @@ function handle_buzzing_red(msg) {
 
 function handle_buzzing_green(msg) {
     buzz_button.style.display = "none";
-    answer_area.style.display = "initial";
-    answer_button.style.display = "initial";
+    answer_group.style.display = "initial";
     answer_area.focus();
     clearTimeout(timer_timeout);
     answer_button.disabled = false;
