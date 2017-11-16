@@ -179,7 +179,6 @@ function update_question(msg) {
 function buzzing() {
     is_buzzing = true;
     buzz_button.disabled = true;
-    answer_area.value = "";
     answer_area.focus();
 }
 
@@ -301,6 +300,7 @@ function handle_buzzing_red(msg) {
 }
 
 function handle_buzzing_green(msg) {
+    answer_area.value = "";
     buzz_button.style.display = "none";
     answer_group.style.display = "initial";
     answer_area.focus();
