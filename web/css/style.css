@@ -15,3 +15,8 @@
   background-color: #CBEA00;
   box-sizing: border-box;
 }
+
+.tt-cursor {
+    background-color: #3576be !important;
+    color: #FFFFFF !important;
+}

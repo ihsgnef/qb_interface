@@ -92,7 +92,7 @@ function setsource(url, keys, output) {
     });
 }
 
-setsource("http://qbinterface.club/answers.json");
+setsource("http://localhost/answers.json");
 
 var voice_msg = new SpeechSynthesisUtterance();
 var voices = window.speechSynthesis.getVoices();
