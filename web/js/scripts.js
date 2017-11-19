@@ -40,15 +40,21 @@ var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 var bell_str = ' <span class="inline-icon"><i class="glyphicon glyphicon-bell"></i></span> ';
 
 window.onkeyup = function(e) {
-    if(e.keyCode == 32 && e.target == document.body) {
+    if (e.keyCode == 32 && e.target == document.body) {
         buzz_button.click();
         e.preventDefault();
     }
 }
 
-buzz_button.onclick = function () { buzzing(); };
-answer_button.onclick = function () { send_answer(); };
-guesses_checkbox.onclick = function () { toggle_guesses(); };
+buzz_button.onclick = function() {
+    buzzing();
+};
+answer_button.onclick = function() {
+    send_answer();
+};
+guesses_checkbox.onclick = function() {
+    toggle_guesses();
+};
 answer_area.onkeydown = function(event) {
     if (event.keyCode === 13) {
         if (is_buzzing) {
@@ -57,7 +63,7 @@ answer_area.onkeydown = function(event) {
     }
 };
 
-sockt.onopen = function () {
+sockt.onopen = function() {
     question_area.innerHTML = "Hello";
 };
 
@@ -68,22 +74,24 @@ fuzzyhound.setOptions({
 });
 
 $('#answer_area').typeahead({
-        minLength: 2,
-        highlight: false //let FuzzySearch handle highlight
-    },
-    {
-        name: 'answers',
-        source: fuzzyhound,
-        templates: {
-        suggestion: function(result){return "<div>"+fuzzyhound.highlight(result)+"</div>"}
+    minLength: 2,
+    highlight: false //let FuzzySearch handle highlight
+}, {
+    name: 'answers',
+    source: fuzzyhound,
+    templates: {
+        suggestion: function(result) {
+            return "<div>" + fuzzyhound.highlight(result) + "</div>"
         }
     }
-);
+});
 
-$.ajaxSetup({cache: true});
+$.ajaxSetup({
+    cache: true
+});
 
 function setsource(url, keys, output) {
-    $.getJSON(url).then(function (response) {
+    $.getJSON(url).then(function(response) {
         fuzzyhound.setOptions({
             source: response,
             keys: keys,
@@ -104,7 +112,7 @@ voice_msg.pitch = 1; //0 to 2
 voice_msg.text = 'Hello World';
 voice_msg.lang = 'en-US';
 
-function update_question_display(text, append=true, bg_color="#f4f4f4") {
+function update_question_display(text, append = true, bg_color = "#f4f4f4") {
     var colored_text = '<span style="background-color: ' + bg_color + '">' + text + '</span>';
     if (append) {
         question_text += text;
@@ -115,23 +123,20 @@ function update_question_display(text, append=true, bg_color="#f4f4f4") {
     }
     if (highlight_checkbox.checked) {
         question_area.innerHTML = question_text_highlight + '<br />' + info_text;
-    }
-    else {
+    } else {
         question_area.innerHTML = question_text + '<br />' + info_text;
     }
 }
 
-function update_info_display(text, append=true) {
+function update_info_display(text, append = true) {
     if (append) {
         info_text += text;
-    }
-    else {
+    } else {
         info_text = text;
     }
     if (highlight_checkbox.checked) {
         question_area.innerHTML = question_text_highlight + '<br />' + info_text;
-    }
-    else {
+    } else {
         question_area.innerHTML = question_text + '<br />' + info_text;
     }
 }
@@ -148,7 +153,10 @@ function new_question(msg) {
     answer_group.style.display = "none";
     is_buzzing = false;
     timer_set = false;
-    var m = {type: MSG_TYPE_NEW, qid: msg.qid};
+    var m = {
+        type: MSG_TYPE_NEW,
+        qid: msg.qid
+    };
     sockt.send(JSON.stringify(m));
 }
 
@@ -167,7 +175,11 @@ function update_question(msg) {
             // speechSynthesis.speak(voice_msg);
         }
     }
-    var m = {type: MSG_TYPE_RESUME, qid: msg.qid, position: position};
+    var m = {
+        type: MSG_TYPE_RESUME,
+        qid: msg.qid,
+        position: position
+    };
     if (is_buzzing === false) {
         sockt.send(JSON.stringify(m));
     } else {
@@ -178,8 +190,8 @@ function update_question(msg) {
 
 function buzzing() {
     is_buzzing = true;
+    answer_area.value = "";
     buzz_button.disabled = true;
-    answer_area.focus();
 }
 
 function send_answer() {
@@ -187,7 +199,12 @@ function send_answer() {
         return;
     }
     var answer = answer_area.value;
-    var m = {type: MSG_TYPE_BUZZING_ANSWER, qid: qid, position: position, text: answer};
+    var m = {
+        type: MSG_TYPE_BUZZING_ANSWER,
+        qid: qid,
+        position: position,
+        text: answer
+    };
     sockt.send(JSON.stringify(m));
     answer_button.disabled = true;
     answer_area.value = "";
@@ -243,7 +260,9 @@ function set_guess(guess) {
 
 function update_interpretation(msg) {
     var evidence = msg.evidence;
-    if (typeof evidence === 'undefined') { return; }
+    if (typeof evidence === 'undefined') {
+        return;
+    }
     if (typeof evidence.answer !== 'undefined') {
         var text = "<br />Correct answer: " + evidence.answer;
         update_info_display(text);
@@ -256,8 +275,8 @@ function update_interpretation(msg) {
             var button_text = '<a id="guesses_' + i + '"';
             button_text += 'onclick=set_guess("' + guess + '")';
             button_text += '>' + guess_text + '</a>';
-            guesses_table.rows[i+1].cells[1].innerHTML = button_text
-            guesses_table.rows[i+1].cells[2].innerHTML = guesses[i][1].toFixed(4);
+            guesses_table.rows[i + 1].cells[1].innerHTML = button_text
+            guesses_table.rows[i + 1].cells[2].innerHTML = guesses[i][1].toFixed(4);
         }
     }
 }
@@ -268,7 +287,7 @@ function add_bell() {
 
 function progress(timeleft, timetotal, buzzing) {
     var percentage = timeleft / timetotal * 100;
-    $('.progress-bar').css('width', percentage+'%');
+    $('.progress-bar').css('width', percentage + '%');
     if (buzzing == true) {
         $('.progress-bar').css({
             'background-image': 'none',
@@ -280,8 +299,8 @@ function progress(timeleft, timetotal, buzzing) {
             'background-color': '#428bca'
         });
     }
-    document.getElementById("bar").innerHTML = Math.floor(timeleft/60) + ":" + Math.floor(timeleft%60);
-    if(timeleft > 0) {
+    document.getElementById("bar").innerHTML = Math.floor(timeleft / 60) + ":" + Math.floor(timeleft % 60);
+    if (timeleft > 0) {
         timer_timeout = setTimeout(function() {
             progress(timeleft - 1, timetotal, buzzing);
         }, 1000);
@@ -300,7 +319,6 @@ function handle_buzzing_red(msg) {
 }
 
 function handle_buzzing_green(msg) {
-    answer_area.value = "";
     buzz_button.style.display = "none";
     answer_group.style.display = "initial";
     answer_area.focus();
@@ -312,10 +330,10 @@ function handle_buzzing_green(msg) {
     update_info_display(text);
 }
 
-sockt.onmessage = function (event) {
+sockt.onmessage = function(event) {
     var msg = JSON.parse(event.data);
     if (msg.type === MSG_TYPE_NEW) {
-        add_history();  
+        add_history();
         new_question(msg);
     } else if (msg.type === MSG_TYPE_RESUME) {
         if (timer_set === false) {
