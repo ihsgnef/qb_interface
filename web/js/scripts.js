@@ -39,7 +39,7 @@ var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 
 var bell_str = ' <span class="inline-icon"><i class="glyphicon glyphicon-bell"></i></span> ';
 
-window.onkeyup = function(e) {
+window.onkeydown = function(e) {
     if (e.keyCode == 32 && e.target == document.body) {
         buzz_button.click();
         e.preventDefault();
@@ -100,7 +100,8 @@ function setsource(url, keys, output) {
     });
 }
 
-setsource("http://qbinterface.club/answers.json");
+// setsource("http://qbinterface.club/answers.json");
+setsource("http://localhost/answers.json");
 
 var voice_msg = new SpeechSynthesisUtterance();
 var voices = window.speechSynthesis.getVoices();
@@ -208,6 +209,7 @@ function send_answer() {
     sockt.send(JSON.stringify(m));
     answer_button.disabled = true;
     answer_area.value = "";
+    answer_group.style.display = "none";
     is_buzzing = false;
 }
 
