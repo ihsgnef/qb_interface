@@ -22,7 +22,7 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
 
 ANSWER_TIME_OUT = 8
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
 
 class BroadcastServerProtocol(WebSocketServerProtocol):
