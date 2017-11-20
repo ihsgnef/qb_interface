@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import chainer
 
 from twisted.internet import reactor
 
@@ -35,7 +36,6 @@ def get_color(value):
 def colorize(words, color_array):
     # words is a list of words
     # color_array is an array of numbers between 0 and 1 of length equal to words
-
     template = '<span class="barcode"; style="color: black; background-color: {}">{}</span>'
     colored_string = ''
     for word, color in zip(words, color_array):
@@ -52,12 +52,12 @@ class StupidBuzzer:
         self.step = 0
     
     def buzz(self, guesses):
-        # self.step += 1
-        # if self.step > 40:
-        #     return [1, 0]
-        # else:
-        #     return [0, 1]
-        return [0, 1]
+        self.step += 1
+        if self.step > 40:
+            return [1, 0]
+        else:
+            return [0, 1]
+        # return [0, 1]
 
 class GuesserBuzzer:
     
@@ -66,9 +66,11 @@ class GuesserBuzzer:
         guesser_dir = 'data/guesser'
         self.guesser = ElasticSearchWikidataGuesser.load(guesser_dir)
 
-        # self.buzzer = RNNBuzzer(model_dir=buzzer_model_dir,
-        #         word_skip=conf['buzzer_word_skip'])
-        self.buzzer = StupidBuzzer()
+        if chainer.cuda.available:
+            self.buzzer = RNNBuzzer(model_dir=buzzer_model_dir,
+                word_skip=conf['buzzer_word_skip'])
+        else:
+            self.buzzer = StupidBuzzer()
 
         self.ok_to_buzz = True
 
@@ -144,7 +146,7 @@ class GuesserBuzzerProtocol(PlayerProtocol):
 
 
 if __name__ == '__main__':
-    factory = WebSocketClientFactory(u"ws://127.0.0.1:9000")
+    factory = WebSocketClientFactory(u"ws://qbinterface.club:9000")
     factory.protocol = GuesserBuzzerProtocol
     connectWS(factory)
     reactor.run()
