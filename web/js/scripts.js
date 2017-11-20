@@ -1,32 +1,8 @@
-// Empty JS for your own code to be here
 var sockt = new WebSocket("ws://34.209.31.242:9000");
+// var answer_json_dir = "http://qbinterface.club/answers.json";
+var answer_json_dir = "http://localhost/answers.json";
 
-var question_area = document.getElementById('question_area');
-var answer_area = document.getElementById('answer_area');
-var score_area = document.getElementById('score_area');
-var evidence_tabs = document.getElementById("evidence_tabs");
-var guesses_table = document.getElementById("guesses_table");
-
-var answer_button = document.getElementById("answer_button");
-var buzz_button = document.getElementById("buzz_button");
-var guesses_checkbox = document.getElementById("guesses_checkbox");
-var highlight_checkbox = document.getElementById("highlight_checkbox");
-var evidence_checkbox = document.getElementById("evidence_checkbox");
-var voice_checkbox = document.getElementById("voice_checkbox");
-var answer_group = document.getElementById("answer_area_button");
-
-answer_group.style.display = "none";
-
-var question_text = "";
-var question_text_highlight = "";
-var info_text = "";
-var is_buzzing = false;
-var position = 0;
-var qid = 0;
-var score = 0;
-var timer_set = false;
-var timer_timeout;
-
+///////// Message types ///////// 
 var MSG_TYPE_NEW = 0; // beginning of a new question
 var MSG_TYPE_RESUME = 1; // continue
 var MSG_TYPE_END = 2; // end of question
@@ -37,8 +13,37 @@ var MSG_TYPE_BUZZING_RED = 6; // tell user you cannot buzz now
 var MSG_TYPE_RESULT_MINE = 7; // result of my answer
 var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 
+
+///////// HTML Elements ///////// 
+var question_area      = document.getElementById('question_area');
+var answer_area        = document.getElementById('answer_area');
+var score_area         = document.getElementById('score_area');
+var evidence_tabs      = document.getElementById("evidence_tabs");
+var guesses_table      = document.getElementById("guesses_table");
+var answer_button      = document.getElementById("answer_button");
+var buzz_button        = document.getElementById("buzz_button");
+var guesses_checkbox   = document.getElementById("guesses_checkbox");
+var highlight_checkbox = document.getElementById("highlight_checkbox");
+var evidence_checkbox  = document.getElementById("evidence_checkbox");
+var voice_checkbox     = document.getElementById("voice_checkbox");
+var answer_group       = document.getElementById("answer_area_button");
+
+
+///////// State variables ///////// 
+var question_text       = "";
+var question_text_color = "";
+var info_text           = "";
+var is_buzzing          = false;
+var position            = 0;
+var qid                 = 0;
+var score               = 0;
+var timer_set           = false;
+var timer_timeout;
 var bell_str = ' <span class="inline-icon"><i class="glyphicon glyphicon-bell"></i></span> ';
 
+
+///////// Keyboard operations  ///////// 
+// Use space bar for buzzing & avoid scrolling
 window.onkeydown = function(e) {
     if (e.keyCode == 32 && e.target == document.body) {
         buzz_button.click();
@@ -47,26 +52,27 @@ window.onkeydown = function(e) {
 }
 
 buzz_button.onclick = function() {
-    buzzing();
+    is_buzzing = true;
+    buzz_button.disabled = true;
 };
-answer_button.onclick = function() {
-    send_answer();
-};
+answer_button.onclick = function() { send_answer(); };
+// show hide guesses panel
 guesses_checkbox.onclick = function() {
-    toggle_guesses();
+    if (guesses_checkbox.checked) {
+        evidence_tabs.style.display = "block";
+    } else {
+        evidence_tabs.style.display = "none";
+    }
 };
+// use enter to submit answer
 answer_area.onkeydown = function(event) {
     if (event.keyCode === 13) {
-        if (is_buzzing) {
-            answer_button.click();
-        }
+        if (is_buzzing) { answer_button.click(); }
     }
 };
 
-sockt.onopen = function() {
-    question_area.innerHTML = "Hello";
-};
 
+///////// Autocomplete ///////// 
 var fuzzyhound = new FuzzySearch();
 
 fuzzyhound.setOptions({
@@ -100,9 +106,10 @@ function setsource(url, keys, output) {
     });
 }
 
-// setsource("http://qbinterface.club/answers.json");
-setsource("http://localhost/answers.json");
+setsource(answer_json_dir);
 
+
+///////// Speech synthesis ///////// 
 var voice_msg = new SpeechSynthesisUtterance();
 var voices = window.speechSynthesis.getVoices();
 voice_msg.voice = voices[10]; // Note: some voices don't support altering params
@@ -113,17 +120,18 @@ voice_msg.pitch = 1; //0 to 2
 voice_msg.text = 'Hello World';
 voice_msg.lang = 'en-US';
 
+
 function update_question_display(text, append = true, bg_color = "#f4f4f4") {
     var colored_text = '<span style="background-color: ' + bg_color + '">' + text + '</span>';
     if (append) {
         question_text += text;
-        question_text_highlight += colored_text;
+        question_text_color += colored_text;
     } else {
         question_text = text;
-        question_text_highlight = colored_text;
+        question_text_color = colored_text;
     }
     if (highlight_checkbox.checked) {
-        question_area.innerHTML = question_text_highlight + '<br />' + info_text;
+        question_area.innerHTML = question_text_color + '<br />' + info_text;
     } else {
         question_area.innerHTML = question_text + '<br />' + info_text;
     }
@@ -136,7 +144,7 @@ function update_info_display(text, append = true) {
         info_text = text;
     }
     if (highlight_checkbox.checked) {
-        question_area.innerHTML = question_text_highlight + '<br />' + info_text;
+        question_area.innerHTML = question_text_color + '<br />' + info_text;
     } else {
         question_area.innerHTML = question_text + '<br />' + info_text;
     }
@@ -147,7 +155,6 @@ function new_question(msg) {
     position = 0;
     update_question_display("", false);
     update_info_display("", false);
-    answer_area.value = "";
     buzz_button.disabled = false;
     answer_button.disabled = true;
     buzz_button.style.display = "initial";
@@ -162,20 +169,8 @@ function new_question(msg) {
 }
 
 function update_question(msg) {
-    if (typeof msg.evidence != 'undefined' && typeof msg.evidence.highlight != 'undefined') {
-        var hilight = msg.evidence.highlight;
-        update_question_display(" " + msg.text, true, hilight);
-        if (voice_checkbox.checked) {
-            voice_msg.text = msg.text;
-            // speechSynthesis.speak(voice_msg);
-        }
-    } else {
-        update_question_display(" " + msg.text);
-        if (voice_checkbox.checked) {
-            voice_msg.text = msg.text;
-            // speechSynthesis.speak(voice_msg);
-        }
-    }
+    update_interpretation(msg);
+    position += 1;
     var m = {
         type: MSG_TYPE_RESUME,
         qid: msg.qid,
@@ -189,11 +184,6 @@ function update_question(msg) {
     }
 }
 
-function buzzing() {
-    is_buzzing = true;
-    answer_area.value = "";
-    buzz_button.disabled = true;
-}
 
 function send_answer() {
     if (answer_button.disabled) {
@@ -213,9 +203,8 @@ function send_answer() {
     is_buzzing = false;
 }
 
-function handle_result_mine(msg) {
-    is_buzzing = false;
-    answer_button.disabled = true;
+function handle_result(msg) {
+    clearTimeout(timer_timeout);
     var text = msg.guess + ' ';
     if (msg.result === true) {
         text += '<span class="label label-success">Correct</span><br />';
@@ -223,23 +212,15 @@ function handle_result_mine(msg) {
         text += '<span class="label label-warning">Wrong</span><br />';
     }
     update_info_display(text);
-    score += msg.score;
-    score_area.innerHTML = 'Your score: ' + score;
-}
 
-function handle_result_others(msg) {
-    is_buzzing = false;
-    answer_button.disabled = true;
-    var text = msg.guess + ' ';
-    if (msg.result === true) {
-        text += '<span class="label label-success">Correct</span><br />';
-    } else {
-        text += '<span class="label label-warning">Wrong</span><br />';
+    if (msg.type === MSG_TYPE_RESULT_MINE) {
+        score += msg.score;
+        score_area.innerHTML = 'Your score: ' + score;
     }
-    update_info_display(text);
 }
 
 function add_history() {
+    if (question_text == '' && info_text == '') { return; }
     var iDiv = document.createElement('div');
     iDiv.className = 'well';
     iDiv.innerHTML = question_text + '<br />' + info_text;
@@ -247,13 +228,6 @@ function add_history() {
     history_div.insertBefore(iDiv, history_div.childNodes[0]);
 }
 
-function toggle_guesses() {
-    if (guesses_checkbox.checked) {
-        evidence_tabs.style.display = "block";
-    } else {
-        evidence_tabs.style.display = "none";
-    }
-}
 
 function set_guess(guess) {
     answer_area.value = guess;
@@ -261,36 +235,50 @@ function set_guess(guess) {
 }
 
 function update_interpretation(msg) {
-    var evidence = msg.evidence;
-    if (typeof evidence === 'undefined') {
-        return;
+    // update text and colored text
+    var color = "#f4f4f4";
+    if (typeof msg.evidence != 'undefined' 
+        && typeof msg.evidence.highlight != 'undefined') {
+        color = msg.evidence.highlight;
     }
+    if (typeof msg.text != 'undefined') {
+        update_question_display(" " + msg.text, true, color);
+    }
+
+    // speech synthesis
+    if (voice_checkbox.checked) {
+        voice_msg.text = msg.text;
+        speechSynthesis.speak(voice_msg);
+    }
+
+    if (typeof msg.evidence == 'undefined') { return; }
+    var evidence = msg.evidence;
+
+    // show correct answer
     if (typeof evidence.answer !== 'undefined') {
         var text = "<br />Correct answer: " + evidence.answer;
         update_info_display(text);
     }
+
+    // update the list of guesses
     if (typeof evidence.guesses !== 'undefined') {
         var guesses = evidence.guesses;
         for (var i = 0; i < Math.min(5, guesses.length); i++) {
-            var guess = guesses[i][0]
-            var guess_text = guess.substr(0, 20)
+            var guess = guesses[i][0];
             var button_text = '<a id="guesses_' + i + '"';
+            var guess_score = guesses[i][1].toFixed(4);
             button_text += 'onclick=set_guess("' + guess + '")';
-            button_text += '>' + guess_text + '</a>';
-            guesses_table.rows[i + 1].cells[1].innerHTML = button_text
-            guesses_table.rows[i + 1].cells[2].innerHTML = guesses[i][1].toFixed(4);
+            button_text += '>' + guess.substr(0, 20) + '</a>';
+            guesses_table.rows[i + 1].cells[1].innerHTML = button_text;
+            guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
         }
     }
 }
 
-function add_bell() {
-    update_question_display(bell_str);
-}
-
-function progress(timeleft, timetotal, buzzing) {
+function progress(timeleft, timetotal, is_red) {
     var percentage = timeleft / timetotal * 100;
     $('.progress-bar').css('width', percentage + '%');
-    if (buzzing == true) {
+    if (is_red == true) {
         $('.progress-bar').css({
             'background-image': 'none',
             'background-color': '#d9534f'
@@ -304,31 +292,29 @@ function progress(timeleft, timetotal, buzzing) {
     document.getElementById("bar").innerHTML = Math.floor(timeleft / 60) + ":" + Math.floor(timeleft % 60);
     if (timeleft > 0) {
         timer_timeout = setTimeout(function() {
-            progress(timeleft - 1, timetotal, buzzing);
+            progress(timeleft - 1, timetotal, is_red);
         }, 1000);
     }
 }
 
-function handle_buzzing_red(msg) {
-    buzz_button.style.display = "none";
-    clearTimeout(timer_timeout);
-    answer_button.disabled = true;
-    buzz_button.disabled = true;
-    progress(7, 7, true);
-    add_bell();
-    var text = '</br><span class="label label-danger">Buzz</span> <span> Player ' + msg.uid + ' answer: </span>'
-    update_info_display(text);
-}
+function handle_buzzing(msg) {
+    var user_text = "";
+    if (msg.type === MSG_TYPE_BUZZING_GREEN) {
+        answer_group.style.display = "initial";
+        answer_area.focus();
+        answer_button.disabled = false;
+        user_text = "Your";
+    } else {
+        user_text = "Player " + msg.uid;
+    }
 
-function handle_buzzing_green(msg) {
+    buzz_button.disabled = true;
     buzz_button.style.display = "none";
-    answer_group.style.display = "initial";
-    answer_area.focus();
     clearTimeout(timer_timeout);
-    answer_button.disabled = false;
     progress(7, 7, true);
-    add_bell();
-    var text = '</br><span class="label label-danger">Buzz</span> <span> Your answer: </span>'
+    update_question_display(bell_str);
+    var text = '</br><span class="label label-danger">Buzz</span> <span> ' 
+        + user_text + ' answer: </span>';
     update_info_display(text);
 }
 
@@ -345,21 +331,15 @@ sockt.onmessage = function(event) {
             timer_set = true;
         }
         update_question(msg);
-        update_interpretation(msg);
     } else if (msg.type === MSG_TYPE_END) {
-        if (typeof msg.text != 'undefined') {
-            update_question(msg);
-        }
-        update_interpretation(msg);
+        update_question(msg);
     } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
-        handle_buzzing_green(msg);
+        handle_buzzing(msg);
     } else if (msg.type === MSG_TYPE_BUZZING_RED) {
-        handle_buzzing_red(msg);
+        handle_buzzing(msg);
     } else if (msg.type === MSG_TYPE_RESULT_MINE) {
-        clearTimeout(timer_timeout);
-        handle_result_mine(msg);
+        handle_result(msg);
     } else if (msg.type === MSG_TYPE_RESULT_OTHER) {
-        clearTimeout(timer_timeout);
-        handle_result_others(msg);
+        handle_result(msg);
     }
 };
