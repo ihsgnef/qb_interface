@@ -149,6 +149,23 @@ class BroadcastServerFactory(WebSocketServerFactory):
         elif msg['type'] == MSG_TYPE_END:
             self.broadcast(self.users, msg)
             self.handle_buzzing(end_of_question=True)
+    
+    def stream_next(self):
+        if self.position < self.length:
+            msg = {'type': MSG_TYPE_RESUME, 'text': self.text[self.position],
+                    'qid': self.qid, 'position': self.position, 
+                    'length': self.length, 'evidence': self.evidence}
+            self.position += 1
+            self.broadcast(self.users, msg)
+            if any([x['type'] == MSG_TYPE_BUZZING_REQUEST 
+                for x in self.user_responses.values()]):
+                self.handle_buzzing()
+            else:
+                reactor.callLater(0.5, self.stream_next)
+        else:
+            msg = {'type': MSG_TYPE_END, 'qid': self.qid}
+            self.broadcast(self.users, msg)
+            self.handle_buzzing(end_of_question=True)
 
     def new_question(self):
         # forward question index
