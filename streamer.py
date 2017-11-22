@@ -54,7 +54,8 @@ class StreamerProtocol(WebSocketClientProtocol):
         else:
             msg = {'type': MSG_TYPE_END,
                     'qid': self.qid, 'position': self.position}
-        self.position += 1
+        if self.position < self.length:
+            self.position += 1
         self.sendMessage(json.dumps(msg).encode('utf-8'))
 
     def send_rest(self):
@@ -71,6 +72,7 @@ class StreamerProtocol(WebSocketClientProtocol):
     def onMessage(self, payload, isBinary):
         msg = json.loads(payload.decode('utf-8'))
         if msg['type'] == MSG_TYPE_NEW:
+            print('========')
             if msg['qid'] != 0:
                 self.new_question(msg)
         elif msg['type'] == MSG_TYPE_RESUME:
