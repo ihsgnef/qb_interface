@@ -108,7 +108,6 @@ function setsource(url, keys, output) {
 
 setsource(answer_json_dir);
 
-
 ///////// Speech synthesis ///////// 
 var voice_msg = new SpeechSynthesisUtterance();
 var voices = window.speechSynthesis.getVoices();
@@ -303,6 +302,7 @@ function handle_buzzing(msg) {
     if (msg.type === MSG_TYPE_BUZZING_GREEN) {
         console.log(answer_area.value);
         answer_group.style.display = "initial";
+        answer_area.value = "";
         answer_area.focus();
         answer_area.value = "";
         answer_button.disabled = false;

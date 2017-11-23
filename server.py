@@ -19,6 +19,8 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
         MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
+from db import QBDB
+from db import COL_QID, COL_UID, COL_START, COL_GUESS, COL_HELPS
 
 ANSWER_TIME_OUT = 8
 
@@ -39,7 +41,7 @@ class BroadcastServerProtocol(WebSocketServerProtocol):
 
 class BroadcastServerFactory(WebSocketServerFactory):
 
-    def __init__(self, url, questions, loop=False):
+    def __init__(self, url, questions, db, loop=False):
         WebSocketServerFactory.__init__(self, url)
         self.streamer = None
         self.users = []
@@ -52,30 +54,32 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.buzzed = defaultdict(lambda: False)
 
         self.questions = questions
+        self.db = db
         self.question_idx = -1
+        self.qid = -1
         self.loop = loop
         logger.info('Loaded {} questions'.format(len(self.questions)))
         
         # a bunch of callbacks and their corresponding conditions
         self._deferreds = []
-
+        # things to be broadcasted to all users
         self.evidence = dict()
+        # rows to be written to DB
+        self.rows = dict()
 
     def register(self, client):
         # assume that the first client is the streamer
         if self.streamer is None:
             self.streamer = client
             logger.info("Registered streamer {}".format(client.peer))
-            msg = {'type': MSG_TYPE_NEW, 'text': 'Welcome, streamer',
-                    'qid': 0}
-            self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
             self.new_question()
         elif client not in self.users:
             self.users.append(client)
             logger.info("Registered user {}".format(client.peer))
-            msg = {'type': MSG_TYPE_NEW, 'qid': 0,
-                    'text': 'Welcome, player {}'.format(len(self.users) - 1)}
+            msg = {'type': MSG_TYPE_NEW, 'qid': 0}
             self.users[-1].sendMessage(json.dumps(msg).encode('utf-8'))
+            self.rows[client.peer] = {COL_UID: client.peer, COL_QID: self.qid,
+                    COL_START: self.position}
 
     def unregister(self, client):
         if client == self.streamer:
@@ -133,6 +137,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
     def receive_streamer_msg(self, msg):
         if msg['type'] == MSG_TYPE_RESUME:
+            self.position = msg['position']
             msg['evidence'] = self.evidence
             self.broadcast(self.users, msg)
             # if any one wants to buzz, check who wins the buzz
@@ -140,17 +145,29 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 for x in self.user_responses.values()]):
                 self.handle_buzzing()
             else:
-                msg = {'type': MSG_TYPE_RESUME, 'qid': self.qid}
-                self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
+                self.resume_streamer()
         elif msg['type'] == MSG_TYPE_END:
-            logger.warning(msg['text'])
+            self.broadcast(self.users, msg)
+            self.handle_buzzing(end_of_question=True)
+    
+    def stream_next(self):
+        if self.position < self.length:
+            msg = {'type': MSG_TYPE_RESUME, 'text': self.text[self.position],
+                    'qid': self.qid, 'position': self.position, 
+                    'length': self.length, 'evidence': self.evidence}
+            self.position += 1
+            self.broadcast(self.users, msg)
+            if any([x['type'] == MSG_TYPE_BUZZING_REQUEST 
+                for x in self.user_responses.values()]):
+                self.handle_buzzing()
+            else:
+                reactor.callLater(0.5, self.stream_next)
+        else:
+            msg = {'type': MSG_TYPE_END, 'qid': self.qid}
             self.broadcast(self.users, msg)
             self.handle_buzzing(end_of_question=True)
 
     def new_question(self):
-        self.new_question_0()
-
-    def new_question_0(self):
         # forward question index
         self.question_idx += 1
         if self.question_idx >= len(self.questions):
@@ -162,13 +179,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 return
 
         self.question = self.questions[self.question_idx]
-        self.question_length = len(self.question['text'].split())
         self.qid = self.question['qid']
-
-        # notify streamer of a new question
-        msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
-                'text': self.question['text']}
-        self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
+        self.question_text = self.question['text'].split()
+        self.question_length = len(self.question_text)
+        self.position = 0
+        self.start_streamer()
 
         def callback(x):
             self.new_question_1()
@@ -211,7 +226,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 deferred.addCallbacks(callback, errback)
                 self._deferreds.append((deferred, condition, 'user check'))
 
-        condition = lambda: len(self._deferreds) == 1
         def callback():
             self.new_question_2()
             # if len(self._deferreds) == 0:
@@ -223,19 +237,19 @@ class BroadcastServerFactory(WebSocketServerFactory):
         reactor.callLater(0.5, callback)
 
     def new_question_2(self):
-        msg = {'type': MSG_TYPE_RESUME, 'qid': self.qid,
-                'text': 'streamer new question start'}
-        self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
+        self.rows = {x.peer: {COL_UID: x.peer,
+                              COL_QID: self.qid,
+                              COL_START: 0}
+                    for x in self.users}
+        self.resume_streamer()
 
-    def handle_buzzing(self, end_of_question=False):
-        self.handle_buzzing_0(end_of_question)
-
-    def eoq_send_answer(self):
+    def end_of_question(self):
         msg = {'text': '', 'type': MSG_TYPE_END, 'qid': self.qid,
                 'evidence': {'answer': self.question['answer']}}
         self.broadcast(self.users, msg)
+        reactor.callLater(3, self.new_question)
 
-    def handle_buzzing_0(self, end_of_question=False):
+    def handle_buzzing(self, end_of_question=False):
         buzzing_inds = []
         for i, user in enumerate(self.users):
             if self.buzzed[user.peer]:
@@ -251,7 +265,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         if len(buzzing_inds) == 0:
             if end_of_question:
-                self.eoq_send_answer()
+                self.end_of_question()
             return
 
         random.shuffle(buzzing_inds)
@@ -272,8 +286,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         condition = partial(self._check_user, green_user.peer, 
                 'type', MSG_TYPE_BUZZING_ANSWER)
-        callback = partial(self.handle_buzzing_1, buzzing_idx, end_of_question)
-        errback = partial(self.handle_buzzing_2, buzzing_idx, end_of_question)
+        callback = partial(self.handle_buzzing_ok, buzzing_idx, end_of_question)
+        errback = partial(self.handle_buzzing_timeout, buzzing_idx, 
+                end_of_question)
 
         if condition():
             callback(None)
@@ -284,38 +299,34 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self._deferreds.append(
                     (deferred, condition, 'wait for user answer'))
 
-    def handle_buzzing_1(self, buzzing_idx, end_of_question, x):
+    def handle_buzzing_ok(self, buzzing_idx, end_of_question, x):
         green_user = self.users[buzzing_idx]
         red_users = self.users[:buzzing_idx] + self.users[buzzing_idx+1:]
         answer = self.user_responses[green_user.peer]['text']
-        if answer == self.question['answer']:
-            logger.info('[buzzing] answer [{}] is correct'.format(answer))
-            self.scores[green_user.peer] += 10
-            msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': True,
-                    'score': 10, 'uid': buzzing_idx, 'guess': answer}
-            green_user.sendMessage(json.dumps(msg).encode('utf-8'))
-            msg = {'type': MSG_TYPE_RESULT_OTHER, 'qid': self.qid, 'result': True,
-                    'uid': buzzing_idx, 'guess': answer}
-            self.broadcast(red_users, msg)
-            end_of_question = True
-        else:
-            logger.info('[buzzing] answer [{}] is wrong'.format(answer))
-            _score = 0 if end_of_question else -5
-            self.scores[green_user.peer] +=  _score
-            msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': False,
-                    'score': _score,'uid': buzzing_idx, 'guess': answer}
-            green_user.sendMessage(json.dumps(msg).encode('utf-8'))
-            msg = {'type': MSG_TYPE_RESULT_OTHER, 'qid': self.qid, 'result': False,
-                    'uid': buzzing_idx, 'guess': answer}
-            self.broadcast(red_users, msg)
-        if end_of_question:
-            self.eoq_send_answer()
-            reactor.callLater(3, self.new_question)
-        else:
-            msg = {'type': MSG_TYPE_END}
-            reactor.callLater(2, self.streamer.sendMessage, json.dumps(msg).encode('utf-8'))
+        position = self.user_responses[green_user.peer]['position']
+        result = (answer == self.question['answer'])
+        score = 10 if result else (0 if end_of_question else -5)
+        self.rows[green_user.peer]['guess'] = {
+                'position': max(self.position, position),
+                'guess': answer,
+                'result': result,
+                'score': score}
 
-    def handle_buzzing_2(self, buzzing_idx, end_of_question, x):
+        logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
+        self.scores[green_user.peer] += score
+        msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': result,
+                'score': score,'uid': buzzing_idx, 'guess': answer}
+        self.broadcast([green_user], msg)
+
+        msg['type'] = MSG_TYPE_RESULT_OTHER
+        self.broadcast(red_users, msg)
+
+        if end_of_question or result:
+            self.end_of_question()
+        else:
+            reactor.callLater(2, self.stop_streamer)
+
+    def handle_buzzing_timeout(self, buzzing_idx, end_of_question, x):
         logger.warning('[buzzing] Player answer time out')
         green_user = self.users[buzzing_idx]
         red_users = self.users[:buzzing_idx] + self.users[buzzing_idx+1:]
@@ -325,16 +336,29 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.scores[green_user.peer] +=  _score
         msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': False,
                 'score': _score, 'uid': buzzing_idx, 'guess': 'TIME OUT'}
-        green_user.sendMessage(json.dumps(msg).encode('utf-8'))
-        msg = {'type': MSG_TYPE_RESULT_OTHER, 'qid': self.qid, 'result': False,
-                'uid': buzzing_idx, 'guess': 'TIME OUT'}
+        self.broadcast([green_user], msg)
+
+        msg['type'] = MSG_TYPE_RESULT_OTHER
         self.broadcast(red_users, msg)
+
         if end_of_question:
-            self.eoq_send_answer()
-            reactor.callLater(3, self.new_question)
+            self.end_of_question()
         else:
-            msg = {'type': MSG_TYPE_END}
-            reactor.callLater(2, self.streamer.sendMessage, json.dumps(msg).encode('utf-8'))
+            reactor.callLater(2, self.stop_streamer)
+
+    def start_streamer(self):
+        # notify streamer of a new question
+        msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
+                'text': self.question['text']}
+        self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
+
+    def resume_streamer(self):
+        msg = {'type': MSG_TYPE_RESUME, 'qid': self.qid}
+        self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
+    
+    def stop_streamer(self):
+        msg = {'type': MSG_TYPE_END, 'qid': self.qid}
+        self.streamer.sendMessage(json.dumps(msg).encode('utf-8'))
 
     def end_of_game(self):
         logger.info('Final Score:')
@@ -355,8 +379,9 @@ if __name__ == '__main__':
         questions = json.loads(f.read())
         random.shuffle(questions)
 
+    db = QBDB()
     factory = BroadcastServerFactory(u"ws://127.0.0.1:9000", questions,
-            loop=True)
+            db, loop=True)
     factory.protocol = BroadcastServerProtocol
     listenWS(factory)
 
