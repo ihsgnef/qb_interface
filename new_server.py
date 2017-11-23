@@ -238,7 +238,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
             logger.warning('[buzzing] Player answer time out')
             self.player_responses[green_player.peer] = {
                     'type': MSG_TYPE_BUZZING_ANSWER,
-                    'qid': self.qid, 'text': '_TIME_OUT_'}
+                    'qid': self.qid, 'position': self.position,
+                    'text': '_TIME_OUT_'}
             self._buzzing_after(buzzing_idx, end_of_question, True)
 
         if condition():
