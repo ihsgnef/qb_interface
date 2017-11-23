@@ -159,6 +159,7 @@ function new_question(msg) {
     answer_button.disabled = true;
     buzz_button.style.display = "initial";
     answer_group.style.display = "none";
+
     is_buzzing = false;
     timer_set = false;
     var m = {
@@ -300,8 +301,10 @@ function progress(timeleft, timetotal, is_red) {
 function handle_buzzing(msg) {
     var user_text = "";
     if (msg.type === MSG_TYPE_BUZZING_GREEN) {
+        console.log(answer_area.value);
         answer_group.style.display = "initial";
         answer_area.focus();
+        answer_area.value = "";
         answer_button.disabled = false;
         user_text = "Your";
     } else {
