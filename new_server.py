@@ -280,11 +280,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     COL_UID: green_player.peer,
                     COL_START: self.position,
                     COL_TIME: self.get_time()}
-        self.db_rows[green_player.peer]['guess'] = {
+        self.db_rows[green_player.peer][COL_GUESS] = {
                 'position': self.position,
                 'guess': answer,
                 'result': result,
                 'score': score}
+        self.db_rows[green_player.peer][COL_HELPS] = \
+                self.player_responses[green_player.peer].get('helps', dict())
         
         if not timed_out:
             logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
