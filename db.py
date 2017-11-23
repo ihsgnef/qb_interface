@@ -14,6 +14,7 @@ COL_UID = 'uid' # user id
 COL_START = 'start_pos' # starting position
 COL_GUESS = 'guess' # dictionary with type, position, guess, result
 COL_HELPS = 'helps' # interpretations used
+COL_TIME = 'time' # starting time
 COLUMNS = [COL_ID, COL_QID, COL_UID, COL_START, COL_GUESS, COL_HELPS]
 
 class QBDB:
@@ -52,7 +53,7 @@ class QBDB:
                     rid, qid, uid, start,
                     json.dumps(guess).replace('"', "'"),
                     json.dumps(helps).replace('"', "'"))
-        logger.info(cmd)
+        logger.debug(cmd)
         try:
             self.c.execute(cmd)
         except sqlite3.IntegrityError:

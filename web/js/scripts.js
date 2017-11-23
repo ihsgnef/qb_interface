@@ -1,6 +1,6 @@
 var sockt = new WebSocket("ws://34.209.31.242:9000");
-// var answer_json_dir = "http://qbinterface.club/answers.json";
-var answer_json_dir = "http://localhost/answers.json";
+var answer_json_dir = "http://qbinterface.club/answers.json";
+// var answer_json_dir = "http://localhost/answers.json";
 
 ///////// Message types ///////// 
 var MSG_TYPE_NEW = 0; // beginning of a new question

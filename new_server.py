@@ -4,6 +4,7 @@ import time
 import random
 import logging
 import traceback
+import datetime
 from threading import Thread
 from functools import partial
 from collections import defaultdict
@@ -21,7 +22,8 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
         MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
 from db import QBDB
-from db import COL_QID, COL_UID, COL_START, COL_GUESS, COL_HELPS
+from db import COL_QID, COL_UID, COL_START, COL_GUESS, COL_HELPS,\
+        COL_TIME
 
 ANSWER_TIME_OUT = 8
 SECOND_PER_WORD = 0.5
@@ -65,6 +67,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.evidence = dict()
         self.db_rows = dict()
 
+    def get_time(self):
+        ts = time.time()
+        return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+
     def register(self, client):
         if client not in self.players:
             self.players.append(client)
@@ -73,7 +79,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.db_rows[client.peer] = {
                     COL_QID: self.qid,
                     COL_UID: client.peer,
-                    COL_START: self.position}
+                    COL_START: self.position,
+                    COL_TIME: self.get_time()}
             logger.info("Registered player {}".format(client.peer))
         if len(self.players) == 1:
             self.new_question()
@@ -136,6 +143,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.position = 0
         self.evidence = dict()
         self.db_rows = dict()
+        ts = self.get_time()
+        self.db_rows = {x.peer: {
+                    COL_QID: self.qid,
+                    COL_UID: x.peer,
+                    COL_START: 0,
+                    COL_TIME: ts} for x in self.players}
 
         # notify all players of new question, wait for confirmation
         msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
@@ -145,15 +158,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
         for player in self.players:
             def callback(x):
                 logger.info('[new question] Player {} ready'.format(player.peer))
-                self.db_rows[player.peer] = {
-                    COL_QID: self.qid,
-                    COL_UID: player.peer,
-                    COL_START: 0}
 
             def errback(x):
                 logger.warning('[new question] player {} timed out'\
                         .format(player.peer))
                 self.unregister(player)
+                self.db_rows.pop(player.peer, None)
 
             condition = partial(self.check_player_response,
                     uid=player.peer, key='qid', value=self.qid)
@@ -257,6 +267,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
         position = self.player_responses[green_player.peer]['position']
         result = (answer == self.question['answer']) and not timed_out
         score = 10 if result else (0 if end_of_question else -5)
+        if green_player.peer not in self.db_rows:
+            self.db_rows[green_player.peer] = {
+                    COL_QID: self.qid,
+                    COL_UID: green_player.peer,
+                    COL_START: self.position,
+                    COL_TIME: self.get_time()}
         self.db_rows[green_player.peer]['guess'] = {
                 'position': self.position,
                 'guess': answer,
@@ -288,6 +304,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
         reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self.new_question)
+        logger.info('-' * 60)
         
 
 if __name__ == '__main__':
