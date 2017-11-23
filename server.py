@@ -179,8 +179,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 return
 
         self.question = self.questions[self.question_idx]
-        self.question_length = len(self.question['text'].split())
         self.qid = self.question['qid']
+        self.question_text = self.question['text'].split()
+        self.question_length = len(self.question_text)
         self.position = 0
         self.start_streamer()
 
@@ -225,7 +226,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 deferred.addCallbacks(callback, errback)
                 self._deferreds.append((deferred, condition, 'user check'))
 
-        condition = lambda: len(self._deferreds) == 1
         def callback():
             self.new_question_2()
             # if len(self._deferreds) == 0:
