@@ -133,7 +133,8 @@ class GuesserBuzzerProtocol(PlayerProtocol):
             self.evidence = dict()
         msg = {'type': MSG_TYPE_BUZZING_REQUEST,
                 'qid': self.qid, 'position': self.position,
-                'evidence': self.evidence}
+                'evidence': self.evidence,
+                'helps': {'qanta': True}}
         if self.buzz():
             logger.info("\nBuzzing on answer: {}".format(self.answer))
             msg['type'] = MSG_TYPE_BUZZING_REQUEST
@@ -143,6 +144,13 @@ class GuesserBuzzerProtocol(PlayerProtocol):
             msg['text'] = 'not buzzing'
         self.sendMessage(json.dumps(msg).encode('utf-8'))
         self.position += 1
+
+    def send_answer(self, msg):
+        logger.info('Answering: {}'.format(self.answer))
+        msg = {'type': MSG_TYPE_BUZZING_ANSWER, 'text': self.answer,
+                'qid': self.qid, 'position': self.position,
+                'helps': {'qanta': True}}
+        self.sendMessage(json.dumps(msg).encode('utf-8'))
 
 
 if __name__ == '__main__':

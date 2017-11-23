@@ -253,10 +253,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         def errback(x):
             logger.info('[buzzing] Player answer time out')
+            helps = self.player_responses[green_player.peer].get('helps', dict())
             self.player_responses[green_player.peer] = {
                     'type': MSG_TYPE_BUZZING_ANSWER,
                     'qid': self.qid, 'position': self.position,
-                    'text': '_TIME_OUT_'}
+                    'text': '_TIME_OUT_',
+                    'helps': helps}
             self._buzzing_after(buzzing_idx, end_of_question, True)
 
         if condition():
