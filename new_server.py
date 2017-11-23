@@ -157,10 +157,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         for player in self.players:
             def callback(x):
-                logger.info('[new question] Player {} ready'.format(player.peer))
+                # logger.info('[new question] Player {} ready'.format(player.peer))
+                pass
 
             def errback(x):
-                logger.warning('[new question] player {} timed out'\
+                logger.info('[new] player {} timed out'\
                         .format(player.peer))
                 self.unregister(player)
                 self.db_rows.pop(player.peer, None)
@@ -176,7 +177,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 deferred.addCallbacks(callback, errback)
                 self.deferreds.append((deferred, condition))
 
-        reactor.callLater(SECOND_PER_WORD, self.stream_next)
+        def calllater():
+            for i, x in enumerate(self.players):
+                logger.info("Player {} {} score {}".format(
+                    i, x.peer, self.player_scores[x.peer]))
+            self.stream_next()
+
+        reactor.callLater(SECOND_PER_WORD, calllater)
 
     def stream_next(self):
         # send next word of the question to all players
@@ -245,7 +252,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self._buzzing_after(buzzing_idx, end_of_question, False)
 
         def errback(x):
-            logger.warning('[buzzing] Player answer time out')
+            logger.info('[buzzing] Player answer time out')
             self.player_responses[green_player.peer] = {
                     'type': MSG_TYPE_BUZZING_ANSWER,
                     'qid': self.qid, 'position': self.position,
