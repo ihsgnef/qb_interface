@@ -23,6 +23,7 @@ from db import QBDB
 from db import COL_QID, COL_UID, COL_START, COL_GUESS, COL_HELPS
 
 ANSWER_TIME_OUT = 8
+SECOND_PER_WORD = 0.5
 PLAYER_RESPONSE_TIME_OUT = 3
 
 logging.basicConfig(level=logging.INFO)
@@ -164,7 +165,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 deferred.addCallbacks(callback, errback)
                 self.deferreds.append((deferred, condition))
 
-        reactor.callLater(0.5, self.stream_next)
+        reactor.callLater(SECOND_PER_WORD, self.stream_next)
 
     def stream_next(self):
         # send next word of the question to all players
@@ -184,7 +185,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 for x in self.players):
             self._buzzing()
         else:
-            reactor.callLater(0.5, self.stream_next)
+            reactor.callLater(SECOND_PER_WORD, self.stream_next)
 
     def stream_rest(self):
         # send rest of the question to all players
@@ -195,7 +196,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 }
         self.position = self.question_length
         self.broadcast(self.players, msg)
-        reactor.callLater(2, self.stream_next)
+        reactor.callLater(SECOND_PER_WORD, self.stream_next)
 
     def _buzzing(self, end_of_question=False):
         buzzing_ids = []
@@ -228,8 +229,16 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         condition = partial(self.check_player_response, 
                 green_player.peer, 'type', MSG_TYPE_BUZZING_ANSWER)
-        callback = partial(self._buzzing_1, buzzing_idx, end_of_question, False)
-        errback = partial(self._buzzing_1, buzzing_idx, end_of_question, True)
+
+        def callback(x):
+            self._buzzing_after(buzzing_idx, end_of_question, False)
+
+        def errback(x):
+            logger.warning('[buzzing] Player answer time out')
+            self.player_responses[green_player.peer] = {
+                    'type': MSG_TYPE_BUZZING_ANSWER,
+                    'qid': self.qid, 'text': '_TIME_OUT_'}
+            self._buzzing_after(buzzing_idx, end_of_question, True)
 
         if condition():
             callback(None)
@@ -239,35 +248,36 @@ class BroadcastServerFactory(WebSocketServerFactory):
             deferred.addCallbacks(callback, errback)
             self.deferreds.append((deferred, condition))
 
-    def _buzzing_1(self, buzzing_idx, end_of_question, timed_out, x):
-        green_player = self.players[buzzing_idx]
-        red_players = self.players[:buzzing_idx] + self.players[buzzing_idx+1:]
-        answer = self.player_responses[green_player.peer]['text']
-        position = self.player_responses[green_player.peer]['position']
-        result = (answer == self.question['answer']) and not timed_out
-        score = 10 if result else (0 if end_of_question else -5)
-        self.db_rows[green_player.peer]['guess'] = {
-                'position': max(self.position, position),
-                'guess': answer,
-                'result': result,
-                'score': score}
-        
-        if timed_out:
-            logger.warning('[buzzing] Player answer time out')
-        else:
-            logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
-        self.player_scores[green_player.peer] += score
-        msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': result,
-                'score': score,'uid': buzzing_idx, 'guess': answer}
-        self.broadcast([green_player], msg)
+    def _buzzing_after(self, buzzing_idx, end_of_question, timed_out):
+        try:
+            green_player = self.players[buzzing_idx]
+            red_players = self.players[:buzzing_idx] + self.players[buzzing_idx+1:]
+            answer = self.player_responses[green_player.peer]['text']
+            position = self.player_responses[green_player.peer]['position']
+            result = (answer == self.question['answer']) and not timed_out
+            score = 10 if result else (0 if end_of_question else -5)
+            self.db_rows[green_player.peer]['guess'] = {
+                    'position': max(self.position, position),
+                    'guess': answer,
+                    'result': result,
+                    'score': score}
+            
+            if not timed_out:
+                logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
+            self.player_scores[green_player.peer] += score
+            msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': result,
+                    'score': score,'uid': buzzing_idx, 'guess': answer}
+            self.broadcast([green_player], msg)
 
-        msg['type'] = MSG_TYPE_RESULT_OTHER
-        self.broadcast(red_players, msg)
+            msg['type'] = MSG_TYPE_RESULT_OTHER
+            self.broadcast(red_players, msg)
+        except Exception as e:
+            print(e)
 
         if end_of_question or result:
             self._end_of_question()
         else:
-            reactor.callLater(2, self.stream_rest)
+            reactor.callLater(SECOND_PER_WORD * 2, self.stream_rest)
 
     def _end_of_question(self):
         msg = {'type': MSG_TYPE_END, 'qid': self.qid, 'text': '', 
