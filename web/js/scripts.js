@@ -1,6 +1,6 @@
 var sockt = new WebSocket("ws://34.209.31.242:9000");
-var answer_json_dir = "http://qbinterface.club/answers.json";
-// var answer_json_dir = "http://localhost/answers.json";
+// var answer_json_dir = "http://qbinterface.club/answers.json";
+var answer_json_dir = "http://localhost/answers.json";
 
 ///////// Message types ///////// 
 var MSG_TYPE_NEW = 0; // beginning of a new question
@@ -180,8 +180,19 @@ function update_question(msg) {
         sockt.send(JSON.stringify(m));
     } else {
         m.type = MSG_TYPE_BUZZING_REQUEST;
+        m.helps = get_helps()
         sockt.send(JSON.stringify(m));
     }
+}
+
+function get_helps() {
+    // get the list of enabled interpretations
+    var helps = {
+        guesses: guesses_checkbox.checked,
+        highlight: highlight_checkbox.checked,
+        evidence: evidence_checkbox.checked,
+        voice: voice_checkbox.checked}
+    return helps
 }
 
 
@@ -194,7 +205,8 @@ function send_answer() {
         type: MSG_TYPE_BUZZING_ANSWER,
         qid: qid,
         position: position,
-        text: answer
+        text: answer,
+        helps: get_helps()
     };
     sockt.send(JSON.stringify(m));
     answer_button.disabled = true;
