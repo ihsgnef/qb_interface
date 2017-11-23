@@ -3,6 +3,7 @@ import json
 import time
 import random
 import logging
+import traceback
 from threading import Thread
 from functools import partial
 from collections import defaultdict
@@ -70,7 +71,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
             msg = {'type': MSG_TYPE_NEW, 'qid': self.qid}
             client.sendMessage(json.dumps(msg).encode('utf-8'))
             self.db_rows[client.peer] = {
-                    COL_UID: client.peer, COL_QID: self.qid,
+                    COL_QID: self.qid,
+                    COL_UID: client.peer,
                     COL_START: self.position}
             logger.info("Registered player {}".format(client.peer))
         if len(self.players) == 1:
@@ -123,7 +125,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 random.shuffle(self.questions)
                 self.question_idx = 0
             else:
-                self.end_of_game()
+                self._end_of_game()
                 return
         
         self.question = self.questions[self.question_idx]
@@ -134,7 +136,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.position = 0
         self.evidence = dict()
         self.db_rows = dict()
-        print('begin new question {}'.format(self.qid))
 
         # notify all players of new question, wait for confirmation
         msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
@@ -144,10 +145,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
         for player in self.players:
             def callback(x):
                 logger.info('[new question] Player {} ready'.format(player.peer))
-                self.db_rows = {player.peer: {
-                    COL_UID: player.peer,
+                self.db_rows[player.peer] = {
                     COL_QID: self.qid,
-                    COL_START: 0} for player in self.players}
+                    COL_UID: player.peer,
+                    COL_START: 0}
 
             def errback(x):
                 logger.warning('[new question] player {} timed out'\
@@ -249,30 +250,27 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.deferreds.append((deferred, condition))
 
     def _buzzing_after(self, buzzing_idx, end_of_question, timed_out):
-        try:
-            green_player = self.players[buzzing_idx]
-            red_players = self.players[:buzzing_idx] + self.players[buzzing_idx+1:]
-            answer = self.player_responses[green_player.peer]['text']
-            position = self.player_responses[green_player.peer]['position']
-            result = (answer == self.question['answer']) and not timed_out
-            score = 10 if result else (0 if end_of_question else -5)
-            self.db_rows[green_player.peer]['guess'] = {
-                    'position': max(self.position, position),
-                    'guess': answer,
-                    'result': result,
-                    'score': score}
-            
-            if not timed_out:
-                logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
-            self.player_scores[green_player.peer] += score
-            msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': result,
-                    'score': score,'uid': buzzing_idx, 'guess': answer}
-            self.broadcast([green_player], msg)
+        green_player = self.players[buzzing_idx]
+        red_players = self.players[:buzzing_idx] + self.players[buzzing_idx+1:]
+        answer = self.player_responses[green_player.peer]['text']
+        position = self.player_responses[green_player.peer]['position']
+        result = (answer == self.question['answer']) and not timed_out
+        score = 10 if result else (0 if end_of_question else -5)
+        self.db_rows[green_player.peer]['guess'] = {
+                'position': self.position,
+                'guess': answer,
+                'result': result,
+                'score': score}
+        
+        if not timed_out:
+            logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
+        self.player_scores[green_player.peer] += score
+        msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': result,
+                'score': score,'uid': buzzing_idx, 'guess': answer}
+        self.broadcast([green_player], msg)
 
-            msg['type'] = MSG_TYPE_RESULT_OTHER
-            self.broadcast(red_players, msg)
-        except Exception as e:
-            print(e)
+        msg['type'] = MSG_TYPE_RESULT_OTHER
+        self.broadcast(red_players, msg)
 
         if end_of_question or result:
             self._end_of_question()
@@ -283,6 +281,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
         msg = {'type': MSG_TYPE_END, 'qid': self.qid, 'text': '', 
                 'evidence': {'answer': self.question['answer']}}
         self.broadcast(self.players, msg)
+        try:
+            for row in self.db_rows.values():
+                self.db.add_row(row)
+        except Exception as e:
+            traceback.print_exc(file=sys.stdout)
         reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self.new_question)
         
 
@@ -292,8 +295,7 @@ if __name__ == '__main__':
         random.shuffle(questions)
 
     db = QBDB()
-    factory = BroadcastServerFactory(u"ws://127.0.0.1:9000", questions,
-            db, loop=True)
+    factory = BroadcastServerFactory(u"ws://127.0.0.1:9000", questions, db, loop=True)
     factory.protocol = BroadcastServerProtocol
     listenWS(factory)
 
