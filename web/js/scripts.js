@@ -300,6 +300,7 @@ function handle_buzzing(msg) {
     var user_text = "";
     if (msg.type === MSG_TYPE_BUZZING_GREEN) {
         answer_group.style.display = "initial";
+        answer_area.value = "";
         answer_area.focus();
         answer_button.disabled = false;
         user_text = "Your";
