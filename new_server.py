@@ -62,6 +62,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.player_buzzed = defaultdict(lambda: False)
         self.deferreds = []
 
+        self.started = False
         self.qid = 0
         self.position = 0
         self.evidence = dict()
@@ -82,7 +83,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     COL_START: self.position,
                     COL_TIME: self.get_time()}
             logger.info("Registered player {}".format(client.peer))
-        if len(self.players) == 1:
+        if len(self.players) == 1 and not self.started:
+            self.started = True
             self.new_question()
     
     def unregister(self, client):
@@ -152,7 +154,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         # notify all players of new question, wait for confirmation
         msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
-                'length': self.question_length}
+                'length': self.question_length, 'position': 0}
         self.broadcast(self.players, msg)
 
         for player in self.players:
