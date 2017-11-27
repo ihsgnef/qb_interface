@@ -75,12 +75,14 @@ class GuesserBuzzer:
         self.ok_to_buzz = True
         self.answer = ''
 
-    def new_question(self):
+    def new_question(self, msg):
         self.buzzer.new_round()
         self.ok_to_buzz = True
 
-    def buzz(self, text):
+    def buzz(self, text, position):
         guesses = self.guesser.guess_single(text)
+        self.evidence = dict()
+        self.evidence['highlight'] = get_color(np.random.uniform())
         if not isinstance(guesses, dict):
             guesses = {x[0]: x[1] for x in guesses}
         buzz_scores = [0, 1] # [wait, buzz]
@@ -94,33 +96,64 @@ class GuesserBuzzer:
             self.answer = guesses[0][0]
         return buzz_scores
 
-guesser_buzzer = GuesserBuzzer()
+class CachedGuesserBuzzer:
+
+    def __init__(self, record_dir):
+        self.guesser_buzzer = GuesserBuzzer()
+        with open(record_dir, 'r') as f:
+            self.cache = json.loads(f.read())
+        self.in_cache = False
+        self.position = 0
+        self.ok_to_buzz = True
+
+    def new_question(self, msg):
+        self.guesser_buzzer.new_question(msg)
+        self.evidence = dict()
+        self.position = 0
+        self.qid = str(msg['qid'])
+        self.ok_to_buzz = True
+        if self.qid in self.cache:
+            self.in_cache = True
+
+    def buzz(self, text, position):
+        self.position = position
+        if self.in_cache:
+            record = self.cache[self.qid]
+            if self.position > len(record['answer']):
+                print(self.position, len(record['answer']))
+            self.position = min(self.position, len(record['answer']))
+            self.buzz_scores = record['buzz'][self.position]
+            self.answer = record['answer'][self.position]
+            self.evidence = record['evidence'][self.position]
+        else:
+            self.buzz_scores = self.guesser_buzzer.buzz(text, position)
+            self.answer = self.guesser_buzzer.answer
+            self.evidence = self.guesser_buzzer.evidence
+        print(self.in_cache, self.buzz_scores, self.answer)
+        return self.buzz_scores if self.ok_to_buzz else [0, 1]
+
+guesser_buzzer = CachedGuesserBuzzer('data/guesser_buzzer_cache.json')
 
 class GuesserBuzzerProtocol(PlayerProtocol):
 
     def onOpen(self):
         self.qid = None
         self.text = ''
-        self.highlight = '#f4f4f4'
         self.position = 0
         self.answer = ''
         self.evidence = dict()
 
     def new_question(self, msg):
         self.text = ''
-        self.highlight = '#f4f4f4'
-        guesser_buzzer.new_question()
+        self.position = 0
+        guesser_buzzer.new_question(msg)
         self.evidence = dict()
         super(GuesserBuzzerProtocol, self).new_question(msg)
 
     def buzz(self):
-        buzz_scores = guesser_buzzer.buzz(self.text) # [wait, buzz]
+        buzz_scores = guesser_buzzer.buzz(self.text, self.position) # [wait, buzz]
         self.answer = guesser_buzzer.answer
-        if self.evidence is None:
-            self.evidence = dict()
-        self.evidence['guesses'] = guesser_buzzer.guesses
-        self.evidence['highlight'] = self.highlight
-        print(buzz_scores, self.answer)
+        self.evidence = guesser_buzzer.evidence
         buzzing = buzz_scores[0] > buzz_scores[1] # [wait, buzz]
         if buzzing:
             guesser_buzzer.ok_to_buzz = False
@@ -129,11 +162,7 @@ class GuesserBuzzerProtocol(PlayerProtocol):
     def update_question(self, msg):
         # print(msg['text'], end=' ', flush=True)
         self.text += ' ' + msg['text']
-        words = msg['text'].split()
-        weight = np.random.uniform()
-        self.highlight = get_color(weight)
-        if self.evidence is None:
-            self.evidence = dict()
+        self.position = msg['position']
         msg = {'type': MSG_TYPE_BUZZING_REQUEST,
                 'qid': self.qid, 'position': self.position,
                 'evidence': self.evidence,

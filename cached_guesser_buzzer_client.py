@@ -18,7 +18,7 @@ def main():
         questions = json.loads(f.read())
     
     records = dict()
-    for question in tqdm(questions[:10]):
+    for question in tqdm(questions):
         qid = question['qid']
         buzzes = []
         answers = []
@@ -51,4 +51,4 @@ def test():
             print('QUIZ|' + x.replace('<em>', color.RED).replace('</em>', color.END))
 
 if __name__ == '__main__':
-    test()
+    main()
