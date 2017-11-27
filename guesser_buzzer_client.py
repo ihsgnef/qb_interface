@@ -73,6 +73,7 @@ class GuesserBuzzer:
             self.buzzer = StupidBuzzer()
 
         self.ok_to_buzz = True
+        self.answer = ''
 
     def new_question(self):
         self.buzzer.new_round()
@@ -85,6 +86,8 @@ class GuesserBuzzer:
         buzz_scores = [0, 1] # [wait, buzz]
         if self.ok_to_buzz:
             buzz_scores = self.buzzer.buzz(guesses)
+            if isinstance(buzz_scores, np.ndarray):
+                buzz_scores = buzz_scores.tolist()
         guesses = sorted(guesses.items(), key=lambda x: x[1])[::-1]
         self.guesses = guesses
         if len(guesses) > 0:
