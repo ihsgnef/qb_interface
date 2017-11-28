@@ -11,7 +11,11 @@
     <meta name="description" content="Play QuizBowl against machine">
     <meta name="author" content="ihsgnef">
 
-    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <link href="css/FuzzySearch.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
 
@@ -26,7 +30,6 @@
                     <div class="tabbable">
                         <ul class="nav nav-tabs">
                             <li class="active"><a href="#panel-guesses" data-toggle="tab">Guesses</a></li>
-                            <li><a href="#panel-818328" data-toggle="tab">Section 2</a></li>
                         </ul>
                         <div class="tab-content">
                             <div class="tab-pane active" id="panel-guesses">
@@ -95,15 +98,22 @@
                             <span class="twitter-typeahead" style="position: relative; display: inline-block;"><input class="twitter-typeahead tt-hint" autocomplete="off" type="text" readonly="" spellcheck="false" tabindex="-1" style="position: absolute; top: 0px; left: 0px; border-color: transparent; box-shadow: none; opacity: 1; background: none 0% 0% / auto repeat scroll padding-box border-box rgb(255, 255, 255);" dir="ltr"><input id="answer_area" class="twitter-typeahead tt-input" name="answer_area" autocomplete="off" type="text" spellcheck="false" dir="auto" style="position: relative; vertical-align: top; background-color: transparent;"><pre aria-hidden="true" style="position: absolute; visibility: hidden; white-space: pre; font-family: system-ui; font-size: 12px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; word-spacing: 0px; letter-spacing: 0px; text-indent: 0px; text-rendering: auto; text-transform: none;"></pre><div class="tt-menu" style="position: absolute; top: 100%; left: 0px; z-index: 100; display: none;"><div class="tt-dataset tt-dataset-movies"></div></div></span>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-1">
                         <button type="submit" class="btn btn-primary" id="answer_button"> Answer </button>
                     </div>
                 </div>
-                <div class="readout" style="display: block; width: auto;">
-                    <div class="well" id="question_area"> Question </div>
+                <div class="card card-outline-primary mt-2">
+                    <div class="card-body my-2 mx-2">
+                        <a class="card-text" id="question_area"> question text</a>
+                    </div>
                 </div>
-                <div id="matches"><span></span></div>
-                <div id="history"><span></span></div>
+                <div id="matches" class="mt-2"><span></span></div>
+
+                <div id="history_table" class="mt-2" role="tablist">
+                  <div class="card" id="history"> </div>
+                </div>
+
+
             </div>
             <div class="col-md-3">
                 <div class="thumbnail">
@@ -125,9 +135,7 @@
         </div>
     </div>
 
-    <script src="js/jquery.min.js"></script>
-    <script src="js/jquery-ui.min.js"></script>
-    <script src="js/bootstrap.min.js"></script>
+
     <script src="js/typeahead.jquery.min.js"></script>
     <script src="js/FuzzySearch.min.js"></script>
     <script src="js/scripts.js"></script>

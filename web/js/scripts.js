@@ -40,10 +40,10 @@ var position            = 0;
 var qid                 = 0;
 var score               = 0;
 var history_number      = 0;
+var real_answer         = 'question';
 var timer_set           = false;
 var timer_timeout;
-var bell_str = ' <span class="inline-icon"><i class="glyphicon glyphicon-bell"></i></span> ';
-
+var bell_str = ' <i class="fa fa-bell" aria-hidden="true"></i> ';
 
 ///////// Keyboard operations  ///////// 
 // Use space bar for buzzing & avoid scrolling
@@ -162,6 +162,7 @@ function new_question(msg) {
     buzz_button.style.display = "initial";
     answer_group.style.display = "none";
 
+    real_answer = 'question';
     is_buzzing = false;
     timer_set = false;
     var m = {
@@ -222,9 +223,9 @@ function handle_result(msg) {
     clearTimeout(timer_timeout);
     var text = msg.guess + ' ';
     if (msg.result === true) {
-        text += '<span class="label label-success">Correct</span><br />';
+        text += '<span class="badge badge-success">Correct</span><br />';
     } else {
-        text += '<span class="label label-warning">Wrong</span><br />';
+        text += '<span class="badge badge-warning">Wrong</span><br />';
     }
     update_info_display(text);
 
@@ -244,22 +245,20 @@ function toggle_history_visability(history_id) {
 }
 
 function add_history() {
-    history_number += 1;
     if (question_text == '' && info_text == '') { return; }
-    var iDiv = document.createElement('div');
-    iDiv.className = 'well';
-    iDiv.innerHTML = question_text + '<br />' + info_text;
-    iDiv.style.display = "none";
-    iDiv.setAttribute("id", "history_" + history_number);
-    history_div.insertBefore(iDiv, history_div.childNodes[0]);
+    history_number += 1;
+    
+    var elem_id = 'history_' + history_number;
+    var head_id = 'heading_' + elem_id;
+    var header = '<div class="card-header" role="tab" id="' + head_id + '">';
+    header += '<a data-toggle="collapse" href="#' + elem_id + '" aria-expanded="false" aria-controls="' + elem_id + '">';
+    header += real_answer + '</a></div>';
 
-    var bDiv = document.createElement('div');
-    bDiv.className = "well";
-    bDiv.innerHTML = 'history_' + history_number;
-    bDiv.onclick = function() {
-        toggle_history_visability(history_number);
-    }
-    history_div.insertBefore(bDiv, history_div.childNodes[0]);
+    var content = '<div id="' + elem_id + '" class="collapse" role="tabpanel" aria-labelledby="' + head_id + '">';
+    content += '<div class="card-body mx-2 my-2">';
+    content += question_text + '<br />' + info_text + '</div></div>';
+
+    history_div.innerHTML = header + content + history_div.innerHTML;
 }
 
 
@@ -292,6 +291,7 @@ function update_interpretation(msg) {
     if (typeof evidence.answer !== 'undefined') {
         var text = "<br />Correct answer: " + evidence.answer;
         update_info_display(text);
+        real_answer = evidence.answer;
     }
 
     // update the list of guesses
@@ -311,7 +311,7 @@ function update_interpretation(msg) {
     // update the matches
     if (typeof evidence.matches !== 'undefined') {
         if (evidence.matches.qb !== 'undefined') {
-            var matches = '<div class="well">' + evidence.matches.qb[0] + '</div>';
+            var matches = '<div class="card">' + evidence.matches.qb[0] + '</div>';
             matches_div.innerHTML = matches;
         }
     }
@@ -358,7 +358,7 @@ function handle_buzzing(msg) {
     clearTimeout(timer_timeout);
     progress(7, 7, true);
     update_question_display(bell_str);
-    var text = '</br><span class="label label-danger">Buzz</span> <span> ' 
+    var text = '</br><span class="badge badge-danger">Buzz</span> <span> ' 
         + user_text + ' answer: </span>';
     update_info_display(text);
 }
