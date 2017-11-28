@@ -28,7 +28,6 @@ var evidence_checkbox  = document.getElementById("evidence_checkbox");
 var voice_checkbox     = document.getElementById("voice_checkbox");
 var answer_group       = document.getElementById("answer_area_button");
 var history_div = document.getElementById('history');
-var matches_div = document.getElementById('matches');
 
 
 ///////// State variables ///////// 
@@ -305,14 +304,6 @@ function update_interpretation(msg) {
             button_text += '>' + guess.substr(0, 20) + '</a>';
             guesses_table.rows[i + 1].cells[1].innerHTML = button_text;
             guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
-        }
-    }
-
-    // update the matches
-    if (typeof evidence.matches !== 'undefined') {
-        if (evidence.matches.qb !== 'undefined') {
-            var matches = '<div class="card">' + evidence.matches.qb[0] + '</div>';
-            matches_div.innerHTML = matches;
         }
     }
 }
