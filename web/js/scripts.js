@@ -1,6 +1,6 @@
 var sockt = new WebSocket("ws://34.209.31.242:9000");
-var answer_json_dir = "http://qbinterface.club/answers.json";
-// var answer_json_dir = "http://localhost/answers.json";
+// var answer_json_dir = "http://qbinterface.club/answers.json";
+var answer_json_dir = "http://localhost/answers.json";
 
 ///////// Message types ///////// 
 var MSG_TYPE_NEW = 0; // beginning of a new question
@@ -27,6 +27,8 @@ var highlight_checkbox = document.getElementById("highlight_checkbox");
 var evidence_checkbox  = document.getElementById("evidence_checkbox");
 var voice_checkbox     = document.getElementById("voice_checkbox");
 var answer_group       = document.getElementById("answer_area_button");
+var history_div = document.getElementById('history');
+var matches_div = document.getElementById('matches');
 
 
 ///////// State variables ///////// 
@@ -37,6 +39,7 @@ var is_buzzing          = false;
 var position            = 0;
 var qid                 = 0;
 var score               = 0;
+var history_number      = 0;
 var timer_set           = false;
 var timer_timeout;
 var bell_str = ' <span class="inline-icon"><i class="glyphicon glyphicon-bell"></i></span> ';
@@ -231,13 +234,32 @@ function handle_result(msg) {
     }
 }
 
+function toggle_history_visability(history_id) {
+    var hist_div = document.getElementById('history_' + history_id);
+    if (hist_div.style.display == 'none') {
+        hist_div.style.display = 'block';
+    } else {
+        hist_div.style.display = 'none';
+    }
+}
+
 function add_history() {
+    history_number += 1;
     if (question_text == '' && info_text == '') { return; }
     var iDiv = document.createElement('div');
     iDiv.className = 'well';
     iDiv.innerHTML = question_text + '<br />' + info_text;
-    var history_div = document.getElementById('history');
+    iDiv.style.display = "none";
+    iDiv.setAttribute("id", "history_" + history_number);
     history_div.insertBefore(iDiv, history_div.childNodes[0]);
+
+    var bDiv = document.createElement('div');
+    bDiv.className = "well";
+    bDiv.innerHTML = 'history_' + history_number;
+    bDiv.onclick = function() {
+        toggle_history_visability(history_number);
+    }
+    history_div.insertBefore(bDiv, history_div.childNodes[0]);
 }
 
 
@@ -283,6 +305,14 @@ function update_interpretation(msg) {
             button_text += '>' + guess.substr(0, 20) + '</a>';
             guesses_table.rows[i + 1].cells[1].innerHTML = button_text;
             guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
+        }
+    }
+
+    // update the matches
+    if (typeof evidence.matches !== 'undefined') {
+        if (evidence.matches.qb !== 'undefined') {
+            var matches = '<div class="well">' + evidence.matches.qb[0] + '</div>';
+            matches_div.innerHTML = matches;
         }
     }
 }
