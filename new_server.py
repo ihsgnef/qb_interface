@@ -5,6 +5,7 @@ import random
 import logging
 import traceback
 import datetime
+from tqdm import tqdm
 from threading import Thread
 from functools import partial
 from collections import defaultdict
@@ -67,6 +68,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.position = 0
         self.evidence = dict()
         self.db_rows = dict()
+        # when we unregister a player, wait until the end
+        # of the round to remove it from the list of players
+        # this list keeps track of the players that are actually active
+        self.player_alive = []
 
     def get_time(self):
         ts = time.time()
@@ -82,6 +87,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     COL_UID: client.peer,
                     COL_START: self.position,
                     COL_TIME: self.get_time()}
+            self.player_alive.append(True)
             logger.info("Registered player {}".format(client.peer))
         if len(self.players) == 1 and not self.started:
             self.started = True
@@ -90,7 +96,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def unregister(self, client):
         if client in self.players:
             logger.info("Unregistered player {}".format(client.peer))
-            self.players.remove(client)
+            idx = self.players.index(client)
+            self.player_alive[idx] = False
+            # self.players.remove(client)
+            # don't remove the player just yet
 
     def check_player_response(self, uid, key, value):
         return uid in self.player_responses and \
@@ -183,6 +192,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             for i, x in enumerate(self.players):
                 logger.info("Player {} {} score {}".format(
                     i, x.peer, self.player_scores[x.peer]))
+            self.pbar = tqdm(total=self.question_length, leave=False)
             self.stream_next()
 
         reactor.callLater(SECOND_PER_WORD, calllater)
@@ -193,19 +203,21 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self._buzzing(end_of_question=True)
             return
 
+        if any(self.check_player_response(
+                x.peer, 'type', MSG_TYPE_BUZZING_REQUEST)
+                for x in self.players):
+            self._buzzing()
+            return
+
         msg = {'type': MSG_TYPE_RESUME,  'qid': self.qid,
                 'text': self.question_text[self.position],
                 'position': self.position,
                 'length': self.question_length,
                 'evidence': self.evidence}
         self.position += 1
+        self.pbar.update(1)
         self.broadcast(self.players, msg)
-        if any(self.check_player_response(
-                x.peer, 'type', MSG_TYPE_BUZZING_REQUEST)
-                for x in self.players):
-            self._buzzing()
-        else:
-            reactor.callLater(SECOND_PER_WORD, self.stream_next)
+        reactor.callLater(SECOND_PER_WORD, self.stream_next)
 
     def stream_rest(self):
         # send rest of the question to all players
@@ -297,7 +309,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.player_scores[green_player.peer] += score
         msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': result,
                 'score': score,'uid': buzzing_idx, 'guess': answer}
-        self.broadcast([green_player], msg)
+        if self.player_alive[buzzing_idx]:
+            self.broadcast([green_player], msg)
 
         msg['type'] = MSG_TYPE_RESULT_OTHER
         self.broadcast(red_players, msg)
@@ -311,14 +324,21 @@ class BroadcastServerFactory(WebSocketServerFactory):
         msg = {'type': MSG_TYPE_END, 'qid': self.qid, 'text': '', 
                 'evidence': {'answer': self.question['answer']}}
         self.broadcast(self.players, msg)
+
+        assert len(self.players) == len(self.player_alive)
+        alive_idxs = [i for i, y in enumerate(self.player_alive) if y]
+        self.players = [self.players[i] for i in alive_idxs]
+        self.player_alive = [self.player_alive[i] for i in alive_idxs]
+        logger.info('-' * 60)
+        self.pbar.close()
+
         try:
             for row in self.db_rows.values():
                 self.db.add_row(row)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
         reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self.new_question)
-        logger.info('-' * 60)
-        
+
 
 if __name__ == '__main__':
     with open('data/sample_questions.json', 'r') as f:
