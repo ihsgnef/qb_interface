@@ -121,7 +121,8 @@ class CachedGuesserBuzzer:
             record = self.cache[self.qid]
             if self.position > len(record['answer']):
                 print(self.position, len(record['answer']))
-            self.position = min(self.position, len(record['answer']))
+            self.position = min(self.position, len(record['answer'])-1)
+            self.position = min(self.position, len(record['buzz'])-1)
             self.buzz_scores = record['buzz'][self.position]
             self.answer = record['answer'][self.position]
             self.evidence = record['evidence'][self.position]
@@ -161,7 +162,7 @@ class GuesserBuzzerProtocol(PlayerProtocol):
 
     def update_question(self, msg):
         # print(msg['text'], end=' ', flush=True)
-        self.text += ' ' + msg['text']
+        self.text = msg['text']
         self.position = msg['position']
         msg = {'type': MSG_TYPE_BUZZING_REQUEST,
                 'qid': self.qid, 'position': self.position,
