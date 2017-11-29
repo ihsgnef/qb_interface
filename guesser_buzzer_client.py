@@ -167,7 +167,7 @@ class CachedGuesserBuzzer:
 
     def __init__(self, record_dir):
         self.guesser_buzzer = GuesserBuzzer()
-        with open(record_dir, 'r') as f:
+        with open(record_dir, 'rb') as f:
             self.cache = pickle.load(f)
         self.in_cache = False
         self.position = 0
@@ -182,6 +182,7 @@ class CachedGuesserBuzzer:
         if self.qid in self.cache:
             self.in_cache = True
             self.record = self.cache[self.qid]
+        print(self.in_cache)
 
     def buzz(self, text, position):
         self.position = position
@@ -189,14 +190,15 @@ class CachedGuesserBuzzer:
         if self.in_cache and pos in self.record:
             self.answer = self.record[pos]['answer']
             self.evidence = self.record[pos]['evidence']
+            self.buzz_scores = self.record[pos]['buzz_scores']
         else:
             self.buzz_scores = self.guesser_buzzer.buzz(text, position)
             self.answer = self.guesser_buzzer.answer
             self.evidence = self.guesser_buzzer.evidence
         return self.buzz_scores if self.ok_to_buzz else [0, 1]
 
-# guesser_buzzer = CachedGuesserBuzzer('data/guesser_buzzer_cache.pkl')
-guesser_buzzer = GuesserBuzzer()
+guesser_buzzer = CachedGuesserBuzzer('data/guesser_buzzer_cache.pkl')
+# guesser_buzzer = GuesserBuzzer()
 
 class GuesserBuzzerProtocol(PlayerProtocol):
 
