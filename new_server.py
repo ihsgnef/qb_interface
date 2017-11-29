@@ -199,7 +199,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
     def stream_next(self):
         # send next word of the question to all players
-        if self.position >= self.question_length:
+        self.position += 1
+        if self.position > self.question_length:
             self._buzzing(end_of_question=True)
             return
 
@@ -210,23 +211,22 @@ class BroadcastServerFactory(WebSocketServerFactory):
             return
 
         msg = {'type': MSG_TYPE_RESUME,  'qid': self.qid,
-                'text': self.question_text[self.position],
+                'text': ' '.join(self.question_text[:self.position]),
                 'position': self.position,
                 'length': self.question_length,
                 'evidence': self.evidence}
-        self.position += 1
         self.pbar.update(1)
         self.broadcast(self.players, msg)
         reactor.callLater(SECOND_PER_WORD, self.stream_next)
 
     def stream_rest(self):
         # send rest of the question to all players
+        self.position = self.question_length
         msg = {'type': MSG_TYPE_RESUME,  'qid': self.qid,
                 'length': self.question_length,
-                'position': self.question_length - 1, 
-                'text': ' '.join(self.question_text[self.position:])
+                'position': self.position,
+                'text': ' '.join(self.question_text[:self.position])
                 }
-        self.position = self.question_length
         self.broadcast(self.players, msg)
         reactor.callLater(SECOND_PER_WORD, self.stream_next)
 
