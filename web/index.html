@@ -26,7 +26,7 @@
         <ul class="breadcrumb">QuizBowl</ul>
         <div class="row">
             <div class="col-md-3">
-                <div class="thumbnail" id="evidence_tabs">
+                <div id="guesses_card">
                     <table class="table" id="guesses_table">
                         <thead>
                             <tr>
@@ -91,12 +91,21 @@
                     </div>
                 </div>
                 <div class="card card-outline-primary mt-2">
-                    <div class="card-body my-2 mx-2">
+                    <div class="card-body mb-2 mx-2">
+                        <p><b>Question</b></p>
                         <a class="card-text" id="question_area"> question text</a>
                     </div>
                 </div>
 
+                <div id="matches_card" class="card card-outline-primary">
+                    <div class="card-body mx-2">
+                        <p><b>Matches</b></p>
+                        <a class="card-text" id="matches_area"> matches </a>
+                    </div>
+                </div>
+
                 <div id="history_table" class="mt-2" role="tablist">
+                  <p><b>History</b></p>
                   <div class="card" id="history"> </div>
                 </div>
 
@@ -112,7 +121,7 @@
                         <label><input type="checkbox" value="" id="highlight_checkbox">Highlights</label>
                     </div>
                     <div class="checkbox">
-                        <label><input type="checkbox" value="" id="evidence_checkbox">Evidence</label>
+                        <label><input type="checkbox" value="" id="matches_checkbox" checked>Matches</label>
                     </div>
                     <div class="checkbox">
                         <label><input type="checkbox" value="" id="voice_checkbox">Voice</label>

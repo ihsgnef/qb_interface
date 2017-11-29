@@ -18,13 +18,15 @@ var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 var question_area      = document.getElementById('question_area');
 var answer_area        = document.getElementById('answer_area');
 var score_area         = document.getElementById('score_area');
-var evidence_tabs      = document.getElementById("evidence_tabs");
+var guesses_card       = document.getElementById("guesses_card");
 var guesses_table      = document.getElementById("guesses_table");
+var matches_card       = document.getElementById("matches_card");
+var matches_area       = document.getElementById("matches_area");
 var answer_button      = document.getElementById("answer_button");
 var buzz_button        = document.getElementById("buzz_button");
 var guesses_checkbox   = document.getElementById("guesses_checkbox");
 var highlight_checkbox = document.getElementById("highlight_checkbox");
-var evidence_checkbox  = document.getElementById("evidence_checkbox");
+var matches_checkbox   = document.getElementById("matches_checkbox");
 var voice_checkbox     = document.getElementById("voice_checkbox");
 var answer_group       = document.getElementById("answer_area_button");
 var history_div = document.getElementById('history');
@@ -39,7 +41,6 @@ var position            = 0;
 var qid                 = 0;
 var score               = 0;
 var history_number      = 0;
-var real_answer         = 'question';
 var timer_set           = false;
 var timer_timeout;
 var bell_str = ' <i class="fa fa-bell" aria-hidden="true"></i> ';
@@ -61,9 +62,17 @@ answer_button.onclick = function() { send_answer(); };
 // show hide guesses panel
 guesses_checkbox.onclick = function() {
     if (guesses_checkbox.checked) {
-        evidence_tabs.style.display = "block";
+        guesses_card.style.display = "block";
     } else {
-        evidence_tabs.style.display = "none";
+        guesses_card.style.display = "none";
+    }
+};
+// show hide matches panel
+matches_checkbox.onclick = function() {
+    if (matches_checkbox.checked) {
+        matches_card.style.display = "block";
+    } else {
+        matches_card.style.display = "none";
     }
 };
 // use enter to submit answer
@@ -121,16 +130,7 @@ voice_msg.pitch = 1; //0 to 2
 voice_msg.text = 'Hello World';
 voice_msg.lang = 'en-US';
 
-
-function update_question_display(text, append = true, bg_color = "#f4f4f4") {
-    var colored_text = '<span style="background-color: ' + bg_color + '">' + text + '</span>';
-    if (append) {
-        question_text += text;
-        question_text_color += colored_text;
-    } else {
-        question_text = text;
-        question_text_color = colored_text;
-    }
+function update_question_display() {
     if (highlight_checkbox.checked) {
         question_area.innerHTML = question_text_color + '<br />' + info_text;
     } else {
@@ -138,12 +138,7 @@ function update_question_display(text, append = true, bg_color = "#f4f4f4") {
     }
 }
 
-function update_info_display(text, append = true) {
-    if (append) {
-        info_text += text;
-    } else {
-        info_text = text;
-    }
+function update_info_display() {
     if (highlight_checkbox.checked) {
         question_area.innerHTML = question_text_color + '<br />' + info_text;
     } else {
@@ -154,14 +149,16 @@ function update_info_display(text, append = true) {
 function new_question(msg) {
     qid = msg.qid;
     position = 0;
-    update_question_display("", false);
-    update_info_display("", false);
+    question_text = '';
+    question_text_color = '';
+    update_question_display();
+    info_text = '';
+    update_info_display();
     buzz_button.disabled = false;
     answer_button.disabled = true;
     buzz_button.style.display = "initial";
     answer_group.style.display = "none";
 
-    real_answer = 'question';
     is_buzzing = false;
     timer_set = false;
     var m = {
@@ -173,7 +170,7 @@ function new_question(msg) {
 
 function update_question(msg) {
     update_interpretation(msg);
-    position += 1;
+    position = msg.position;
     var m = {
         type: MSG_TYPE_RESUME,
         qid: msg.qid,
@@ -193,7 +190,7 @@ function get_helps() {
     var helps = {
         guesses: guesses_checkbox.checked,
         highlight: highlight_checkbox.checked,
-        evidence: evidence_checkbox.checked,
+        matches: matches_checkbox.checked,
         voice: voice_checkbox.checked}
     return helps
 }
@@ -226,7 +223,8 @@ function handle_result(msg) {
     } else {
         text += '<span class="badge badge-warning">Wrong</span><br />';
     }
-    update_info_display(text);
+    info_text += text;
+    update_info_display();
 
     if (msg.type === MSG_TYPE_RESULT_MINE) {
         score += msg.score;
@@ -243,7 +241,7 @@ function toggle_history_visability(history_id) {
     }
 }
 
-function add_history() {
+function add_history(real_answer) {
     if (question_text == '' && info_text == '') { return; }
     history_number += 1;
     
@@ -268,13 +266,14 @@ function set_guess(guess) {
 
 function update_interpretation(msg) {
     // update text and colored text
-    var color = "#f4f4f4";
     if (typeof msg.evidence != 'undefined' 
         && typeof msg.evidence.highlight != 'undefined') {
-        color = msg.evidence.highlight;
+        question_text_color = msg.evidence.highlight;
+        update_question_display()
     }
     if (typeof msg.text != 'undefined') {
-        update_question_display(" " + msg.text, true, color);
+        question_text = msg.text;
+        update_question_display();
     }
 
     // speech synthesis
@@ -285,13 +284,6 @@ function update_interpretation(msg) {
 
     if (typeof msg.evidence == 'undefined') { return; }
     var evidence = msg.evidence;
-
-    // show correct answer
-    if (typeof evidence.answer !== 'undefined') {
-        var text = "<br />Correct answer: " + evidence.answer;
-        update_info_display(text);
-        real_answer = evidence.answer;
-    }
 
     // update the list of guesses
     if (typeof evidence.guesses !== 'undefined') {
@@ -306,6 +298,23 @@ function update_interpretation(msg) {
             guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
         }
     }
+
+    //update the matches
+    if (typeof evidence.matches !== 'undefined') {
+        var qb_matches = evidence.matches.qb, wiki_matches = evidence.matches.wiki;
+        matches_area.innerHTML = '<b>QB</b> ' + qb_matches[0];
+        matches_area.innerHTML += '</br><b>WIKI</b> ' + wiki_matches[0];
+    }
+}
+
+function end_of_question(msg) {
+    var real_answer = 'Question';
+    if (typeof msg.evidence.answer !== 'undefined') {
+        info_text += "<br />Correct answer: " + msg.evidence.answer;
+        update_info_display();
+        real_answer = msg.evidence.answer;
+    }
+    add_history(real_answer);
 }
 
 function progress(timeleft, timetotal, is_red) {
@@ -348,16 +357,18 @@ function handle_buzzing(msg) {
     buzz_button.style.display = "none";
     clearTimeout(timer_timeout);
     progress(7, 7, true);
-    update_question_display(bell_str);
+    question_text += bell_str;
+    question_text_color += bell_str;
+    update_question_display();
     var text = '</br><span class="badge badge-danger">Buzz</span> <span> ' 
         + user_text + ' answer: </span>';
-    update_info_display(text);
+    info_text += text;
+    update_info_display();
 }
 
 sockt.onmessage = function(event) {
     var msg = JSON.parse(event.data);
     if (msg.type === MSG_TYPE_NEW) {
-        add_history();
         new_question(msg);
     } else if (msg.type === MSG_TYPE_RESUME) {
         if (timer_set === false) {
@@ -368,7 +379,7 @@ sockt.onmessage = function(event) {
         }
         update_question(msg);
     } else if (msg.type === MSG_TYPE_END) {
-        update_question(msg);
+        end_of_question(msg);
     } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
         handle_buzzing(msg);
     } else if (msg.type === MSG_TYPE_BUZZING_RED) {
