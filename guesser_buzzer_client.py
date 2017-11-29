@@ -88,6 +88,7 @@ def get_matched(text, matches):
     return highlighted[1:] # remove the added space at the beginning
 
 def replace_em_with_highlight(text):
+    text = text.replace('</em> <em>', ' ')
     text = text.replace('<em>', highlight_prefix)
     text = text.replace('</em>', highlight_suffix)
     return text
