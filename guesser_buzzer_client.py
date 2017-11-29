@@ -8,6 +8,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 import chainer
+from nltk.corpus import stopwords
+stopWords = set(stopwords.words('english'))
 
 from twisted.internet import reactor
 
@@ -42,6 +44,45 @@ highlight_suffix = '</span>'
 highlight_template = highlight_prefix + '{}' + highlight_suffix
 
 def get_matched(text, matches):
+    match_words = set()
+    for match in matches:
+        soup = BeautifulSoup(match)
+        match = [x.text for x in soup.find_all('em') 
+                    if x.text not in stopWords and len(x.text) > 2]
+        match_words.update(match)
+
+    words = text.split()
+    matched = [False for _ in words]
+    for i, word in enumerate(words):
+        if len(word) < 3:
+            continue
+        if not word[0].isalnum():
+            word = word[1:]
+        if not word[-1].isalnum():
+            word = word[:-1]
+        if word in match_words:
+            matched[i] = True
+
+    highlighted = ''
+    in_highlight = False
+    for i, word in enumerate(words):
+        if not in_highlight:
+            if matched[i]:
+                highlighted += ' ' + highlight_prefix
+                in_highlight = True
+            highlighted += word + ' '
+        else:
+            if matched[i]:
+                highlighted += ' ' + word + ' '
+            else:
+                highlighted += highlight_suffix
+                highlighted += ' ' + word + ' '
+                in_highlight = False
+    if in_highlight:
+        highlighted += highlight_suffix
+    return highlighted
+
+def get_matched_merge(text, matches):
     # text is the sentence to be highlighted
     # matches is a list of sentences with <em> tags
     # find all words in text that appear in <em> tags
