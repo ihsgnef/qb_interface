@@ -18,13 +18,15 @@ var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 var question_area      = document.getElementById('question_area');
 var answer_area        = document.getElementById('answer_area');
 var score_area         = document.getElementById('score_area');
-var evidence_tabs      = document.getElementById("evidence_tabs");
+var guesses_card       = document.getElementById("guesses_card");
 var guesses_table      = document.getElementById("guesses_table");
+var matches_card       = document.getElementById("matches_card");
+var matches_area       = document.getElementById("matches_area");
 var answer_button      = document.getElementById("answer_button");
 var buzz_button        = document.getElementById("buzz_button");
 var guesses_checkbox   = document.getElementById("guesses_checkbox");
 var highlight_checkbox = document.getElementById("highlight_checkbox");
-var evidence_checkbox  = document.getElementById("evidence_checkbox");
+var matches_checkbox   = document.getElementById("matches_checkbox");
 var voice_checkbox     = document.getElementById("voice_checkbox");
 var answer_group       = document.getElementById("answer_area_button");
 var history_div = document.getElementById('history');
@@ -61,9 +63,17 @@ answer_button.onclick = function() { send_answer(); };
 // show hide guesses panel
 guesses_checkbox.onclick = function() {
     if (guesses_checkbox.checked) {
-        evidence_tabs.style.display = "block";
+        guesses_card.style.display = "block";
     } else {
-        evidence_tabs.style.display = "none";
+        guesses_card.style.display = "none";
+    }
+};
+// show hide matches panel
+matches_checkbox.onclick = function() {
+    if (matches_checkbox.checked) {
+        matches_card.style.display = "block";
+    } else {
+        matches_card.style.display = "none";
     }
 };
 // use enter to submit answer
@@ -193,7 +203,7 @@ function get_helps() {
     var helps = {
         guesses: guesses_checkbox.checked,
         highlight: highlight_checkbox.checked,
-        evidence: evidence_checkbox.checked,
+        matches: matches_checkbox.checked,
         voice: voice_checkbox.checked}
     return helps
 }
@@ -305,6 +315,13 @@ function update_interpretation(msg) {
             guesses_table.rows[i + 1].cells[1].innerHTML = button_text;
             guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
         }
+    }
+
+    //update the matches
+    if (typeof evidence.matches !== 'undefined') {
+        var qb_matches = evidence.matches.qb, wiki_matches = evidence.matches.wiki;
+        matches_area.innerHTML = '<b>QB</b> ' + qb_matches[0];
+        matches_area.innerHTML += '</br><b>WIKI</b> ' + wiki_matches[0];
     }
 }
 
