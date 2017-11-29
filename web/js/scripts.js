@@ -154,6 +154,7 @@ function new_question(msg) {
     update_question_display();
     info_text = '';
     update_info_display();
+    matches_area.innerHTML = '';
     buzz_button.disabled = false;
     answer_button.disabled = true;
     buzz_button.style.display = "initial";
