@@ -1,9 +1,11 @@
+import re
 import json
 import logging
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from bs4 import BeautifulSoup
 import chainer
 
 from twisted.internet import reactor
@@ -16,6 +18,7 @@ from qanta.config import conf
 from qanta.guesser.abstract import AbstractGuesser
 from qanta.guesser.experimental.elasticsearch_instance_of import ElasticSearchWikidataGuesser
 from qanta.new_expo.agent import RNNBuzzer
+from qanta.experimental.get_highlights import get_highlights
 
 from client import PlayerProtocol
 from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
@@ -32,16 +35,63 @@ cmap = matplotlib.cm.get_cmap('RdBu')
 def get_color(value):
     return matplotlib.colors.rgb2hex(cmap(value)[:3])
 
+highlight_color = get_color(0.2)
+highlight_prefix = '<span style="background-color: ' + highlight_color + '">'
+highlight_suffix = '</span>'
+highlight_template = highlight_prefix + '{}' + highlight_suffix
 
-def colorize(words, color_array):
-    # words is a list of words
-    # color_array is an array of numbers between 0 and 1 of length equal to words
-    template = '<span class="barcode"; style="color: black; background-color: {}">{}</span>'
-    colored_string = ''
-    for word, color in zip(words, color_array):
-        color = get_color(color)
-        colored_string += template.format(color, '&nbsp' + word + '&nbsp')
-    return colored_string
+def get_matched(text, matches):
+    # text is the sentence to be highlighted
+    # matches is a list of sentences with <em> tags
+    # find all words in text that appear in <em> tags
+    matched_words = set()
+    for match in matches:
+        # merge consecutive matches
+        match = match.replace('</em> <em>', ' ')
+        soup = BeautifulSoup(match)
+        # add space at the beginning to avoid matching subword
+        match = [' ' + x.text for x in soup.find_all('em')]
+        matched_words.update(match)
+
+    text = ' ' + text # avoid matching subword
+    matched_segments = [] # pairs of (start, end)
+    for matched in list(matched_words):
+        starts = [m.start() for m in re.finditer(matched, text)]
+        if len(starts) == 0:
+            continue
+        for start in starts:
+            # first +1 to remove the matched space
+            matched_segments.append((start + 1, start + len(matched)))
+
+    matched_segments = sorted(matched_segments, key=lambda x: x[1])
+    merged_segments = []
+    curr = (0, 0)
+    for start, end in matched_segments:
+        if curr[1] <= start:
+            if curr[0] < curr[1]:
+                merged_segments.append((curr[0], curr[1]))
+            curr = (start, end)
+        else:
+            if curr[1] < end:
+                curr = (curr[0], end)
+    if curr[0] < curr[1]:
+        merged_segments.append((curr[0], curr[1]))
+
+    highlighted = ''
+    idx = 0
+    for start, end in merged_segments:
+        if idx < start:
+            highlighted += text[idx: start]
+        highlighted += highlight_template.format(text[start: end])
+        idx = end
+    highlighted += text[idx:]
+    return highlighted[1:] # remove the added space at the beginning
+
+def replace_em_with_highlight(text):
+    text = text.replace('<em>', highlight_prefix)
+    text = text.replace('</em>', highlight_suffix)
+    return text
+    
 
 class StupidBuzzer:
 
@@ -74,26 +124,41 @@ class GuesserBuzzer:
 
         self.ok_to_buzz = True
         self.answer = ''
+        self.guesses = []
+        self.evidence = dict()
 
-    def new_question(self, msg):
+    def new_question(self, qid):
         self.buzzer.new_round()
         self.ok_to_buzz = True
+        self.answer = ''
+        self.guesses = []
+        self.evidence = dict()
 
     def buzz(self, text, position):
         guesses = self.guesser.guess_single(text)
-        self.evidence = dict()
-        self.evidence['highlight'] = get_color(np.random.uniform())
         if not isinstance(guesses, dict):
             guesses = {x[0]: x[1] for x in guesses}
+
         buzz_scores = [0, 1] # [wait, buzz]
         if self.ok_to_buzz:
             buzz_scores = self.buzzer.buzz(guesses)
             if isinstance(buzz_scores, np.ndarray):
                 buzz_scores = buzz_scores.tolist()
+
         guesses = sorted(guesses.items(), key=lambda x: x[1])[::-1]
         self.guesses = guesses
         if len(guesses) > 0:
             self.answer = guesses[0][0]
+
+        self.evidence = dict()
+        matches = get_highlights(text)
+        top_matches = matches['qb'][:1] + matches['wiki'][:1]
+        highlighted = get_matched(text, top_matches)
+        qb_matches = [replace_em_with_highlight(x) for x in matches['qb']]
+        wiki_matches = [replace_em_with_highlight(x) for x in matches['wiki']]
+        self.evidence = {'highlight': highlighted, 
+                         'guesses': guesses,
+                         'matches': {'qb': qb_matches, 'wiki': wiki_matches}}
         return buzz_scores
 
 class CachedGuesserBuzzer:
@@ -106,11 +171,11 @@ class CachedGuesserBuzzer:
         self.position = 0
         self.ok_to_buzz = True
 
-    def new_question(self, msg):
-        self.guesser_buzzer.new_question(msg)
+    def new_question(self, qid):
+        self.guesser_buzzer.new_question(qid)
         self.evidence = dict()
         self.position = 0
-        self.qid = str(msg['qid'])
+        self.qid = qid
         self.ok_to_buzz = True
         if self.qid in self.cache:
             self.in_cache = True
@@ -134,6 +199,7 @@ class CachedGuesserBuzzer:
         return self.buzz_scores if self.ok_to_buzz else [0, 1]
 
 guesser_buzzer = CachedGuesserBuzzer('data/guesser_buzzer_cache.json')
+guesser_buzzer = GuesserBuzzer()
 
 class GuesserBuzzerProtocol(PlayerProtocol):
 
@@ -147,7 +213,7 @@ class GuesserBuzzerProtocol(PlayerProtocol):
     def new_question(self, msg):
         self.text = ''
         self.position = 0
-        guesser_buzzer.new_question(msg)
+        guesser_buzzer.new_question(msg['qid'])
         self.evidence = dict()
         super(GuesserBuzzerProtocol, self).new_question(msg)
 
@@ -161,13 +227,11 @@ class GuesserBuzzerProtocol(PlayerProtocol):
         return buzzing
 
     def update_question(self, msg):
-        # print(msg['text'], end=' ', flush=True)
         self.text = msg['text']
         self.position = msg['position']
-        msg = {'type': MSG_TYPE_BUZZING_REQUEST,
-                'qid': self.qid, 'position': self.position,
-                'evidence': self.evidence,
-                'helps': {'qanta': True}}
+        msg = {'qid': self.qid, 'position': self.position,
+               'evidence': self.evidence,
+               'helps': {'qanta': True}}
         if self.buzz():
             logger.info("\nBuzzing on answer: {}".format(self.answer))
             msg['type'] = MSG_TYPE_BUZZING_REQUEST
@@ -176,7 +240,6 @@ class GuesserBuzzerProtocol(PlayerProtocol):
             msg['type'] = MSG_TYPE_RESUME
             msg['text'] = 'not buzzing'
         self.sendMessage(json.dumps(msg).encode('utf-8'))
-        self.position += 1
 
     def send_answer(self, msg):
         logger.info('Answering: {}'.format(self.answer))
