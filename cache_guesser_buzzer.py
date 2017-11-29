@@ -1,5 +1,6 @@
 import re
 import json
+import pickle
 import logging
 import numpy as np
 import chainer
@@ -15,41 +16,31 @@ from qanta.experimental.get_highlights import get_highlights, color
 from guesser_buzzer_client import GuesserBuzzer, get_matched
 
 
-    
 def main():
     guesser_buzzer = GuesserBuzzer()
     with open('data/sample_questions.json', 'r') as f:
         questions = json.loads(f.read())
     
     records = dict()
-    for question in tqdm(questions[:10]):
+    for question in tqdm(questions):
         qid = question['qid']
-        buzzes = []
-        answers = []
-        evidences = []
         text = question['text'].split()
-        guesser_buzzer.new_question()
+        guesser_buzzer.new_question(qid)
+        records[qid] = dict()
         for i, word in enumerate(text):
             sentence = ' '.join(text[:i])
-            scores = guesser_buzzer.buzz(sentence, i)
-            buzzes.append(scores)
-            answers.append(guesser_buzzer.answer)
-            matches = get_highlights(sentence)
-            top_matches = matches['qb'][:2] + matches['wiki'][:2]
-            highlighted = get_matched(' '.join(text[:i]), top_matches)
-            evidences.append({'highlight': highlighted, 
-                              'guesses': guesser_buzzer.guesses,
-                              'matches': matches})
-        records[qid] = {'answer': answers, 
-                        'buzz': buzzes, 
-                        'evidence': evidences}
+            buzz_scores = guesser_buzzer.buzz(sentence, i)
+            records[qid][i] = {
+                'buzz_scores': buzz_scores,
+                'answer': guesser_buzzer.answer,
+                'evidence': guesser_buzzer.evidence}
     
-    with open('data/guesser_buzzer_cache.json', 'w') as f:
-        f.write(json.dumps(records))
+    with open('data/guesser_buzzer_cache.pkl', 'wb') as f:
+        pickle.dump(records, f)
 
 def test():
-    with open('data/guesser_buzzer_cache.json', 'r') as f:
-        records = json.loads(f.read())
+    with open('data/guesser_buzzer_cache.pkl', 'rb') as f:
+        records = pickle.load(f)
 
     record = list(records.values())[0]
     evidence = record['evidence']
@@ -58,4 +49,4 @@ def test():
             f.write(entry['highlight'] + '</br>')
     
 if __name__ == '__main__':
-    test()
+    main()

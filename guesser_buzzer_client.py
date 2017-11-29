@@ -1,5 +1,6 @@
 import re
 import json
+import pickle
 import logging
 import numpy as np
 import matplotlib
@@ -35,7 +36,7 @@ cmap = matplotlib.cm.get_cmap('RdBu')
 def get_color(value):
     return matplotlib.colors.rgb2hex(cmap(value)[:3])
 
-highlight_color = get_color(0.2)
+highlight_color = get_color(0.1)
 highlight_prefix = '<span style="background-color: ' + highlight_color + '">'
 highlight_suffix = '</span>'
 highlight_template = highlight_prefix + '{}' + highlight_suffix
@@ -154,12 +155,12 @@ class GuesserBuzzer:
         self.evidence = dict()
         matches = get_highlights(text)
         top_matches = matches['qb'][:1] + matches['wiki'][:1]
-        highlighted = get_matched(text, top_matches)
-        qb_matches = [replace_em_with_highlight(x) for x in matches['qb']]
-        wiki_matches = [replace_em_with_highlight(x) for x in matches['wiki']]
-        self.evidence = {'highlight': highlighted, 
-                         'guesses': guesses,
-                         'matches': {'qb': qb_matches, 'wiki': wiki_matches}}
+        self.highlighted = get_matched(text, top_matches)
+        self.matches = {'qb': [replace_em_with_highlight(x) for x in matches['qb']],
+                        'wiki': [replace_em_with_highlight(x) for x in matches['wiki']]}
+        self.evidence = {'highlight': self.highlighted, 
+                         'guesses': self.guesses,
+                         'matches': self.matches}
         return buzz_scores
 
 class CachedGuesserBuzzer:
@@ -167,7 +168,7 @@ class CachedGuesserBuzzer:
     def __init__(self, record_dir):
         self.guesser_buzzer = GuesserBuzzer()
         with open(record_dir, 'r') as f:
-            self.cache = json.loads(f.read())
+            self.cache = pickle.load(f)
         self.in_cache = False
         self.position = 0
         self.ok_to_buzz = True
@@ -180,26 +181,21 @@ class CachedGuesserBuzzer:
         self.ok_to_buzz = True
         if self.qid in self.cache:
             self.in_cache = True
+            self.record = self.cache[self.qid]
 
     def buzz(self, text, position):
         self.position = position
-        if self.in_cache:
-            record = self.cache[self.qid]
-            if self.position > len(record['answer']):
-                print(self.position, len(record['answer']))
-            self.position = min(self.position, len(record['answer'])-1)
-            self.position = min(self.position, len(record['buzz'])-1)
-            self.buzz_scores = record['buzz'][self.position]
-            self.answer = record['answer'][self.position]
-            self.evidence = record['evidence'][self.position]
+        pos = position - 1
+        if self.in_cache and pos in self.record:
+            self.answer = self.record[pos]['answer']
+            self.evidence = self.record[pos]['evidence']
         else:
             self.buzz_scores = self.guesser_buzzer.buzz(text, position)
             self.answer = self.guesser_buzzer.answer
             self.evidence = self.guesser_buzzer.evidence
-        print(self.in_cache, self.buzz_scores, self.answer)
         return self.buzz_scores if self.ok_to_buzz else [0, 1]
 
-guesser_buzzer = CachedGuesserBuzzer('data/guesser_buzzer_cache.json')
+# guesser_buzzer = CachedGuesserBuzzer('data/guesser_buzzer_cache.pkl')
 guesser_buzzer = GuesserBuzzer()
 
 class GuesserBuzzerProtocol(PlayerProtocol):
