@@ -37,19 +37,21 @@ var question_text       = "";
 var question_text_color = "";
 var info_text           = "";
 var is_buzzing          = false;
+var buzzed              = false;
 var position            = 0;
 var qid                 = 0;
 var score               = 0;
 var history_number      = 0;
 var timer_set           = false;
 var timer_timeout;
-var bell_str = ' <i class="fa fa-bell" aria-hidden="true"></i> ';
+var bell_str = ' <span class="fa fa-bell" aria-hidden="true"></span> ';
 
 ///////// Keyboard operations  ///////// 
 // Use space bar for buzzing & avoid scrolling
 window.onkeydown = function(e) {
     if (e.keyCode == 32 && e.target == document.body) {
         buzz_button.click();
+        is_buzzing = true;
         e.preventDefault();
     }
 }
@@ -74,6 +76,10 @@ matches_checkbox.onclick = function() {
     } else {
         matches_card.style.display = "none";
     }
+};
+// show hide guesses panel
+highlight_checkbox.onclick = function() {
+    update_question_display()
 };
 // use enter to submit answer
 answer_area.onkeydown = function(event) {
@@ -138,22 +144,13 @@ function update_question_display() {
     }
 }
 
-function update_info_display() {
-    if (highlight_checkbox.checked) {
-        question_area.innerHTML = question_text_color + '<br />' + info_text;
-    } else {
-        question_area.innerHTML = question_text + '<br />' + info_text;
-    }
-}
-
 function new_question(msg) {
     qid = msg.qid;
     position = 0;
     question_text = '';
     question_text_color = '';
-    update_question_display();
     info_text = '';
-    update_info_display();
+    update_question_display();
     matches_area.innerHTML = '';
     buzz_button.disabled = false;
     answer_button.disabled = true;
@@ -161,6 +158,7 @@ function new_question(msg) {
     answer_group.style.display = "none";
 
     is_buzzing = false;
+    buzzed = false;
     timer_set = false;
     var m = {
         type: MSG_TYPE_NEW,
@@ -170,6 +168,10 @@ function new_question(msg) {
 }
 
 function update_question(msg) {
+    if (buzzed === false) {
+        buzz_button.disabled = false;
+        buzz_button.style.display = "initial";
+    }
     update_interpretation(msg);
     position = msg.position;
     var m = {
@@ -183,6 +185,7 @@ function update_question(msg) {
         m.type = MSG_TYPE_BUZZING_REQUEST;
         m.helps = get_helps()
         sockt.send(JSON.stringify(m));
+        answer_area.value = "";
     }
 }
 
@@ -225,12 +228,16 @@ function handle_result(msg) {
         text += '<span class="badge badge-warning">Wrong</span><br />';
     }
     info_text += text;
-    update_info_display();
+    update_question_display();
+    answer_button.disabled = true;
+    answer_area.value = "";
+    answer_group.style.display = "none";
 
     if (msg.type === MSG_TYPE_RESULT_MINE) {
         score += msg.score;
         score_area.innerHTML = 'Your score: ' + score;
     }
+    timer_set = false;
 }
 
 function toggle_history_visability(history_id) {
@@ -312,7 +319,7 @@ function end_of_question(msg) {
     var real_answer = 'Question';
     if (typeof msg.evidence.answer !== 'undefined') {
         info_text += "<br />Correct answer: " + msg.evidence.answer;
-        update_info_display();
+        update_question_display();
         real_answer = msg.evidence.answer;
     }
     add_history(real_answer);
@@ -349,13 +356,16 @@ function handle_buzzing(msg) {
         answer_area.focus();
         answer_area.value = "";
         answer_button.disabled = false;
+        is_buzzing = true;
         user_text = "Your";
+        buzzed = true;
     } else {
         user_text = "Player " + msg.uid;
     }
 
     buzz_button.disabled = true;
     buzz_button.style.display = "none";
+
     clearTimeout(timer_timeout);
     progress(7, 7, true);
     question_text += bell_str;
@@ -364,7 +374,7 @@ function handle_buzzing(msg) {
     var text = '</br><span class="badge badge-danger">Buzz</span> <span> ' 
         + user_text + ' answer: </span>';
     info_text += text;
-    update_info_display();
+    update_question_display();
 }
 
 sockt.onmessage = function(event) {
