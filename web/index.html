@@ -38,28 +38,28 @@
                         <tbody>
                             <tr>
                                 <td> 1 </td>
-                                <td> Guess </td>
-                                <td> 0.1 </td>
+                                <td> - </td>
+                                <td> - </td>
                             </tr>
                             <tr>
                                 <td> 2 </td>
-                                <td> Guess </td>
-                                <td> 0.1 </td>
+                                <td> - </td>
+                                <td> - </td>
                             </tr>
                             <tr>
                                 <td> 3 </td>
-                                <td> Guess </td>
-                                <td> 0.1 </td>
+                                <td> - </td>
+                                <td> - </td>
                             </tr>
                             <tr>
                                 <td> 4 </td>
-                                <td> Guess </td>
-                                <td> 0.1 </td>
+                                <td> - </td>
+                                <td> - </td>
                             </tr>
                             <tr>
                                 <td> 5 </td>
-                                <td> Guess </td>
-                                <td> 0.1 </td>
+                                <td> - </td>
+                                <td> - </td>
                             </tr>
                         </tbody>
                     </table>
@@ -92,15 +92,21 @@
                 </div>
                 <div class="card card-outline-primary mt-2">
                     <div class="card-body mb-2 mx-2">
-                        <p><b>Question</b></p>
                         <a class="card-text" id="question_area"> question text</a>
                     </div>
                 </div>
 
                 <div id="matches_card" class="card card-outline-primary">
                     <div class="card-body mx-2">
-                        <p><b>Matches</b></p>
-                        <a class="card-text" id="matches_area"> matches </a>
+                        <span>Evidence for </span> <b><span id="guess_of_matches"></span></b></br></br>
+                        <table class="table" id="matches_table">
+                            <tbody>
+                                <tr><td> - </td></tr>
+                                <tr><td> - </td></tr>
+                                <tr><td> - </td></tr>
+                                <tr><td> - </td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -118,10 +124,10 @@
                         <label><input type="checkbox" value="" id="guesses_checkbox" checked>Guesses</label>
                     </div>
                     <div class="checkbox">
-                        <label><input type="checkbox" value="" id="highlight_checkbox">Highlights</label>
+                        <label><input type="checkbox" value="" id="highlight_checkbox" checked>Highlights</label>
                     </div>
                     <div class="checkbox">
-                        <label><input type="checkbox" value="" id="matches_checkbox" checked>Matches</label>
+                        <label><input type="checkbox" value="" id="matches_checkbox" checked>Evidence</label>
                     </div>
                     <div class="checkbox">
                         <label><input type="checkbox" value="" id="voice_checkbox">Voice</label>
