@@ -26,7 +26,7 @@ from db import QBDB
 from db import COL_QID, COL_UID, COL_START, COL_GUESS, COL_HELPS,\
         COL_TIME
 
-ANSWER_TIME_OUT = 8
+ANSWER_TIME_OUT = 10
 SECOND_PER_WORD = 0.5
 PLAYER_RESPONSE_TIME_OUT = 3
 
@@ -318,7 +318,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         if end_of_question or result:
             self._end_of_question()
         else:
-            reactor.callLater(SECOND_PER_WORD * 2, self.stream_rest)
+            reactor.callLater(SECOND_PER_WORD * 2, self.stream_next)
 
     def _end_of_question(self):
         msg = {'type': MSG_TYPE_END, 'qid': self.qid, 'text': '', 
