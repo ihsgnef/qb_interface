@@ -3,16 +3,9 @@ import json
 import pickle
 import logging
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 import chainer
-from nltk.corpus import stopwords
-stopWords = set(stopwords.words('english'))
-
 from twisted.internet import reactor
-
 from autobahn.twisted.websocket import WebSocketClientFactory, \
     WebSocketClientProtocol, \
     connectWS
@@ -29,112 +22,62 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
         MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
 
+import spacy
+from nltk.corpus import stopwords as sw
+stopwords = set(sw.words('english'))
+nlp = spacy.load('en')
+        
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger('elasticsearch').setLevel(logging.WARNING)
 logger = logging.getLogger('guesser_buzzer_client')
 
-cmap = matplotlib.cm.get_cmap('RdBu')
-
-def get_color(value):
-    return matplotlib.colors.rgb2hex(cmap(value)[:3])
-
-highlight_color = get_color(0.1)
+highlight_color = '#ecff6d'
 highlight_prefix = '<span style="background-color: ' + highlight_color + '">'
 highlight_suffix = '</span>'
 highlight_template = highlight_prefix + '{}' + highlight_suffix
 
-def get_matched(text, matches):
+
+def get_matched(text):
+    matches = get_highlights(text)
+    matches = matches['qb'][:1] + matches['wiki'][:1]
     match_words = set()
     for match in matches:
         soup = BeautifulSoup(match)
-        match = [x.text for x in soup.find_all('em') 
-                    if x.text not in stopWords and len(x.text) > 2]
+        match = [x.text.lower() for x in soup.find_all('em') 
+                    if x.text not in stopwords and len(x.text) > 2]
         match_words.update(match)
 
-    words = text.split()
-    matched = [False for _ in words]
-    for i, word in enumerate(words):
-        if len(word) < 3:
-            continue
-        if not word[0].isalnum():
-            word = word[1:]
-        if not word[-1].isalnum():
-            word = word[:-1]
-        if word in match_words:
-            matched[i] = True
-
-    highlighted = ''
-    in_highlight = False
-    for i, word in enumerate(words):
-        if not in_highlight:
-            if matched[i]:
-                highlighted += ' ' + highlight_prefix
-                in_highlight = True
-            highlighted += word + ' '
-        else:
-            if matched[i]:
-                highlighted += ' ' + word + ' '
-            else:
-                highlighted += highlight_suffix
-                highlighted += ' ' + word + ' '
-                in_highlight = False
-    if in_highlight:
-        highlighted += highlight_suffix
-    return highlighted
-
-def get_matched_merge(text, matches):
-    # text is the sentence to be highlighted
-    # matches is a list of sentences with <em> tags
-    # find all words in text that appear in <em> tags
+    text = nlp(text)
+    highlighted = ''    
     matched_words = set()
-    for match in matches:
-        # merge consecutive matches
-        match = match.replace('</em> <em>', ' ')
-        soup = BeautifulSoup(match)
-        # add space at the beginning to avoid matching subword
-        match = [' ' + x.text for x in soup.find_all('em')]
-        matched_words.update(match)
-
-    text = ' ' + text # avoid matching subword
-    matched_segments = [] # pairs of (start, end)
-    for matched in list(matched_words):
-        starts = [m.start() for m in re.finditer(matched, text)]
-        if len(starts) == 0:
-            continue
-        for start in starts:
-            # first +1 to remove the matched space
-            matched_segments.append((start + 1, start + len(matched)))
-
-    matched_segments = sorted(matched_segments, key=lambda x: x[1])
-    merged_segments = []
-    curr = (0, 0)
-    for start, end in matched_segments:
-        if curr[1] <= start:
-            if curr[0] < curr[1]:
-                merged_segments.append((curr[0], curr[1]))
-            curr = (start, end)
+    for word in text:
+        if word.lower_ in match_words:
+            highlighted += ' ' + highlight_prefix + word.text + highlight_suffix
+            matched_words.add(word.lower_)
         else:
-            if curr[1] < end:
-                curr = (curr[0], end)
-    if curr[0] < curr[1]:
-        merged_segments.append((curr[0], curr[1]))
-
-    highlighted = ''
-    idx = 0
-    for start, end in merged_segments:
-        if idx < start:
-            highlighted += text[idx: start]
-        highlighted += highlight_template.format(text[start: end])
-        idx = end
-    highlighted += text[idx:]
-    return highlighted[1:] # remove the added space at the beginning
-
-def replace_em_with_highlight(text):
-    text = text.replace('</em> <em>', ' ')
-    text = text.replace('<em>', highlight_prefix)
-    text = text.replace('</em>', highlight_suffix)
-    return text
+            highlighted += ' ' + word.text
     
+    _matches = []
+    for match in matches:
+        soup = BeautifulSoup(match)
+        match = soup.find('p')
+        if match is None:
+            match = soup.find('body')
+        if match is None:
+            continue
+        _match = ''
+        for w in match.children:
+            if w.name is None:
+                _match += w
+                continue
+            if w.name == 'em':
+                if w.text.lower() in matched_words:
+                    _match += highlight_prefix + w.text + highlight_suffix
+                else:
+                    _match += w.text
+        _matches.append(_match)
+                    
+    return highlighted, _matches
 
 class StupidBuzzer:
 
@@ -194,11 +137,7 @@ class GuesserBuzzer:
             self.answer = guesses[0][0]
 
         self.evidence = dict()
-        matches = get_highlights(text)
-        top_matches = matches['qb'][:1] + matches['wiki'][:1]
-        self.highlighted = get_matched(text, top_matches)
-        self.matches = {'qb': [replace_em_with_highlight(x) for x in matches['qb']],
-                        'wiki': [replace_em_with_highlight(x) for x in matches['wiki']]}
+        self.highlighted, self.matches = get_matched(text)
         self.evidence = {'highlight': self.highlighted, 
                          'guesses': self.guesses,
                          'matches': self.matches}
@@ -238,8 +177,8 @@ class CachedGuesserBuzzer:
             self.evidence = self.guesser_buzzer.evidence
         return self.buzz_scores if self.ok_to_buzz else [0, 1]
 
-guesser_buzzer = CachedGuesserBuzzer('data/guesser_buzzer_cache.pkl')
-# guesser_buzzer = GuesserBuzzer()
+# guesser_buzzer = CachedGuesserBuzzer('data/guesser_buzzer_cache.pkl')
+guesser_buzzer = GuesserBuzzer()
 
 class GuesserBuzzerProtocol(PlayerProtocol):
 
