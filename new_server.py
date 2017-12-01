@@ -2,6 +2,7 @@ import sys
 import json
 import time
 import random
+import pickle
 import logging
 import traceback
 import datetime
@@ -72,6 +73,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.disable_machine_buzz = False
         self.evidence = dict()
         self.db_rows = dict()
+        with open('data/guesser_buzzer_cache.pkl', 'rb') as f:
+            self.records = pickle.load(f)
         # when we unregister a player, wait until the end
         # of the round to remove it from the list of players
         # this list keeps track of the players that are actually active
@@ -128,8 +131,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
             return
         if player.peer in self.players:
             self.player_responses[player.peer] = msg
-            if 'evidence' in  msg:
-                self.evidence = msg['evidence']
+            # if 'evidence' in  msg:
+            #     self.evidence = msg['evidence']
             self.check_deferreds()
         else:
             logger.warning("Unknown source {}:\n{}".format(player.peer, msg))
@@ -171,19 +174,24 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     'length': self.question_length, 'position': 0}
             self.broadcast(self.players, msg)
 
-            for pid in self.players:
-                def callback(x):
-                    # logger.info('[new question] Player {} ready'.format(player.peer))
-                    pass
+            def make_callback(pid):
+                def f(x):
+                    logger.info('[new question] Player {} ready'.format(pid))
+                return f
 
-                def errback(x):
-                    logger.info('[new] player {} timed out'\
-                            .format(pid))
+            def make_errback(pid):
+                def f(x):
+                    logger.info('[new] player {} timed out'.format(pid))
                     self.unregister(pid)
                     self.db_rows.pop(pid, None)
+                return f
 
+
+            for pid in self.players:
                 condition = partial(self.check_player_response,
                         uid=pid, key='qid', value=self.qid)
+                callback = make_callback(pid)
+                errback = make_errback(pid)
                 
                 if condition():
                     callback(None)
@@ -216,6 +224,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # send next word of the question to all players
         self.position += 1
         end_of_question = self.position > self.question_length
+        self.evidence = dict()
+        if self.qid in self.records:
+            record = self.records[self.qid]
+            pos = self.position - 1
+            if pos in record:
+                self.evidence = record[pos]['evidence']
 
         buzzing_ids = []
         for pid in self.players:
@@ -234,6 +248,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             if end_of_question:
                 self._end_of_question()
             else:
+
                 msg = {'type': MSG_TYPE_RESUME,  'qid': self.qid,
                         'text': ' '.join(self.question_text[:self.position]),
                         'position': self.position,
@@ -339,9 +354,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.broadcast(self.players, msg)
 
         # remove players that are marked of unlive
-        for pid in self.players:
-            if self.player_alive[pid]:
-                continue
+        dead_players = [x for x, y in self.player_alive.items() if not y]
+        for pid in dead_players:
             self.players.pop(pid, None)
             self.player_alive.pop(pid, None)
             self.player_is_machine.pop(pid, None)
