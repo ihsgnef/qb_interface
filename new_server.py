@@ -58,6 +58,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         logger.info('Loaded {} questions'.format(len(self.questions)))
 
         self.players = []
+        self.player_is_machine = []
         self.player_responses = dict()
         self.player_scores = defaultdict(lambda: 0)
         self.player_buzzed = defaultdict(lambda: False)
@@ -66,6 +67,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.started = False
         self.qid = 0
         self.position = 0
+        self.disable_machine_buzz = False
         self.evidence = dict()
         self.db_rows = dict()
         # when we unregister a player, wait until the end
@@ -88,6 +90,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     COL_START: self.position,
                     COL_TIME: self.get_time()}
             self.player_alive.append(True)
+            self.player_is_machine.append(False)
             logger.info("Registered player {}".format(client.peer))
         if len(self.players) == 1 and not self.started:
             self.started = True
@@ -146,6 +149,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 self._end_of_game()
                 return
         
+        self.disable_machine_buzz = False
         self.question = self.questions[self.question_idx]
         self.qid = self.question['qid']
         self.question_text = self.question['text'].split()
@@ -192,6 +196,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
             for i, x in enumerate(self.players):
                 logger.info("Player {} {} score {}".format(
                     i, x.peer, self.player_scores[x.peer]))
+                if self.check_player_response(x.peer, 
+                        'disable_machine_buzz', True):
+                    self.disable_machine_buzz = True
+                if self.check_player_response(x.peer, 
+                        'is_machine', True):
+                    self.player_is_machine[i] = True
+                
             self.pbar = tqdm(total=self.question_length, leave=False)
             self.stream_next()
 
@@ -200,24 +211,33 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def stream_next(self):
         # send next word of the question to all players
         self.position += 1
-        if self.position > self.question_length:
-            self._buzzing(end_of_question=True)
-            return
+        end_of_question = self.position > self.question_length
 
-        if any(self.check_player_response(
-                x.peer, 'type', MSG_TYPE_BUZZING_REQUEST)
-                for x in self.players):
-            self._buzzing()
-            return
+        buzzing_ids = []
+        for i, player in enumerate(self.players):
+            if self.player_buzzed[player.peer]:
+                continue
+            if self.disable_machine_buzz and self.player_is_machine[i]:
+                continue
+            if end_of_question or self.check_player_response(
+                    player.peer, 'type', MSG_TYPE_BUZZING_REQUEST):
+                buzzing_ids.append(i)
 
-        msg = {'type': MSG_TYPE_RESUME,  'qid': self.qid,
-                'text': ' '.join(self.question_text[:self.position]),
-                'position': self.position,
-                'length': self.question_length,
-                'evidence': self.evidence}
-        self.pbar.update(1)
-        self.broadcast(self.players, msg)
-        reactor.callLater(SECOND_PER_WORD, self.stream_next)
+        # if no one if buzzing
+        if len(buzzing_ids) > 0:
+            self._buzzing(buzzing_ids, end_of_question)
+        else:
+            if end_of_question:
+                self._end_of_question()
+            else:
+                msg = {'type': MSG_TYPE_RESUME,  'qid': self.qid,
+                        'text': ' '.join(self.question_text[:self.position]),
+                        'position': self.position,
+                        'length': self.question_length,
+                        'evidence': self.evidence}
+                self.pbar.update(1)
+                self.broadcast(self.players, msg)
+                reactor.callLater(SECOND_PER_WORD, self.stream_next)
 
     def stream_rest(self):
         # send rest of the question to all players
@@ -230,21 +250,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.broadcast(self.players, msg)
         reactor.callLater(SECOND_PER_WORD, self.stream_next)
 
-    def _buzzing(self, end_of_question=False):
-        buzzing_ids = []
-        for i, player in enumerate(self.players):
-            if self.player_buzzed[player.peer]:
-                continue
-            if end_of_question or self.check_player_response(
-                    player.peer, 'type', MSG_TYPE_BUZZING_REQUEST):
-                buzzing_ids.append(i)
-
-        # if no one if buzzing
-        if len(buzzing_ids) == 0:
-            if end_of_question:
-                self._end_of_question()
-            return
-        
+    def _buzzing(self, buzzing_ids, end_of_question):
         random.shuffle(buzzing_ids)
         buzzing_idx = buzzing_ids[0]
         logger.info('[buzzing] Player {} answering'.format(buzzing_idx))
@@ -325,10 +331,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'evidence': {'answer': self.question['answer']}}
         self.broadcast(self.players, msg)
 
+        # remove players that are marked of unlive
         assert len(self.players) == len(self.player_alive)
         alive_idxs = [i for i, y in enumerate(self.player_alive) if y]
         self.players = [self.players[i] for i in alive_idxs]
         self.player_alive = [self.player_alive[i] for i in alive_idxs]
+        self.player_is_machine = [self.player_is_machine[i] for i in alive_idxs]
         logger.info('-' * 60)
         self.pbar.close()
 
