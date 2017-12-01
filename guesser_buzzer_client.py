@@ -177,8 +177,8 @@ class CachedGuesserBuzzer:
             self.evidence = self.guesser_buzzer.evidence
         return self.buzz_scores if self.ok_to_buzz else [0, 1]
 
-# guesser_buzzer = CachedGuesserBuzzer('data/guesser_buzzer_cache.pkl')
-guesser_buzzer = GuesserBuzzer()
+guesser_buzzer = CachedGuesserBuzzer('data/guesser_buzzer_cache.pkl')
+# guesser_buzzer = GuesserBuzzer()
 
 class GuesserBuzzerProtocol(PlayerProtocol):
 
