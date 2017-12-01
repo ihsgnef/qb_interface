@@ -29,11 +29,13 @@ var guesses_checkbox   = document.getElementById("guesses_checkbox");
 var highlight_checkbox = document.getElementById("highlight_checkbox");
 var matches_checkbox   = document.getElementById("matches_checkbox");
 var voice_checkbox     = document.getElementById("voice_checkbox");
+var machine_buzz_checkbox = document.getElementById("machine_buzz_checkbox");
 var answer_group       = document.getElementById("answer_area_button");
-var history_div = document.getElementById('history');
+var history_div        = document.getElementById('history');
 
 
 ///////// State variables ///////// 
+var my_answer           = "";
 var question_text       = "";
 var question_text_color = "";
 var info_text           = "";
@@ -148,6 +150,7 @@ function update_question_display() {
 function new_question(msg) {
     qid = msg.qid;
     position = 0;
+    my_answer = ""
     question_text = '';
     question_text_color = '';
     info_text = '';
@@ -172,7 +175,8 @@ function new_question(msg) {
     timer_set = false;
     var m = {
         type: MSG_TYPE_NEW,
-        qid: msg.qid
+        qid: msg.qid,
+        disable_machine_buzz: (machine_buzz_checkbox.checked === false)
     };
     sockt.send(JSON.stringify(m));
 }
@@ -185,11 +189,11 @@ function update_question(msg) {
     update_interpretation(msg);
     position = msg.position;
     var m = {
-        type: MSG_TYPE_RESUME,
         qid: msg.qid,
-        position: position
+        position: position,
     };
     if (is_buzzing === false) {
+        m.type = MSG_TYPE_RESUME,
         sockt.send(JSON.stringify(m));
     } else {
         m.type = MSG_TYPE_BUZZING_REQUEST;
@@ -215,6 +219,9 @@ function send_answer() {
         return;
     }
     var answer = answer_area.value;
+    if (answer == "" && my_answer != "") {
+        answer = my_answer;
+    }
     var m = {
         type: MSG_TYPE_BUZZING_ANSWER,
         qid: qid,
@@ -282,8 +289,9 @@ function add_history(real_answer) {
 
 
 function set_guess(guess) {
-    answer_area.value = guess;
     answer_area.focus();
+    answer_area.value = guess;
+    my_answer = guess;
 }
 
 function update_interpretation(msg) {
