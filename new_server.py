@@ -161,7 +161,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.player_buzzed = defaultdict(lambda: False)
             self.position = 0
             self.evidence = dict()
-            self.db_rows = dict()
             ts = self.get_time()
             self.db_rows = {x: {
                         COL_QID: self.qid,
@@ -183,7 +182,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 def f(x):
                     logger.info('[new] player {} timed out'.format(pid))
                     self.unregister(pid)
-                    self.db_rows.pop(pid, None)
                 return f
 
 
@@ -316,12 +314,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
             position = self.player_responses[buzzing_id]['position']
             result = (answer == self.question['answer']) and not timed_out
             score = 10 if result else (0 if end_of_question else -5)
-            if buzzing_id not in self.db_rows:
-                self.db_rows[buzzing_id] = {
-                        COL_QID: self.qid,
-                        COL_UID: buzzing_id,
-                        COL_START: self.position,
-                        COL_TIME: self.get_time()}
+            # if buzzing_id not in self.db_rows:
+            #     self.db_rows[buzzing_id] = {
+            #             COL_QID: self.qid,
+            #             COL_UID: buzzing_id,
+            #             COL_START: self.position,
+            #             COL_TIME: self.get_time()}
             self.db_rows[buzzing_id][COL_GUESS] = {
                     'position': self.position,
                     'guess': answer,
@@ -362,6 +360,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.player_responses.pop(pid, None)
             self.player_scores.pop(pid, None)
             self.player_buzzed.pop(pid, None)
+            self.db_rows.pop(pid, None)
         logger.info('-' * 60)
         self.pbar.close()
 
