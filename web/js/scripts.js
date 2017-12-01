@@ -21,7 +21,8 @@ var score_area         = document.getElementById('score_area');
 var guesses_card       = document.getElementById("guesses_card");
 var guesses_table      = document.getElementById("guesses_table");
 var matches_card       = document.getElementById("matches_card");
-var matches_area       = document.getElementById("matches_area");
+var matches_table      = document.getElementById("matches_table");
+var guess_matches_area = document.getElementById("guess_of_matches");
 var answer_button      = document.getElementById("answer_button");
 var buzz_button        = document.getElementById("buzz_button");
 var guesses_checkbox   = document.getElementById("guesses_checkbox");
@@ -151,11 +152,20 @@ function new_question(msg) {
     question_text_color = '';
     info_text = '';
     update_question_display();
-    matches_area.innerHTML = '';
+    guess_matches_area.innerHTML = '';
     buzz_button.disabled = false;
     answer_button.disabled = true;
     buzz_button.style.display = "initial";
     answer_group.style.display = "none";
+
+    for (var i = 0; i < 5; i++) {
+        guesses_table.rows[i + 1].cells[1].innerHTML = '-';
+        guesses_table.rows[i + 1].cells[2].innerHTML = '-';
+    }
+
+    for (var i = 0; i < 4; i++) {
+        matches_table.rows[i].cells[0].innerHTML = '-';
+    }
 
     is_buzzing = false;
     buzzed = false;
@@ -261,7 +271,11 @@ function add_history(real_answer) {
 
     var content = '<div id="' + elem_id + '" class="collapse" role="tabpanel" aria-labelledby="' + head_id + '">';
     content += '<div class="card-body mx-2 my-2">';
-    content += question_text + '<br />' + info_text + '</div></div>';
+    if (highlight_checkbox.checked) {
+        content += question_text_color + '<br />' + info_text + '</div></div>';
+    } else {
+        content += question_text + '<br />' + info_text + '</div></div>';
+    }
 
     history_div.innerHTML = header + content + history_div.innerHTML;
 }
@@ -305,13 +319,14 @@ function update_interpretation(msg) {
             guesses_table.rows[i + 1].cells[1].innerHTML = button_text;
             guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
         }
+        guess_matches_area.innerHTML = guesses[0][0];
     }
 
     //update the matches
     if (typeof evidence.matches !== 'undefined') {
-        var qb_matches = evidence.matches.qb, wiki_matches = evidence.matches.wiki;
-        matches_area.innerHTML = '<b>QB</b> ' + qb_matches[0];
-        matches_area.innerHTML += '</br><b>WIKI</b> ' + wiki_matches[0];
+        for (var i = 0; i < Math.min(4, evidence.matches.length); i++) {
+            matches_table.rows[i].cells[0].innerHTML = evidence.matches[i];
+        }
     }
 }
 
