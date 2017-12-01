@@ -57,11 +57,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.question_idx = -1
         logger.info('Loaded {} questions'.format(len(self.questions)))
 
-        self.players = []
-        self.player_is_machine = []
+        self.players = dict()
+        self.player_alive = dict()
+        self.player_is_machine = dict()
         self.player_responses = dict()
         self.player_scores = defaultdict(lambda: 0)
         self.player_buzzed = defaultdict(lambda: False)
+
         self.deferreds = []
 
         self.started = False
@@ -73,36 +75,34 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # when we unregister a player, wait until the end
         # of the round to remove it from the list of players
         # this list keeps track of the players that are actually active
-        self.player_alive = []
+
 
     def get_time(self):
         ts = time.time()
         return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
-    def register(self, client):
-        if client not in self.players:
-            self.players.append(client)
+    def register(self, player):
+        if player.peer not in self.players:
+            self.players[player.peer] = player
             msg = {'type': MSG_TYPE_NEW, 'qid': self.qid}
-            client.sendMessage(json.dumps(msg).encode('utf-8'))
-            self.db_rows[client.peer] = {
+            player.sendMessage(json.dumps(msg).encode('utf-8'))
+            self.db_rows[player.peer] = {
                     COL_QID: self.qid,
-                    COL_UID: client.peer,
+                    COL_UID: player.peer,
                     COL_START: self.position,
                     COL_TIME: self.get_time()}
-            self.player_alive.append(True)
-            self.player_is_machine.append(False)
-            logger.info("Registered player {}".format(client.peer))
+            self.player_alive[player.peer] = True
+            self.player_is_machine[player.peer] = False
+            logger.info("Registered player {}".format(player.peer))
+
         if len(self.players) == 1 and not self.started:
             self.started = True
             self.new_question()
     
-    def unregister(self, client):
-        if client in self.players:
-            logger.info("Unregistered player {}".format(client.peer))
-            idx = self.players.index(client)
-            self.player_alive[idx] = False
-            # self.players.remove(client)
-            # don't remove the player just yet
+    def unregister(self, player_id):
+        if player_id in self.players:
+            logger.info("Unregistered player {}".format(player_id))
+            self.player_alive[player_id] = False
 
     def check_player_response(self, uid, key, value):
         return uid in self.player_responses and \
@@ -120,88 +120,92 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 ids.append(i)
         self.deferreds = [self.deferreds[i] for i in ids]
 
-    def receive(self, msg, client):
+    def receive(self, msg, player):
         try:
             msg = json.loads(msg.decode('utf-8'))
         except TypeError:
             logger.error("Message must be json string.")
             return
-        if client in self.players:
-            self.player_responses[client.peer] = msg
+        if player.peer in self.players:
+            self.player_responses[player.peer] = msg
             if 'evidence' in  msg:
                 self.evidence = msg['evidence']
             self.check_deferreds()
         else:
-            logger.warning("Unknown source {}:\n{}".format(client, msg))
+            logger.warning("Unknown source {}:\n{}".format(player.peer, msg))
 
-    def broadcast(self, players, msg):
-        for p in players:
-            p.sendMessage(json.dumps(msg).encode('utf-8'))
-
+    def broadcast(self, players_dict, msg):
+        for pid, pclient in players_dict.items():
+            if self.player_alive[pid]:
+                pclient.sendMessage(json.dumps(msg).encode('utf-8'))
     
     def new_question(self):
-        self.question_idx += 1
-        if self.question_idx >= len(self.questions):
-            if self.loop:
-                random.shuffle(self.questions)
-                self.question_idx = 0
-            else:
-                self._end_of_game()
-                return
-        
-        self.disable_machine_buzz = False
-        self.question = self.questions[self.question_idx]
-        self.qid = self.question['qid']
-        self.question_text = self.question['text'].split()
-        self.question_length = len(self.question_text)
-        self.player_buzzed = defaultdict(lambda: False)
-        self.position = 0
-        self.evidence = dict()
-        self.db_rows = dict()
-        ts = self.get_time()
-        self.db_rows = {x.peer: {
-                    COL_QID: self.qid,
-                    COL_UID: x.peer,
-                    COL_START: 0,
-                    COL_TIME: ts} for x in self.players}
-
-        # notify all players of new question, wait for confirmation
-        msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
-                'length': self.question_length, 'position': 0}
-        self.broadcast(self.players, msg)
-
-        for player in self.players:
-            def callback(x):
-                # logger.info('[new question] Player {} ready'.format(player.peer))
-                pass
-
-            def errback(x):
-                logger.info('[new] player {} timed out'\
-                        .format(player.peer))
-                self.unregister(player)
-                self.db_rows.pop(player.peer, None)
-
-            condition = partial(self.check_player_response,
-                    uid=player.peer, key='qid', value=self.qid)
+        try:
+            self.question_idx += 1
+            if self.question_idx >= len(self.questions):
+                if self.loop:
+                    random.shuffle(self.questions)
+                    self.question_idx = 0
+                else:
+                    self._end_of_game()
+                    return
             
-            if condition():
-                callback(None)
-            else:
-                deferred = Deferred()
-                deferred.addTimeout(PLAYER_RESPONSE_TIME_OUT, reactor)
-                deferred.addCallbacks(callback, errback)
-                self.deferreds.append((deferred, condition))
+            self.disable_machine_buzz = False
+            self.question = self.questions[self.question_idx]
+            self.qid = self.question['qid']
+            self.question_text = self.question['text'].split()
+            self.question_length = len(self.question_text)
+            self.player_buzzed = defaultdict(lambda: False)
+            self.position = 0
+            self.evidence = dict()
+            self.db_rows = dict()
+            ts = self.get_time()
+            self.db_rows = {x: {
+                        COL_QID: self.qid,
+                        COL_UID: x,
+                        COL_START: 0,
+                        COL_TIME: ts} for x in self.players}
+
+            # notify all players of new question, wait for confirmation
+            msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
+                    'length': self.question_length, 'position': 0}
+            self.broadcast(self.players, msg)
+
+            for pid in self.players:
+                def callback(x):
+                    # logger.info('[new question] Player {} ready'.format(player.peer))
+                    pass
+
+                def errback(x):
+                    logger.info('[new] player {} timed out'\
+                            .format(pid))
+                    self.unregister(pid)
+                    self.db_rows.pop(pid, None)
+
+                condition = partial(self.check_player_response,
+                        uid=pid, key='qid', value=self.qid)
+                
+                if condition():
+                    callback(None)
+                else:
+                    deferred = Deferred()
+                    deferred.addTimeout(PLAYER_RESPONSE_TIME_OUT, reactor)
+                    deferred.addCallbacks(callback, errback)
+                    self.deferreds.append((deferred, condition))
+
+        except:
+            traceback.print_exc(file=sys.stdout)
 
         def calllater():
-            for i, x in enumerate(self.players):
-                logger.info("Player {} {} score {}".format(
-                    i, x.peer, self.player_scores[x.peer]))
-                if self.check_player_response(x.peer, 
+            for pid in self.players:
+                logger.info("Player {} score {}".format(
+                    pid, self.player_scores[pid]))
+                if self.check_player_response(pid, 
                         'disable_machine_buzz', True):
                     self.disable_machine_buzz = True
-                if self.check_player_response(x.peer, 
+                if self.check_player_response(pid, 
                         'is_machine', True):
-                    self.player_is_machine[i] = True
+                    self.player_is_machine[pid] = True
                 
             self.pbar = tqdm(total=self.question_length, leave=False)
             self.stream_next()
@@ -214,14 +218,14 @@ class BroadcastServerFactory(WebSocketServerFactory):
         end_of_question = self.position > self.question_length
 
         buzzing_ids = []
-        for i, player in enumerate(self.players):
-            if self.player_buzzed[player.peer]:
+        for pid in self.players:
+            if self.player_buzzed[pid]:
                 continue
-            if self.disable_machine_buzz and self.player_is_machine[i]:
+            if self.disable_machine_buzz and self.player_is_machine[pid]:
                 continue
             if end_of_question or self.check_player_response(
-                    player.peer, 'type', MSG_TYPE_BUZZING_REQUEST):
-                buzzing_ids.append(i)
+                    pid, 'type', MSG_TYPE_BUZZING_REQUEST):
+                buzzing_ids.append(pid)
 
         # if no one if buzzing
         if len(buzzing_ids) > 0:
@@ -252,34 +256,34 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
     def _buzzing(self, buzzing_ids, end_of_question):
         random.shuffle(buzzing_ids)
-        buzzing_idx = buzzing_ids[0]
-        logger.info('[buzzing] Player {} answering'.format(buzzing_idx))
+        buzzing_id = buzzing_ids[0]
+        logger.info('[buzzing] Player {} answering'.format(buzzing_id))
 
         msg = {'type': MSG_TYPE_BUZZING_RED, 'qid': self.qid, 
-                'uid': buzzing_idx, 'length': ANSWER_TIME_OUT}
-        red_players = self.players[:buzzing_idx] + self.players[buzzing_idx+1:]
+                'uid': buzzing_id, 'length': ANSWER_TIME_OUT}
+        red_players = {k: v for k, v in self.players.items() if k != buzzing_id}
         self.broadcast(red_players, msg)
         
         msg['type'] = MSG_TYPE_BUZZING_GREEN
-        green_player = self.players[buzzing_idx]
-        self.broadcast([green_player], msg)
-        self.player_buzzed[green_player.peer] = True
+        green_player = self.players[buzzing_id]
+        green_player.sendMessage(json.dumps(msg).encode('utf-8'))
+        self.player_buzzed[buzzing_id] = True
 
         condition = partial(self.check_player_response, 
-                green_player.peer, 'type', MSG_TYPE_BUZZING_ANSWER)
+                buzzing_id, 'type', MSG_TYPE_BUZZING_ANSWER)
 
         def callback(x):
-            self._buzzing_after(buzzing_idx, end_of_question, False)
+            self._buzzing_after(buzzing_id, end_of_question, False)
 
         def errback(x):
             logger.info('[buzzing] Player answer time out')
-            helps = self.player_responses[green_player.peer].get('helps', dict())
-            self.player_responses[green_player.peer] = {
+            helps = self.player_responses[buzzing_id].get('helps', dict())
+            self.player_responses[buzzing_id] = {
                     'type': MSG_TYPE_BUZZING_ANSWER,
                     'qid': self.qid, 'position': self.position,
                     'text': '_TIME_OUT_',
                     'helps': helps}
-            self._buzzing_after(buzzing_idx, end_of_question, True)
+            self._buzzing_after(buzzing_id, end_of_question, True)
 
         if condition():
             callback(None)
@@ -289,37 +293,40 @@ class BroadcastServerFactory(WebSocketServerFactory):
             deferred.addCallbacks(callback, errback)
             self.deferreds.append((deferred, condition))
 
-    def _buzzing_after(self, buzzing_idx, end_of_question, timed_out):
-        green_player = self.players[buzzing_idx]
-        red_players = self.players[:buzzing_idx] + self.players[buzzing_idx+1:]
-        answer = self.player_responses[green_player.peer]['text']
-        position = self.player_responses[green_player.peer]['position']
-        result = (answer == self.question['answer']) and not timed_out
-        score = 10 if result else (0 if end_of_question else -5)
-        if green_player.peer not in self.db_rows:
-            self.db_rows[green_player.peer] = {
-                    COL_QID: self.qid,
-                    COL_UID: green_player.peer,
-                    COL_START: self.position,
-                    COL_TIME: self.get_time()}
-        self.db_rows[green_player.peer][COL_GUESS] = {
-                'position': self.position,
-                'guess': answer,
-                'result': result,
-                'score': score}
-        self.db_rows[green_player.peer][COL_HELPS] = \
-                self.player_responses[green_player.peer].get('helps', dict())
-        
-        if not timed_out:
-            logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
-        self.player_scores[green_player.peer] += score
-        msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': result,
-                'score': score,'uid': buzzing_idx, 'guess': answer}
-        if self.player_alive[buzzing_idx]:
-            self.broadcast([green_player], msg)
+    def _buzzing_after(self, buzzing_id, end_of_question, timed_out):
+        try:
+            green_player = self.players[buzzing_id]
+            red_players = {k: v for k, v in self.players.items() if k != buzzing_id}
+            answer = self.player_responses[buzzing_id]['text']
+            position = self.player_responses[buzzing_id]['position']
+            result = (answer == self.question['answer']) and not timed_out
+            score = 10 if result else (0 if end_of_question else -5)
+            if buzzing_id not in self.db_rows:
+                self.db_rows[buzzing_id] = {
+                        COL_QID: self.qid,
+                        COL_UID: buzzing_id,
+                        COL_START: self.position,
+                        COL_TIME: self.get_time()}
+            self.db_rows[buzzing_id][COL_GUESS] = {
+                    'position': self.position,
+                    'guess': answer,
+                    'result': result,
+                    'score': score}
+            self.db_rows[buzzing_id][COL_HELPS] = \
+                    self.player_responses[buzzing_id].get('helps', dict())
+            
+            if not timed_out:
+                logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
+            self.player_scores[buzzing_id] += score
+            msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': result,
+                    'score': score,'uid': buzzing_id, 'guess': answer}
+            if self.player_alive[buzzing_id]:
+                green_player.sendMessage(json.dumps(msg).encode('utf-8'))
 
-        msg['type'] = MSG_TYPE_RESULT_OTHER
-        self.broadcast(red_players, msg)
+            msg['type'] = MSG_TYPE_RESULT_OTHER
+            self.broadcast(red_players, msg)
+        except:
+            traceback.print_exc(file=sys.stdout)
 
         if end_of_question or result:
             self._end_of_question()
@@ -332,11 +339,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.broadcast(self.players, msg)
 
         # remove players that are marked of unlive
-        assert len(self.players) == len(self.player_alive)
-        alive_idxs = [i for i, y in enumerate(self.player_alive) if y]
-        self.players = [self.players[i] for i in alive_idxs]
-        self.player_alive = [self.player_alive[i] for i in alive_idxs]
-        self.player_is_machine = [self.player_is_machine[i] for i in alive_idxs]
+        for pid in self.players:
+            if self.player_alive[pid]:
+                continue
+            self.players.pop(pid, None)
+            self.player_alive.pop(pid, None)
+            self.player_is_machine.pop(pid, None)
+            self.player_responses.pop(pid, None)
+            self.player_scores.pop(pid, None)
+            self.player_buzzed.pop(pid, None)
         logger.info('-' * 60)
         self.pbar.close()
 
