@@ -25,83 +25,25 @@
         <ul class="breadcrumb">QuizBowl</ul>
         <div class="row">
             <div class="col-md-3">
-                <div id="guesses_card">
-                    <table class="table table-hover" id="guesses_table">
-                        <thead>
-                            <tr>
-                                <th> #</th>
-                                <th> Guess </th>
-                                <th> Score </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td> 1 </td>
-                                <td> - </td>
-                                <td> - </td>
-                            </tr>
-                            <tr>
-                                <td> 2 </td>
-                                <td> - </td>
-                                <td> - </td>
-                            </tr>
-                            <tr>
-                                <td> 3 </td>
-                                <td> - </td>
-                                <td> - </td>
-                            </tr>
-                            <tr>
-                                <td> 4 </td>
-                                <td> - </td>
-                                <td> - </td>
-                            </tr>
-                            <tr>
-                                <td> 5 </td>
-                                <td> - </td>
-                                <td> - </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div id="guesses_card" class="card card-outline-primary mt-3">
+                    <div class="card-body mx-2 my-2">
+                        <h4 class="card-title">Guesses</h4>
+                        <table class="table table-hover" id="guesses_table">
+                            <thead>
+                                <tr> <th> #</th> <th> Guess </th> <th> Score </th> </tr>
+                            </thead>
+                            <tbody>
+                                <tr> <td> 1 </td> <td> - </td> <td> - </td> </tr>
+                                <tr> <td> 2 </td> <td> - </td> <td> - </td> </tr>
+                                <tr> <td> 3 </td> <td> - </td> <td> - </td> </tr>
+                                <tr> <td> 4 </td> <td> - </td> <td> - </td> </tr>
+                                <tr> <td> 5 </td> <td> - </td> <td> - </td> </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <div id="players_card mt-3">
-                    <table class="table" id="players_table">
-                        <thead>
-                            <tr>
-                                <th> #</th>
-                                <th> Player </th>
-                                <th> Score </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td> 1 </td>
-                                <td> - </td>
-                                <td> - </td>
-                            </tr>
-                            <tr>
-                                <td> 2 </td>
-                                <td> - </td>
-                                <td> - </td>
-                            </tr>
-                            <tr>
-                                <td> 3 </td>
-                                <td> - </td>
-                                <td> - </td>
-                            </tr>
-                            <tr>
-                                <td> 4 </td>
-                                <td> - </td>
-                                <td> - </td>
-                            </tr>
-                            <tr>
-                                <td> 5 </td>
-                                <td> - </td>
-                                <td> - </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+
             </div>
             <div class="col-md-6">
                 <div class="row">
@@ -127,14 +69,15 @@
                     </div>
                 </div>
                 <div class="card card-outline-primary mt-3">
-                    <div class="card-body mb-2 mx-2">
+                    <div class="card-body my-2 mx-2">
+                        <h4 class="card-title">Question</h4>
                         <a class="card-text" id="question_area"> question text</a>
                     </div>
                 </div>
-
-                <div id="matches_card" class="card card-outline-primary">
+                <div id="matches_card" class="card card-outline-primary mt-3">
                     <div class="card-body mx-2">
-                        <span>Evidence for </span> <b><span id="guess_of_matches"></span></b></br></br>
+                        <h4 class="card-title">Evidence</h4>
+                        <span>for </span> <b><span id="guess_of_matches"></span></b></br></br>
                         <table class="table" id="matches_table">
                             <tbody>
                                 <tr><td> - </td></tr>
@@ -146,30 +89,51 @@
                     </div>
                 </div>
 
-                <div id="history_table" class="mt-2" role="tablist">
-                  <p><b>History</b></p>
-                  <div class="card" id="history"> </div>
+                <div id="history_card" class="card card-outline-primary mt-3">
+                    <div class="card-body mx-2">
+                    <h4 class="card-title">History</h4>
+                    <div id="history"> </div>
+                    </div>
                 </div>
 
 
             </div>
             <div class="col-md-3">
-                <div class="thumbnail">
-                    <h4>Settings</h4>
-                    <div class="checkbox">
-                        <label><input type="checkbox" value="" id="guesses_checkbox" checked>Guesses</label>
+                <div class="card card-outline-primary mt-3">
+                    <div class="card-body my-2 mx-2">
+                        <h4 class="card-title">Settings</h4>
+                        <div class="checkbox">
+                            <label><input type="checkbox" value="" id="guesses_checkbox" checked>Guesses</label>
+                        </div>
+                        <div class="checkbox">
+                            <label><input type="checkbox" value="" id="highlight_checkbox" checked>Highlights</label>
+                        </div>
+                        <div class="checkbox">
+                            <label><input type="checkbox" value="" id="matches_checkbox" checked>Evidence</label>
+                        </div>
+                        <div class="checkbox">
+                            <label><input type="checkbox" value="" id="machine_buzz_checkbox" checked>Allow machine to buzz</label>
+                        </div>
+                        <div class="checkbox">
+                            <label><input type="checkbox" value="" id="voice_checkbox" disabled>Voice</label>
+                        </div>
                     </div>
-                    <div class="checkbox">
-                        <label><input type="checkbox" value="" id="highlight_checkbox" checked>Highlights</label>
-                    </div>
-                    <div class="checkbox">
-                        <label><input type="checkbox" value="" id="matches_checkbox" checked>Evidence</label>
-                    </div>
-                    <div class="checkbox">
-                        <label><input type="checkbox" value="" id="machine_buzz_checkbox" checked>Allow machine to buzz</label>
-                    </div>
-                    <div class="checkbox">
-                        <label><input type="checkbox" value="" id="voice_checkbox" disabled>Voice</label>
+                </div>
+                <div id="players_card" class="card card-outline-primary mt-3">
+                    <div class="card-body mx-2 my-2">
+                        <h4 class="card-title">Players</h4>
+                        <table class="table" id="players_table">
+                            <thead>
+                                <tr> <th> #</th> <th> Player </th> <th> Score </th> </tr>
+                            </thead>
+                            <tbody>
+                                <tr> <td> 1 </td> <td> - </td> <td> - </td> </tr>
+                                <tr> <td> 2 </td> <td> - </td> <td> - </td> </tr>
+                                <tr> <td> 3 </td> <td> - </td> <td> - </td> </tr>
+                                <tr> <td> 4 </td> <td> - </td> <td> - </td> </tr>
+                                <tr> <td> 5 </td> <td> - </td> <td> - </td> </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
