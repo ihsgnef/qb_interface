@@ -10,6 +10,7 @@ from tqdm import tqdm
 from threading import Thread
 from functools import partial
 from collections import defaultdict
+from haikunator import Haikunator
 
 from twisted.internet import reactor
 from twisted.python import log
@@ -34,6 +35,7 @@ PLAYER_RESPONSE_TIME_OUT = 3
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
 
+haikunator = Haikunator()
 
 class BroadcastServerProtocol(WebSocketServerProtocol):
 
@@ -59,10 +61,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
         logger.info('Loaded {} questions'.format(len(self.questions)))
 
         self.players = dict()
+        self.player_names = dict()
         self.player_alive = dict()
         self.player_is_machine = dict()
         self.player_responses = dict()
-        self.player_scores = defaultdict(lambda: 0)
+        self.player_scores = dict()
         self.player_buzzed = defaultdict(lambda: False)
 
         self.deferreds = []
@@ -87,7 +90,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def register(self, player):
         if player.peer not in self.players:
             self.players[player.peer] = player
-            msg = {'type': MSG_TYPE_NEW, 'qid': self.qid}
+            name = haikunator.haikunate(token_length=0, delimiter=' ').title()
+            self.player_names[player.peer] = name
+            msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 'player_name': name,
+                    'player_list': self.get_player_list()}
             player.sendMessage(json.dumps(msg).encode('utf-8'))
             self.db_rows[player.peer] = {
                     COL_QID: self.qid,
@@ -96,6 +102,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     COL_TIME: self.get_time()}
             self.player_alive[player.peer] = True
             self.player_is_machine[player.peer] = False
+            self.player_scores[player.peer] = 0
             logger.info("Registered player {}".format(player.peer))
 
         if len(self.players) == 1 and not self.started:
@@ -171,7 +178,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         # notify all players of new question, wait for confirmation
         msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
-                'length': self.question_length, 'position': 0}
+                'length': self.question_length, 'position': 0,
+                'player_list': self.get_player_list()}
         self.broadcast(self.players, msg)
 
         def make_callback(pid):
@@ -253,7 +261,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         'text': ' '.join(self.question_text[:self.position]),
                         'position': self.position,
                         'length': self.question_length,
-                        'evidence': self.evidence}
+                        'evidence': self.evidence,
+                        'player_list': self.get_player_list()}
                 self.pbar.update(1)
                 self.broadcast(self.players, msg)
                 reactor.callLater(SECOND_PER_WORD, self.stream_next)
@@ -264,10 +273,22 @@ class BroadcastServerFactory(WebSocketServerFactory):
         msg = {'type': MSG_TYPE_RESUME,  'qid': self.qid,
                 'length': self.question_length,
                 'position': self.position,
-                'text': ' '.join(self.question_text[:self.position])
+                'text': ' '.join(self.question_text[:self.position]),
+                'player_list': self.get_player_list()
                 }
         self.broadcast(self.players, msg)
         reactor.callLater(SECOND_PER_WORD, self.stream_next)
+
+    def get_player_list(self):
+        plys = sorted(self.player_scores.items(), key=lambda x: x[1])[::-1]
+        for i, (x, s) in enumerate(plys):
+            if not self.player_alive(x):
+                continue
+            name = self.player_names[x]
+            if self.player_is_machine[x]:
+                name += ' (machine)'
+            plys[i] = (self.player_names[x], s)
+        return plys
 
     def _buzzing(self, buzzing_ids, end_of_question):
         random.shuffle(buzzing_ids)
@@ -275,7 +296,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         logger.info('[buzzing] Player {} answering'.format(buzzing_id))
 
         msg = {'type': MSG_TYPE_BUZZING_RED, 'qid': self.qid, 
-                'uid': buzzing_id, 'length': ANSWER_TIME_OUT}
+                'uid': buzzing_id, 'player_name': self.player_names[buzzing_id],
+                'length': ANSWER_TIME_OUT,
+                'player_list': self.get_player_list()}
         red_players = {k: v for k, v in self.players.items() if k != buzzing_id}
         self.broadcast(red_players, msg)
         
@@ -337,7 +360,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
             self.player_scores[buzzing_id] += score
             msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': result,
-                    'score': score,'uid': buzzing_id, 'guess': answer}
+                    'score': score,'uid': buzzing_id, 'guess': answer,
+                    'player_list': self.get_player_list()}
             if self.player_alive[buzzing_id]:
                 green_player.sendMessage(json.dumps(msg).encode('utf-8'))
 
@@ -353,13 +377,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
     def _end_of_question(self):
         msg = {'type': MSG_TYPE_END, 'qid': self.qid, 'text': '', 
-                'evidence': {'answer': self.question['answer']}}
+                'evidence': {'answer': self.question['answer']},
+                'player_list': self.get_player_list()}
         self.broadcast(self.players, msg)
 
         # remove players that are marked of unlive
         dead_players = [x for x, y in self.player_alive.items() if not y]
         for pid in dead_players:
             self.players.pop(pid, None)
+            self.player_names.pop(pid, None)
             self.player_alive.pop(pid, None)
             self.player_is_machine.pop(pid, None)
             self.player_responses.pop(pid, None)

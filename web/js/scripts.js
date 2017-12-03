@@ -18,9 +18,10 @@ var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 ///////// HTML Elements ///////// 
 var question_area      = document.getElementById('question_area');
 var answer_area        = document.getElementById('answer_area');
-var score_area         = document.getElementById('score_area');
+// var score_area         = document.getElementById('score_area');
 var guesses_card       = document.getElementById("guesses_card");
 var guesses_table      = document.getElementById("guesses_table");
+var players_table      = document.getElementById("players_table");
 var matches_card       = document.getElementById("matches_card");
 var matches_table      = document.getElementById("matches_table");
 var guess_matches_area = document.getElementById("guess_of_matches");
@@ -36,6 +37,7 @@ var history_div        = document.getElementById('history');
 
 
 ///////// State variables ///////// 
+var player_name = "";
 var curr_answer         = "";
 var question_text       = "";
 var question_text_color = "";
@@ -252,7 +254,7 @@ function handle_result(msg) {
 
     if (msg.type === MSG_TYPE_RESULT_MINE) {
         score += msg.score;
-        score_area.innerHTML = 'Your score: ' + score;
+        // score_area.innerHTML = 'Your score: ' + score;
     }
     timer_set = false;
 }
@@ -320,12 +322,23 @@ function update_interpretation(msg) {
         var guesses = evidence.guesses;
         for (var i = 0; i < Math.min(5, guesses.length); i++) {
             var guess = guesses[i][0];
-            var button_text = '<a id="guesses_' + i + '"';
             var guess_score = guesses[i][1].toFixed(4);
-            button_text += 'onclick=set_guess("' + guess + '")';
-            button_text += '>' + guess.substr(0, 20) + '</a>';
+            // var button_text = '<a id="guesses_' + i + '"';
+            // button_text += 'onclick=set_guess("' + guess + '")';
+            // button_text += '>' + guess.substr(0, 20) + '</a>';
+            var button_text = guess.substr(0, 20);
             guesses_table.rows[i + 1].cells[1].innerHTML = button_text;
             guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
+
+            var createClickHandler = function(guess) {
+                return function() { 
+                    answer_area.value = guess;
+                    curr_answer = guess;
+                    answer_area.focus();
+                };
+            };
+
+            guesses_table.rows[i + 1].onclick = createClickHandler(guess);
         }
         if (guesses.length > 0) {
             curr_answer = guesses[0][0];
@@ -388,7 +401,7 @@ function handle_buzzing(msg) {
         user_text = "Your";
         buzzed = true;
     } else {
-        user_text = "Player " + msg.uid;
+        user_text = "Player " + msg.player_name;
     }
 
     buzz_button.disabled = true;
@@ -407,6 +420,26 @@ function handle_buzzing(msg) {
 
 sockt.onmessage = function(event) {
     var msg = JSON.parse(event.data);
+    if (typeof msg.player_name != 'undefined') {
+        player_name = msg.player_name;
+        console.log(player_name);
+    }
+    if (typeof msg.player_list !== 'undefined') {
+        var player_list = msg.player_list;
+        for (var i = 0; i < 5; i++) {
+            if (i >= player_list.length) {
+                players_table.rows[i + 1].cells[1].innerHTML = '-';
+                players_table.rows[i + 1].cells[2].innerHTML = '-';
+                break;
+            }
+            var name = player_list[i][0];
+            if (name == player_name) {
+                players_table.rows[i + 1].className = "table-info";
+            }
+            players_table.rows[i + 1].cells[1].innerHTML = name;
+            players_table.rows[i + 1].cells[2].innerHTML = player_list[i][1];
+        }
+    }
     if (msg.type === MSG_TYPE_NEW) {
         new_question(msg);
     } else if (msg.type === MSG_TYPE_RESUME) {
