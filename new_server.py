@@ -155,6 +155,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.player_responses.clear()
         self.disable_machine_buzz = False
         self.question = self.questions[self.question_idx]
+        self.question['answer'] = self.question['answer'].replace('_', ' ')
         self.qid = self.question['qid']
         self.question_text = self.question['text'].split()
         self.question_length = len(self.question_text)
@@ -238,13 +239,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
             if end_of_question:
                 self._end_of_question()
             else:
-                self.position += 1
-
                 self.evidence = dict()
                 if self.qid in self.records:
                     record = self.records[self.qid]
                     if self.position in record:
                         self.evidence = record[self.position]['evidence']
+                        for i, (g, s) in enumerate(self.evidence['guesses']):
+                            self.evidence['guesses'][i] = (g.replace('_', ' '), s)
+
+                self.position += 1
 
                 msg = {'type': MSG_TYPE_RESUME,  'qid': self.qid,
                         'text': ' '.join(self.question_text[:self.position]),

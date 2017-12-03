@@ -291,6 +291,7 @@ function add_history(real_answer) {
 function set_guess(guess) {
     answer_area.value = guess;
     curr_answer = guess;
+    answer_area.focus();
 }
 
 function update_interpretation(msg) {
