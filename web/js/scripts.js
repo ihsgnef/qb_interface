@@ -25,14 +25,13 @@ var players_table      = document.getElementById("players_table");
 var matches_card       = document.getElementById("matches_card");
 var matches_table      = document.getElementById("matches_table");
 var guess_matches_area = document.getElementById("guess_of_matches");
-var answer_button      = document.getElementById("answer_button");
 var buzz_button        = document.getElementById("buzz_button");
 var guesses_checkbox   = document.getElementById("guesses_checkbox");
 var highlight_checkbox = document.getElementById("highlight_checkbox");
 var matches_checkbox   = document.getElementById("matches_checkbox");
 var voice_checkbox     = document.getElementById("voice_checkbox");
 var machine_buzz_checkbox = document.getElementById("machine_buzz_checkbox");
-var answer_group       = document.getElementById("answer_area_button");
+var answer_group       = document.getElementById("answer_area_row");
 var history_div        = document.getElementById('history');
 
 
@@ -61,12 +60,16 @@ window.onkeydown = function(e) {
         e.preventDefault();
     }
 }
-
+// use enter to submit answer
+answer_area.onkeydown = function(event) {
+    if (event.keyCode === 13) {
+        if (is_buzzing) { send_answer(); }
+    }
+};
 buzz_button.onclick = function() {
     is_buzzing = true;
     buzz_button.disabled = true;
 };
-answer_button.onclick = function() { send_answer(); };
 // show hide guesses panel
 guesses_checkbox.onclick = function() {
     if (guesses_checkbox.checked) {
@@ -87,12 +90,7 @@ matches_checkbox.onclick = function() {
 highlight_checkbox.onclick = function() {
     update_question_display()
 };
-// use enter to submit answer
-answer_area.onkeydown = function(event) {
-    if (event.keyCode === 13) {
-        if (is_buzzing) { answer_button.click(); }
-    }
-};
+
 
 
 ///////// Autocomplete ///////// 
@@ -160,8 +158,6 @@ function new_question(msg) {
     update_question_display();
     guess_matches_area.innerHTML = '';
     buzz_button.disabled = false;
-    answer_button.disabled = true;
-    buzz_button.style.display = "initial";
     answer_group.style.display = "none";
 
     for (var i = 0; i < 5; i++) {
@@ -187,7 +183,6 @@ function new_question(msg) {
 function update_question(msg) {
     if (buzzed === false) {
         buzz_button.disabled = false;
-        buzz_button.style.display = "initial";
     }
     update_interpretation(msg);
     position = msg.position;
@@ -217,10 +212,10 @@ function get_helps() {
 
 
 function send_answer() {
-    if (answer_button.disabled) {
+    if (is_buzzing == false) {
         return;
     }
-
+    
     var answer = answer_area.value;
     if (answer == "" && curr_answer != "") {
         answer = curr_answer;
@@ -233,7 +228,6 @@ function send_answer() {
         helps: get_helps()
     };
     sockt.send(JSON.stringify(m));
-    answer_button.disabled = true;
     answer_group.style.display = "none";
     is_buzzing = false;
 }
@@ -248,7 +242,6 @@ function handle_result(msg) {
     }
     info_text += text;
     update_question_display();
-    answer_button.disabled = true;
     answer_area.value = "";
     answer_group.style.display = "none";
 
@@ -395,8 +388,6 @@ function handle_buzzing(msg) {
         answer_area.focus();
         $('#answer_area').typeahead('val', curr_answer);
         answer_area.value = "";
-        // $('#answer_area').trigger('input.typeahead');
-        answer_button.disabled = false;
         is_buzzing = true;
         user_text = "Your";
         buzzed = true;
@@ -405,7 +396,6 @@ function handle_buzzing(msg) {
     }
 
     buzz_button.disabled = true;
-    buzz_button.style.display = "none";
 
     clearTimeout(timer_timeout);
     progress(7, 7, true);
