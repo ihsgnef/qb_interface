@@ -308,13 +308,16 @@ class BroadcastServerFactory(WebSocketServerFactory):
             deferred.addCallbacks(callback, errback)
             self.deferreds.append((deferred, condition))
 
+    def judge(self, guess):
+        return guess.lower() == self.question['answer'].lower()
+
     def _buzzing_after(self, buzzing_id, end_of_question, timed_out):
         try:
             green_player = self.players[buzzing_id]
             red_players = {k: v for k, v in self.players.items() if k != buzzing_id}
             answer = self.player_responses[buzzing_id]['text']
             position = self.player_responses[buzzing_id]['position']
-            result = (answer == self.question['answer']) and not timed_out
+            result = self.judge(answer) and not timed_out
             score = 10 if result else (0 if end_of_question else -5)
             # if buzzing_id not in self.db_rows:
             #     self.db_rows[buzzing_id] = {
