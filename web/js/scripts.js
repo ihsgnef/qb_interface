@@ -401,7 +401,7 @@ function handle_buzzing(msg) {
         user_text = "Your";
         buzzed = true;
     } else {
-        user_text = "Player " + msg.player_name;
+        user_text = "Player " + msg.buzzing_player;
     }
 
     buzz_button.disabled = true;
@@ -430,11 +430,14 @@ sockt.onmessage = function(event) {
             if (i >= player_list.length) {
                 players_table.rows[i + 1].cells[1].innerHTML = '-';
                 players_table.rows[i + 1].cells[2].innerHTML = '-';
-                break;
+                players_table.rows[i + 1].className = "";
+                continue;
             }
             var name = player_list[i][0];
             if (name == player_name) {
                 players_table.rows[i + 1].className = "table-info";
+            } else {
+                players_table.rows[i + 1].className = "";
             }
             players_table.rows[i + 1].cells[1].innerHTML = name;
             players_table.rows[i + 1].cells[2].innerHTML = player_list[i][1];

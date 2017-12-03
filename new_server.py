@@ -150,63 +150,66 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 pclient.sendMessage(json.dumps(msg).encode('utf-8'))
     
     def new_question(self):
-        self.question_idx += 1
-        if self.question_idx >= len(self.questions):
-            if self.loop:
-                random.shuffle(self.questions)
-                self.question_idx = 0
-            else:
-                self._end_of_game()
-                return
-        
-        self.player_responses.clear()
-        self.disable_machine_buzz = False
-        self.question = self.questions[self.question_idx]
-        self.question['answer'] = self.question['answer'].replace('_', ' ')
-        self.qid = self.question['qid']
-        self.question_text = self.question['text'].split()
-        self.question_length = len(self.question_text)
-        self.player_buzzed = defaultdict(lambda: False)
-        self.position = 0
-        self.evidence = dict()
-        ts = self.get_time()
-        self.db_rows = {x: {
-                    COL_QID: self.qid,
-                    COL_UID: x,
-                    COL_START: 0,
-                    COL_TIME: ts} for x in self.players}
-
-        # notify all players of new question, wait for confirmation
-        msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
-                'length': self.question_length, 'position': 0,
-                'player_list': self.get_player_list()}
-        self.broadcast(self.players, msg)
-
-        def make_callback(pid):
-            def f(x):
-                logger.info('[new question] Player {} ready'.format(pid))
-            return f
-
-        def make_errback(pid):
-            def f(x):
-                logger.info('[new] player {} timed out'.format(pid))
-                self.unregister(pid)
-            return f
-
-
-        for pid in self.players:
-            condition = partial(self.check_player_response,
-                    uid=pid, key='qid', value=self.qid)
-            callback = make_callback(pid)
-            errback = make_errback(pid)
+        try:
+            self.question_idx += 1
+            if self.question_idx >= len(self.questions):
+                if self.loop:
+                    random.shuffle(self.questions)
+                    self.question_idx = 0
+                else:
+                    self._end_of_game()
+                    return
             
-            if condition():
-                callback(None)
-            else:
-                deferred = Deferred()
-                deferred.addTimeout(PLAYER_RESPONSE_TIME_OUT, reactor)
-                deferred.addCallbacks(callback, errback)
-                self.deferreds.append((deferred, condition))
+            self.player_responses.clear()
+            self.disable_machine_buzz = False
+            self.question = self.questions[self.question_idx]
+            self.question['answer'] = self.question['answer'].replace('_', ' ')
+            self.qid = self.question['qid']
+            self.question_text = self.question['text'].split()
+            self.question_length = len(self.question_text)
+            self.player_buzzed = defaultdict(lambda: False)
+            self.position = 0
+            self.evidence = dict()
+            ts = self.get_time()
+            self.db_rows = {x: {
+                        COL_QID: self.qid,
+                        COL_UID: x,
+                        COL_START: 0,
+                        COL_TIME: ts} for x in self.players}
+
+            # notify all players of new question, wait for confirmation
+            msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
+                    'length': self.question_length, 'position': 0,
+                    'player_list': self.get_player_list()}
+            self.broadcast(self.players, msg)
+
+            def make_callback(pid):
+                def f(x):
+                    logger.info('[new question] Player {} ready'.format(pid))
+                return f
+
+            def make_errback(pid):
+                def f(x):
+                    logger.info('[new] player {} timed out'.format(pid))
+                    self.unregister(pid)
+                return f
+
+
+            for pid in self.players:
+                condition = partial(self.check_player_response,
+                        uid=pid, key='qid', value=self.qid)
+                callback = make_callback(pid)
+                errback = make_errback(pid)
+                
+                if condition():
+                    callback(None)
+                else:
+                    deferred = Deferred()
+                    deferred.addTimeout(PLAYER_RESPONSE_TIME_OUT, reactor)
+                    deferred.addCallbacks(callback, errback)
+                    self.deferreds.append((deferred, condition))
+        except:
+            traceback.print_exc(file=sys.stdout)
 
         def calllater():
             for pid in self.players:
@@ -281,14 +284,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
     def get_player_list(self):
         plys = sorted(self.player_scores.items(), key=lambda x: x[1])[::-1]
+        _plys = []
         for i, (x, s) in enumerate(plys):
-            if not self.player_alive(x):
+            if not self.player_alive[x]:
                 continue
             name = self.player_names[x]
             if self.player_is_machine[x]:
                 name += ' (machine)'
-            plys[i] = (self.player_names[x], s)
-        return plys
+            _plys.append((name, s))
+        return _plys
 
     def _buzzing(self, buzzing_ids, end_of_question):
         random.shuffle(buzzing_ids)
@@ -296,7 +300,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         logger.info('[buzzing] Player {} answering'.format(buzzing_id))
 
         msg = {'type': MSG_TYPE_BUZZING_RED, 'qid': self.qid, 
-                'uid': buzzing_id, 'player_name': self.player_names[buzzing_id],
+                'buzzing_player': self.player_names[buzzing_id],
                 'length': ANSWER_TIME_OUT,
                 'player_list': self.get_player_list()}
         red_players = {k: v for k, v in self.players.items() if k != buzzing_id}
