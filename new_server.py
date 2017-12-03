@@ -404,7 +404,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 self.db.add_row(row)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
-        reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self.new_question)
+        if len(self.players) > 0:
+            reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self.new_question)
+        else:
+            self.started = False
 
 
 if __name__ == '__main__':
