@@ -1,4 +1,5 @@
-var sockt = new WebSocket("ws://34.209.31.242:9000");
+// var sockt = new WebSocket("ws://34.209.31.242:9000");
+var sockt = new WebSocket("ws://127.0.0.1:9000");
 // var answer_json_dir = "http://qbinterface.club/answers.json";
 var answer_json_dir = "http://localhost/answers.json";
 
@@ -35,7 +36,7 @@ var history_div        = document.getElementById('history');
 
 
 ///////// State variables ///////// 
-var my_answer           = "";
+var curr_answer         = "";
 var question_text       = "";
 var question_text_color = "";
 var info_text           = "";
@@ -150,7 +151,7 @@ function update_question_display() {
 function new_question(msg) {
     qid = msg.qid;
     position = 0;
-    my_answer = ""
+    curr_answer = ""
     question_text = '';
     question_text_color = '';
     info_text = '';
@@ -199,7 +200,6 @@ function update_question(msg) {
         m.type = MSG_TYPE_BUZZING_REQUEST;
         m.helps = get_helps()
         sockt.send(JSON.stringify(m));
-        answer_area.value = "";
     }
 }
 
@@ -218,9 +218,10 @@ function send_answer() {
     if (answer_button.disabled) {
         return;
     }
+
     var answer = answer_area.value;
-    if (answer == "" && my_answer != "") {
-        answer = my_answer;
+    if (answer == "" && curr_answer != "") {
+        answer = curr_answer;
     }
     var m = {
         type: MSG_TYPE_BUZZING_ANSWER,
@@ -231,7 +232,6 @@ function send_answer() {
     };
     sockt.send(JSON.stringify(m));
     answer_button.disabled = true;
-    answer_area.value = "";
     answer_group.style.display = "none";
     is_buzzing = false;
 }
@@ -289,9 +289,8 @@ function add_history(real_answer) {
 
 
 function set_guess(guess) {
-    answer_area.focus();
     answer_area.value = guess;
-    my_answer = guess;
+    curr_answer = guess;
 }
 
 function update_interpretation(msg) {
@@ -327,7 +326,12 @@ function update_interpretation(msg) {
             guesses_table.rows[i + 1].cells[1].innerHTML = button_text;
             guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
         }
-        guess_matches_area.innerHTML = guesses[0][0];
+        if (guesses.length > 0) {
+            curr_answer = guesses[0][0];
+            guess_matches_area.innerHTML = guesses[0][0];
+        } else {
+            guess_matches_area.innerHTML = '-';
+        }
     }
 
     //update the matches
@@ -373,11 +377,11 @@ function progress(timeleft, timetotal, is_red) {
 function handle_buzzing(msg) {
     var user_text = "";
     if (msg.type === MSG_TYPE_BUZZING_GREEN) {
-        console.log(answer_area.value);
         answer_group.style.display = "initial";
-        answer_area.value = "";
         answer_area.focus();
+        $('#answer_area').typeahead('val', curr_answer);
         answer_area.value = "";
+        // $('#answer_area').trigger('input.typeahead');
         answer_button.disabled = false;
         is_buzzing = true;
         user_text = "Your";

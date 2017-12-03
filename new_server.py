@@ -143,64 +143,61 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 pclient.sendMessage(json.dumps(msg).encode('utf-8'))
     
     def new_question(self):
-        try:
-            self.question_idx += 1
-            if self.question_idx >= len(self.questions):
-                if self.loop:
-                    random.shuffle(self.questions)
-                    self.question_idx = 0
-                else:
-                    self._end_of_game()
-                    return
+        self.question_idx += 1
+        if self.question_idx >= len(self.questions):
+            if self.loop:
+                random.shuffle(self.questions)
+                self.question_idx = 0
+            else:
+                self._end_of_game()
+                return
+        
+        self.player_responses.clear()
+        self.disable_machine_buzz = False
+        self.question = self.questions[self.question_idx]
+        self.qid = self.question['qid']
+        self.question_text = self.question['text'].split()
+        self.question_length = len(self.question_text)
+        self.player_buzzed = defaultdict(lambda: False)
+        self.position = 0
+        self.evidence = dict()
+        ts = self.get_time()
+        self.db_rows = {x: {
+                    COL_QID: self.qid,
+                    COL_UID: x,
+                    COL_START: 0,
+                    COL_TIME: ts} for x in self.players}
+
+        # notify all players of new question, wait for confirmation
+        msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
+                'length': self.question_length, 'position': 0}
+        self.broadcast(self.players, msg)
+
+        def make_callback(pid):
+            def f(x):
+                logger.info('[new question] Player {} ready'.format(pid))
+            return f
+
+        def make_errback(pid):
+            def f(x):
+                logger.info('[new] player {} timed out'.format(pid))
+                self.unregister(pid)
+            return f
+
+
+        for pid in self.players:
+            condition = partial(self.check_player_response,
+                    uid=pid, key='qid', value=self.qid)
+            callback = make_callback(pid)
+            errback = make_errback(pid)
             
-            self.disable_machine_buzz = False
-            self.question = self.questions[self.question_idx]
-            self.qid = self.question['qid']
-            self.question_text = self.question['text'].split()
-            self.question_length = len(self.question_text)
-            self.player_buzzed = defaultdict(lambda: False)
-            self.position = 0
-            self.evidence = dict()
-            ts = self.get_time()
-            self.db_rows = {x: {
-                        COL_QID: self.qid,
-                        COL_UID: x,
-                        COL_START: 0,
-                        COL_TIME: ts} for x in self.players}
-
-            # notify all players of new question, wait for confirmation
-            msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
-                    'length': self.question_length, 'position': 0}
-            self.broadcast(self.players, msg)
-
-            def make_callback(pid):
-                def f(x):
-                    logger.info('[new question] Player {} ready'.format(pid))
-                return f
-
-            def make_errback(pid):
-                def f(x):
-                    logger.info('[new] player {} timed out'.format(pid))
-                    self.unregister(pid)
-                return f
-
-
-            for pid in self.players:
-                condition = partial(self.check_player_response,
-                        uid=pid, key='qid', value=self.qid)
-                callback = make_callback(pid)
-                errback = make_errback(pid)
-                
-                if condition():
-                    callback(None)
-                else:
-                    deferred = Deferred()
-                    deferred.addTimeout(PLAYER_RESPONSE_TIME_OUT, reactor)
-                    deferred.addCallbacks(callback, errback)
-                    self.deferreds.append((deferred, condition))
-
-        except:
-            traceback.print_exc(file=sys.stdout)
+            if condition():
+                callback(None)
+            else:
+                deferred = Deferred()
+                deferred.addTimeout(PLAYER_RESPONSE_TIME_OUT, reactor)
+                deferred.addCallbacks(callback, errback)
+                self.deferreds.append((deferred, condition))
 
         def calllater():
             for pid in self.players:
@@ -220,17 +217,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
     def stream_next(self):
         # send next word of the question to all players
-        self.position += 1
-        end_of_question = self.position > self.question_length
-        self.evidence = dict()
-        if self.qid in self.records:
-            record = self.records[self.qid]
-            pos = self.position - 1
-            if pos in record:
-                self.evidence = record[pos]['evidence']
+        end_of_question = self.position >= self.question_length
 
         buzzing_ids = []
         for pid in self.players:
+            if not self.player_alive[pid]:
+                continue
             if self.player_buzzed[pid]:
                 continue
             if self.disable_machine_buzz and self.player_is_machine[pid]:
@@ -246,6 +238,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
             if end_of_question:
                 self._end_of_question()
             else:
+                self.position += 1
+
+                self.evidence = dict()
+                if self.qid in self.records:
+                    record = self.records[self.qid]
+                    if self.position in record:
+                        self.evidence = record[self.position]['evidence']
 
                 msg = {'type': MSG_TYPE_RESUME,  'qid': self.qid,
                         'text': ' '.join(self.question_text[:self.position]),
