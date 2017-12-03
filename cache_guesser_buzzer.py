@@ -26,7 +26,7 @@ def main():
         text = question['text'].split()
         guesser_buzzer.new_question(qid)
         records[qid] = dict()
-        for i, word in enumerate(text):
+        for i in range(len(text) + 1):
             sentence = ' '.join(text[:i])
             buzz_scores = guesser_buzzer.buzz(sentence, i)
             records[qid][i] = {
