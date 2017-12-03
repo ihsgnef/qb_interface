@@ -39,7 +39,7 @@ highlight_template = highlight_prefix + '{}' + highlight_suffix
 
 def get_matched(text):
     matches = get_highlights(text)
-    matches = matches['qb'][:1] + matches['wiki'][:1]
+    matches = matches['qb'][:2] + matches['wiki'][:2]
     match_words = set()
     for match in matches:
         soup = BeautifulSoup(match)
