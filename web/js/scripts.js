@@ -234,13 +234,13 @@ function send_answer() {
 
 function handle_result(msg) {
     clearTimeout(timer_timeout);
-    var text = msg.guess + ' ';
-    if (msg.result === true) {
-        text += '<span class="badge badge-success">Correct</span><br />';
-    } else {
-        text += '<span class="badge badge-warning">Wrong</span><br />';
-    }
-    info_text += text;
+    // var text = msg.guess + ' ';
+    // if (msg.result === true) {
+    //     text += '<span class="badge badge-success">Correct</span><br />';
+    // } else {
+    //     text += '<span class="badge badge-warning">Wrong</span><br />';
+    // }
+    // info_text += text;
     update_question_display();
     answer_area.value = "";
     answer_group.style.display = "none";
@@ -291,9 +291,8 @@ function set_guess(guess) {
 
 function update_interpretation(msg) {
     // update text and colored text
-    if (typeof msg.evidence != 'undefined' 
-        && typeof msg.evidence.highlight != 'undefined') {
-        question_text_color = msg.evidence.highlight;
+    if (typeof msg.text_highlighted != 'undefined') {
+        question_text_color = msg.text_highlighted;
         update_question_display()
     }
     if (typeof msg.text != 'undefined') {
@@ -307,12 +306,9 @@ function update_interpretation(msg) {
         speechSynthesis.speak(voice_msg);
     }
 
-    if (typeof msg.evidence == 'undefined') { return; }
-    var evidence = msg.evidence;
-
     // update the list of guesses
-    if (typeof evidence.guesses !== 'undefined') {
-        var guesses = evidence.guesses;
+    if (typeof msg.guesses !== 'undefined') {
+        var guesses = msg.guesses;
         for (var i = 0; i < Math.min(5, guesses.length); i++) {
             var guess = guesses[i][0];
             var guess_score = guesses[i][1].toFixed(4);
@@ -342,19 +338,19 @@ function update_interpretation(msg) {
     }
 
     //update the matches
-    if (typeof evidence.matches !== 'undefined') {
-        for (var i = 0; i < Math.min(4, evidence.matches.length); i++) {
-            matches_table.rows[i].cells[0].innerHTML = evidence.matches[i];
+    if (typeof msg.matches !== 'undefined') {
+        for (var i = 0; i < Math.min(4, msg.matches.length); i++) {
+            matches_table.rows[i].cells[0].innerHTML = msg.matches[i];
         }
     }
 }
 
 function end_of_question(msg) {
     var real_answer = 'Question';
-    if (typeof msg.evidence.answer !== 'undefined') {
-        info_text += "<br />Correct answer: " + msg.evidence.answer;
-        update_question_display();
-        real_answer = msg.evidence.answer;
+    if (typeof msg.answer !== 'undefined') {
+        // info_text += "<br />Correct answer: " + msg.answer;
+        // update_question_display();
+        real_answer = msg.answer;
     }
     add_history(real_answer);
 }
@@ -402,10 +398,10 @@ function handle_buzzing(msg) {
     question_text += bell_str;
     question_text_color += bell_str;
     update_question_display();
-    var text = '</br><span class="badge badge-danger">Buzz</span> <span> ' 
-        + user_text + ' answer: </span>';
-    info_text += text;
-    update_question_display();
+    // var text = '</br><span class="badge badge-danger">Buzz</span> <span> ' 
+    //     + user_text + ' answer: </span>';
+    // info_text += text;
+    // update_question_display();
 }
 
 sockt.onmessage = function(event) {
@@ -432,6 +428,10 @@ sockt.onmessage = function(event) {
             players_table.rows[i + 1].cells[1].innerHTML = name;
             players_table.rows[i + 1].cells[2].innerHTML = player_list[i][1];
         }
+    }
+    if (typeof msg.info_text != 'undefined') {
+        info_text = msg.info_text;
+        update_question_display();
     }
     if (msg.type === MSG_TYPE_NEW) {
         new_question(msg);

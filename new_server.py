@@ -24,6 +24,8 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
         MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
+from web_util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
+        NEW_LINE, BELL, bodify
 from db import QBDB
 from db import COL_QID, COL_UID, COL_START, COL_GUESS, COL_HELPS,\
         COL_TIME
@@ -31,6 +33,11 @@ from db import COL_QID, COL_UID, COL_START, COL_GUESS, COL_HELPS,\
 ANSWER_TIME_OUT = 10
 SECOND_PER_WORD = 0.5
 PLAYER_RESPONSE_TIME_OUT = 3
+
+highlight_color = '#ecff6d'
+highlight_prefix = '<span style="background-color: ' + highlight_color + '">'
+highlight_suffix = '</span>'
+highlight_template = highlight_prefix + '{}' + highlight_suffix
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
@@ -58,7 +65,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.db = db
         self.loop = loop
         self.question_idx = -1
-        logger.info('Loaded {} questions'.format(len(self.questions)))
 
         self.players = dict()
         self.player_names = dict()
@@ -73,15 +79,17 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.started = False
         self.qid = 0
         self.position = 0
+        self.info_text = ''
         self.disable_machine_buzz = False
-        self.evidence = dict()
         self.db_rows = dict()
-        with open('data/guesser_buzzer_cache.pkl', 'rb') as f:
+        with open('data/guesser_buzzer_cache_rematches.pkl', 'rb') as f:
             self.records = pickle.load(f)
+        with open('data/pos_maps.pkl', 'rb') as f:
+            self.pos_maps = pickle.load(f)
+        logger.info('Loaded {} questions'.format(len(self.questions)))
         # when we unregister a player, wait until the end
         # of the round to remove it from the list of players
         # this list keeps track of the players that are actually active
-
 
     def get_time(self):
         ts = time.time()
@@ -93,7 +101,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
             name = haikunator.haikunate(token_length=0, delimiter=' ').title()
             self.player_names[player.peer] = name
             msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 'player_name': name,
-                    'player_list': self.get_player_list()}
+                    'player_list': self.get_player_list(),
+                    'info_text': self.info_text
+                    }
             player.sendMessage(json.dumps(msg).encode('utf-8'))
             self.db_rows[player.peer] = {
                     COL_QID: self.qid,
@@ -138,8 +148,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
             return
         if player.peer in self.players:
             self.player_responses[player.peer] = msg
-            # if 'evidence' in  msg:
-            #     self.evidence = msg['evidence']
             self.check_deferreds()
         else:
             logger.warning("Unknown source {}:\n{}".format(player.peer, msg))
@@ -167,9 +175,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.qid = self.question['qid']
             self.question_text = self.question['text'].split()
             self.question_length = len(self.question_text)
+            self.info_text = ''
+            self.record = self.records[int(self.qid)]
+            self.position_map = self.pos_maps[self.qid]
+            self.bell_positions = []
             self.player_buzzed = defaultdict(lambda: False)
             self.position = 0
-            self.evidence = dict()
             ts = self.get_time()
             self.db_rows = {x: {
                         COL_QID: self.qid,
@@ -227,6 +238,38 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         reactor.callLater(SECOND_PER_WORD, calllater)
 
+    def get_text_highlighted(self):
+        words = self.record[self.position]['text']
+        words_hi = self.record[self.position]['text_highlight']
+        text = ''
+        text_highlighted = ''
+        for i, (x, y) in enumerate(zip(words, words_hi)):
+            text += x + ' '
+            if y:
+                text_highlighted += highlight_template.format(x) + ' '
+            else:
+                text_highlighted += x + ' '
+            if i + 1 in self.bell_positions:
+                text += BELL
+                text_highlighted += BELL
+        return text, text_highlighted
+    
+    def get_matches_highlighted(self):
+        ms = self.record[self.position]['matches']
+        ms_hi = self.record[self.position]['matches_highlight']
+        matches = []
+        matches_highlighted = []
+        for i, (m, mh) in enumerate(zip(ms, ms_hi)):
+            matches.append('')
+            matches_highlighted.append('')
+            for x, y in zip(m, mh):
+                matches[i] += x + ' '
+                if y:
+                    matches_highlighted[i] += highlight_template.format(x) + ' '
+                else:
+                    matches_highlighted[i] += x + ' '
+        return matches, matches_highlighted
+
     def stream_next(self):
         # send next word of the question to all players
         end_of_question = self.position >= self.question_length
@@ -250,22 +293,18 @@ class BroadcastServerFactory(WebSocketServerFactory):
             if end_of_question:
                 self._end_of_question()
             else:
-                self.evidence = dict()
-                if self.qid in self.records:
-                    record = self.records[self.qid]
-                    if self.position in record:
-                        self.evidence = record[self.position]['evidence']
-                        for i, (g, s) in enumerate(self.evidence['guesses']):
-                            self.evidence['guesses'][i] = (g.replace('_', ' '), s)
-
                 self.position += 1
+                text, text_highlighted = self.get_text_highlighted()
+                matches, matches_highlighted = self.get_matches_highlighted()
 
                 msg = {'type': MSG_TYPE_RESUME,  'qid': self.qid,
-                        'text': ' '.join(self.question_text[:self.position]),
+                        'text': text,
+                        'text_highlighted': text_highlighted,
                         'position': self.position,
                         'length': self.question_length,
-                        'evidence': self.evidence,
-                        'player_list': self.get_player_list()}
+                        'guesses': self.record[self.position]['guesses'],
+                        'matches': matches_highlighted
+                        }
                 self.pbar.update(1)
                 self.broadcast(self.players, msg)
                 reactor.callLater(SECOND_PER_WORD, self.stream_next)
@@ -277,7 +316,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'length': self.question_length,
                 'position': self.position,
                 'text': ' '.join(self.question_text[:self.position]),
-                'player_list': self.get_player_list()
                 }
         self.broadcast(self.players, msg)
         reactor.callLater(SECOND_PER_WORD, self.stream_next)
@@ -298,11 +336,14 @@ class BroadcastServerFactory(WebSocketServerFactory):
         random.shuffle(buzzing_ids)
         buzzing_id = buzzing_ids[0]
         logger.info('[buzzing] Player {} answering'.format(buzzing_id))
+        self.info_text += NEW_LINE + BADGE_BUZZ
+        self.info_text += ' {}: '.format(bodify(self.player_names[buzzing_id]))
+        self.bell_positions.append(self.position_map[self.position])
 
         msg = {'type': MSG_TYPE_BUZZING_RED, 'qid': self.qid, 
                 'buzzing_player': self.player_names[buzzing_id],
                 'length': ANSWER_TIME_OUT,
-                'player_list': self.get_player_list()}
+                'info_text': self.info_text}
         red_players = {k: v for k, v in self.players.items() if k != buzzing_id}
         self.broadcast(red_players, msg)
         
@@ -363,9 +404,16 @@ class BroadcastServerFactory(WebSocketServerFactory):
             if not timed_out:
                 logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
             self.player_scores[buzzing_id] += score
+
+            self.info_text += answer
+            self.info_text += BADGE_CORRECT if result else BADGE_WRONG
+            self.info_text += '({})'.format(self.player_scores[buzzing_id])
+            self.info_text += NEW_LINE
+
             msg = {'type': MSG_TYPE_RESULT_MINE, 'qid': self.qid, 'result': result,
                     'score': score,'uid': buzzing_id, 'guess': answer,
-                    'player_list': self.get_player_list()}
+                    'player_list': self.get_player_list(),
+                    'info_text': self.info_text}
             if self.player_alive[buzzing_id]:
                 green_player.sendMessage(json.dumps(msg).encode('utf-8'))
 
@@ -380,9 +428,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
             reactor.callLater(SECOND_PER_WORD * 2, self.stream_next)
 
     def _end_of_question(self):
+        self.info_text += NEW_LINE + bodify('Answer') + ': ' + self.question['answer']
         msg = {'type': MSG_TYPE_END, 'qid': self.qid, 'text': '', 
-                'evidence': {'answer': self.question['answer']},
-                'player_list': self.get_player_list()}
+                'answer': self.question['answer'],
+                'player_list': self.get_player_list(),
+                'info_text': self.info_text
+                }
         self.broadcast(self.players, msg)
 
         # remove players that are marked of unlive

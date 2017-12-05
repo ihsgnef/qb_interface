@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from nltk.corpus import stopwords as sw
 import spacy
 from tqdm import tqdm
+from multiprocessing import Pool
 
 nlp = spacy.load('en')
 stopwords = set(sw.words('english'))
@@ -33,8 +34,6 @@ def get_matched(words, matches):
             if x in stopwords:
                 continue
             match_words.add(x)
-
-
     
     text_highlight = []
     matched_words = set()
@@ -74,11 +73,7 @@ def test():
 def main():
     _records = dict()
     pos_maps = dict()
-    num = 0
-    for qid, record in records.items():
-        num += 1
-        if num > 10:
-            break
+    for qid, record in tqdm(records.items()):
         _records[qid] = dict()
         text = questions[qid]['text']
         words = nlp(text)
@@ -93,10 +88,13 @@ def main():
         pos_maps[qid] = pos_map
 
         for pos in record:
+            guesses = record[pos]['evidence']['guesses']
+            for i, (g, s) in enumerate(guesses):
+                    guesses[i] = (g.replace('_', ' '), s)
             _records[qid][pos] = {
                     'answer': record[pos]['answer'],
                     'buzz_scores': record[pos]['buzz_scores'],
-                    'guesses': record[pos]['evidence']['guesses']
+                    'guesses': guesses
                     }
             ws, ws_hi, ms, ms_hi = get_matched(
                     words[:pos_map[pos]], record[pos]['evidence']['matches'])
