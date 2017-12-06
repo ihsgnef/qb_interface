@@ -135,39 +135,34 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
             def callback(x):
                 try:
-                    if 'player_uid' not in new_player.response:
-                        self.players[new_player.uid] = new_player
+                    uid = new_player.response['player_uid']
+                    name = new_player.response['player_name']
+                    if uid in self.players:
+                        # same uid exists
+                        old_peer = self.players[uid].client.peer
+                        self.socket_to_player[client.peer] = self.players[uid]
+                        self.players[uid].client = client
+                        self.players[uid].name = name
+                        self.socket_to_player.pop(old_peer, None)
+                        self.players[uid].active = True
+                        logger.info("[register] old player {} ({} -> {})".format(
+                            name, old_peer, client.peer))
+                    else:
+                        new_player.uid = uid
+                        new_player.name = name
+                        self.players[uid] = new_player
                         new_player.new_row(self.qid, self.position)
                         logger.info("[register] new player {} ({})".format(
-                            new_player.name, client.peer))
-                    else:
-                        uid = new_player.response['player_uid']
-                        name = new_player.response['player_name']
-                        if uid in self.players:
-                            # same uid exists
-                            old_peer = self.players[uid].client.peer
-                            self.socket_to_player[client.peer] = self.players[uid]
-                            self.players[uid].client = client
-                            self.socket_to_player.pop(old_peer, None)
-                            self.players[uid].active = True
-                            logger.info("[register] old player {} ({} -> {})".format(
-                                name, old_peer, client.peer))
-                        else:
-                            new_player.uid = uid
-                            new_player.name = name
-                            self.players[uid] = new_player
-                            new_player.new_row(self.qid, self.position)
-                            logger.info("[register] new player {} ({})".format(
-                                name, client.peer))
+                            name, client.peer))
 
-                        msg = {'type': MSG_TYPE_NEW, 'qid': self.qid,
-                                'player_list': self.get_player_list(),
-                                'info_text': self.info_text}
-                        self.players[uid].sendMessage(msg)
+                    msg = {'type': MSG_TYPE_NEW, 'qid': self.qid,
+                            'player_list': self.get_player_list(),
+                            'info_text': self.info_text}
+                    self.players[uid].sendMessage(msg)
 
-                        if len(self.players) == 1 and not self.started:
-                            self.started = True
-                            self.new_question()
+                    if len(self.players) == 1 and not self.started:
+                        self.started = True
+                        self.new_question()
                 except:
                     traceback.print_exc(file=sys.stdout)
 

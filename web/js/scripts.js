@@ -507,4 +507,11 @@ function start() {
     };
 }
 
-$("#exampleModalLong").on("hidden.bs.modal", function () { start(); });
+$("#exampleModalLong").on("hidden.bs.modal", function () {
+    var chosen_name = $("#choose_user_name").val();
+    if (chosen_name != "") {
+        console.log("use chosen name", chosen_name);
+        player_name = chosen_name;
+    }
+    start();
+});
