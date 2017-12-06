@@ -62,14 +62,6 @@ def get_matched(words, matches):
 
     return _words, text_highlight, _matches, matches_highlight
 
-def test():
-    qid, record = list(records.items())[0]
-    text = questions[qid]['text'].split()
-    i = 40
-    _text = ' '.join(text[:i])
-    matches = record[i]['evidence']['matches']
-    words, words_highlight, matches, matches_highlight, pos_map = get_matched(_text, matches)
-
 def main():
     _records = dict()
     pos_maps = dict()
