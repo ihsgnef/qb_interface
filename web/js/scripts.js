@@ -1,7 +1,9 @@
-// var sockt = new WebSocket("ws://34.209.31.242:9000");
-var sockt = new WebSocket("ws://127.0.0.1:9000");
-// var answer_json_dir = "http://qbinterface.club/answers.json";
+var sockt;
+var socket_addr = "ws://127.0.0.1:9000";
+// var socket_addr = "ws://34.209.31.242:9000";
 var answer_json_dir = "http://localhost/answers.json";
+// var answer_json_dir = "http://qbinterface.club/answers.json";
+
 
 ///////// Message types ///////// 
 var MSG_TYPE_NEW = 0; // beginning of a new question
@@ -16,8 +18,9 @@ var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 
 
 ///////// HTML Elements ///////// 
-var question_area      = document.getElementById('question_area');
-var answer_area        = document.getElementById('answer_area');
+var accept_button      = document.getElementById("accept_button");
+var question_area      = document.getElementById("question_area");
+var answer_area        = document.getElementById("answer_area");
 // var score_area         = document.getElementById('score_area');
 var guesses_card       = document.getElementById("guesses_card");
 var guesses_table      = document.getElementById("guesses_table");
@@ -36,7 +39,6 @@ var history_div        = document.getElementById('history');
 
 
 ///////// State variables ///////// 
-var player_name = "";
 var curr_answer         = "";
 var question_text       = "";
 var question_text_color = "";
@@ -51,6 +53,45 @@ var timer_set           = false;
 var timer_timeout;
 var bell_str = ' <span class="fa fa-bell" aria-hidden="true"></span> ';
 
+
+///////// Cookies ///////// 
+function setCookie(cname, cvalue, exdays=1) {
+    var d = new Date();
+    d.setTime(d.getTime() + (exdays*24*60*60*1000));
+    var expires = "expires="+ d.toUTCString();
+    document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+}
+
+function getCookie(cname) {
+    var name = cname + "=";
+    var decodedCookie = decodeURIComponent(document.cookie);
+    var ca = decodedCookie.split(';');
+    for(var i = 0; i <ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+        }
+        if (c.indexOf(name) == 0) {
+            return c.substring(name.length, c.length);
+        }
+    }
+    return "";
+}
+
+var player_name = getCookie("player_name");
+var player_uid = getCookie("player_uid");
+var consent_accepted = getCookie("consent_accepted");
+if (consent_accepted == "") {
+    ///////// Consent Form ///////// 
+    $('#exampleModalLong').modal('show');
+    accept_button.onclick = function(event) {
+        $('#exampleModalLong').modal('hide');
+        setCookie("consent_accepted", "True");
+    };
+} else {
+    start();
+}
+
 ///////// Keyboard operations  ///////// 
 // Use space bar for buzzing & avoid scrolling
 window.onkeydown = function(e) {
@@ -59,7 +100,7 @@ window.onkeydown = function(e) {
         is_buzzing = true;
         e.preventDefault();
     }
-}
+};
 // use enter to submit answer
 answer_area.onkeydown = function(event) {
     if (event.keyCode === 13) {
@@ -90,7 +131,6 @@ matches_checkbox.onclick = function() {
 highlight_checkbox.onclick = function() {
     update_question_display()
 };
-
 
 
 ///////// Autocomplete ///////// 
@@ -175,15 +215,20 @@ function new_question(msg) {
     var m = {
         type: MSG_TYPE_NEW,
         qid: msg.qid,
+        player_name: player_name,
+        player_uid: player_uid,
         disable_machine_buzz: (machine_buzz_checkbox.checked === false)
     };
     sockt.send(JSON.stringify(m));
 }
 
 function update_question(msg) {
-    if (buzzed === false) {
+    if (typeof msg.buzzed != 'undefined') {
+        buzz_button.disabled = msg.buzzed;
+    } else if (buzzed === false) { 
         buzz_button.disabled = false;
     }
+    
     update_interpretation(msg);
     position = msg.position;
     var m = {
@@ -230,10 +275,13 @@ function send_answer() {
     sockt.send(JSON.stringify(m));
     answer_group.style.display = "none";
     is_buzzing = false;
+    clearTimeout(timer_timeout);
+    timer_set = false;
 }
 
 function handle_result(msg) {
     clearTimeout(timer_timeout);
+    timer_set = false;
     // var text = msg.guess + ' ';
     // if (msg.result === true) {
     //     text += '<span class="badge badge-success">Correct</span><br />';
@@ -249,7 +297,6 @@ function handle_result(msg) {
         score += msg.score;
         // score_area.innerHTML = 'Your score: ' + score;
     }
-    timer_set = false;
 }
 
 function toggle_history_visability(history_id) {
@@ -378,80 +425,86 @@ function progress(timeleft, timetotal, is_red) {
 }
 
 function handle_buzzing(msg) {
-    var user_text = "";
     if (msg.type === MSG_TYPE_BUZZING_GREEN) {
         answer_group.style.display = "initial";
         answer_area.focus();
         $('#answer_area').typeahead('val', curr_answer);
         answer_area.value = "";
         is_buzzing = true;
-        user_text = "Your";
         buzzed = true;
-    } else {
-        user_text = "Player " + msg.buzzing_player;
     }
-
     buzz_button.disabled = true;
-
     clearTimeout(timer_timeout);
     progress(7, 7, true);
     question_text += bell_str;
     question_text_color += bell_str;
     update_question_display();
-    // var text = '</br><span class="badge badge-danger">Buzz</span> <span> ' 
-    //     + user_text + ' answer: </span>';
-    // info_text += text;
-    // update_question_display();
 }
 
-sockt.onmessage = function(event) {
-    var msg = JSON.parse(event.data);
-    if (typeof msg.player_name != 'undefined') {
-        player_name = msg.player_name;
-        console.log(player_name);
-    }
-    if (typeof msg.player_list !== 'undefined') {
-        var player_list = msg.player_list;
-        for (var i = 0; i < 5; i++) {
-            if (i >= player_list.length) {
-                players_table.rows[i + 1].cells[1].innerHTML = '-';
-                players_table.rows[i + 1].cells[2].innerHTML = '-';
-                players_table.rows[i + 1].className = "";
-                continue;
+
+function start() {
+    sockt = new WebSocket(socket_addr);
+    sockt.onmessage = function(event) {
+        var msg = JSON.parse(event.data);
+        if (typeof msg.player_name != 'undefined') {
+            if (player_name == "") {
+                player_name = msg.player_name;
+                console.log(player_name);
+                setCookie("player_name", player_name);
             }
-            var name = player_list[i][0];
-            if (name == player_name) {
-                players_table.rows[i + 1].className = "table-info";
-            } else {
-                players_table.rows[i + 1].className = "";
+        }
+        if (typeof msg.player_uid != 'undefined') {
+            if (player_uid == "") {
+                player_uid = msg.player_uid;
+                console.log(player_uid);
+                setCookie("player_uid", player_uid);
             }
-            players_table.rows[i + 1].cells[1].innerHTML = name;
-            players_table.rows[i + 1].cells[2].innerHTML = player_list[i][1];
         }
-    }
-    if (typeof msg.info_text != 'undefined') {
-        info_text = msg.info_text;
-        update_question_display();
-    }
-    if (msg.type === MSG_TYPE_NEW) {
-        new_question(msg);
-    } else if (msg.type === MSG_TYPE_RESUME) {
-        if (timer_set === false) {
-            var timetotal = msg.length / 2;
-            var timeleft = (msg.length - msg.position) / 2;
-            progress(timeleft, timetotal, false);
-            timer_set = true;
+        if (typeof msg.player_list !== 'undefined') {
+            var player_list = msg.player_list;
+            for (var i = 0; i < 5; i++) {
+                if (i >= player_list.length) {
+                    players_table.rows[i + 1].cells[1].innerHTML = '-';
+                    players_table.rows[i + 1].cells[2].innerHTML = '-';
+                    players_table.rows[i + 1].className = "";
+                    continue;
+                }
+                var name = player_list[i][0];
+                if (name == player_name) {
+                    players_table.rows[i + 1].className = "table-info";
+                } else {
+                    players_table.rows[i + 1].className = "";
+                }
+                players_table.rows[i + 1].cells[1].innerHTML = name;
+                players_table.rows[i + 1].cells[2].innerHTML = player_list[i][1];
+            }
         }
-        update_question(msg);
-    } else if (msg.type === MSG_TYPE_END) {
-        end_of_question(msg);
-    } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
-        handle_buzzing(msg);
-    } else if (msg.type === MSG_TYPE_BUZZING_RED) {
-        handle_buzzing(msg);
-    } else if (msg.type === MSG_TYPE_RESULT_MINE) {
-        handle_result(msg);
-    } else if (msg.type === MSG_TYPE_RESULT_OTHER) {
-        handle_result(msg);
-    }
-};
+        if (typeof msg.info_text != 'undefined') {
+            info_text = msg.info_text;
+            update_question_display();
+        }
+        if (msg.type === MSG_TYPE_NEW) {
+            new_question(msg);
+        } else if (msg.type === MSG_TYPE_RESUME) {
+            if (timer_set === false) {
+                var timetotal = msg.length / 2;
+                var timeleft = (msg.length - msg.position) / 2;
+                progress(timeleft, timetotal, false);
+                timer_set = true;
+            }
+            update_question(msg);
+        } else if (msg.type === MSG_TYPE_END) {
+            end_of_question(msg);
+        } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
+            handle_buzzing(msg);
+        } else if (msg.type === MSG_TYPE_BUZZING_RED) {
+            handle_buzzing(msg);
+        } else if (msg.type === MSG_TYPE_RESULT_MINE) {
+            handle_result(msg);
+        } else if (msg.type === MSG_TYPE_RESULT_OTHER) {
+            handle_result(msg);
+        }
+    };
+}
+
+$("#exampleModalLong").on("hidden.bs.modal", function () { start(); });

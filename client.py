@@ -32,7 +32,8 @@ class PlayerProtocol(WebSocketClientProtocol):
         self.qid = msg['qid']
         self.text = ''
         self.position = 0
-        msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 'is_machine': True}
+        msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 'is_machine': True,
+                'player_name': 'QANTA'}
         self.sendMessage(json.dumps(msg).encode('utf-8'))
 
     def buzz(self):
