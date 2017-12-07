@@ -81,8 +81,8 @@ function getCookie(cname) {
 
 var player_name = getCookie("player_name");
 var player_uid = getCookie("player_uid");
-// var consent_accepted = getCookie("consent_accepted");
-var consent_accepted = "";
+var consent_accepted = getCookie("consent_accepted");
+// var consent_accepted = "";
 if (consent_accepted == "") {
     ///////// Consent Form ///////// 
     $('#exampleModalLong').modal('show');
