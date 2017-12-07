@@ -116,6 +116,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.position = 0
         self.info_text = ''
 
+        self.latest_resume_msg = None
+        self.latest_buzzing_msg = None
+
         with open('data/guesser_buzzer_cache_rematches.pkl', 'rb') as f:
             self.records = pickle.load(f)
         with open('data/pos_maps.pkl', 'rb') as f:
@@ -159,6 +162,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             'player_list': self.get_player_list(),
                             'info_text': self.info_text}
                     self.players[uid].sendMessage(msg)
+                    if self.latest_resume_msg is not None:
+                        self.players[uid].sendMessage(self.latest_resume_msg)
+                    if self.latest_buzzing_msg is not None:
+                        self.players[uid].sendMessage(self.latest_buzzing_msg)
 
                     if len(self.players) == 1 and not self.started:
                         self.started = True
@@ -251,6 +258,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.position_map = self.pos_maps[self.qid]
             self.bell_positions = []
             self.position = 0
+            self.latest_resume_msg = None
+            self.latest_buzzing_msg = None
 
             def make_callback(player):
                 def f(x):
@@ -332,6 +341,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # send next word of the question to all players
         end_of_question = self.position >= self.question_length
 
+        self.latest_buzzing_msg = None
         buzzing_ids = []
         for uid, player in self.players.items():
             if not player.can_buzz():
@@ -357,8 +367,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         'position': self.position,
                         'length': self.question_length,
                         'guesses': self.record[self.position]['guesses'],
-                        'matches': matches_highlighted
+                        'matches': matches,
+                        'matches_highlighted': matches_highlighted
                         }
+                self.latest_resume_msg = msg
                 self.pbar.update(1)
                 for player in self.players.values():
                     player.sendMessage(msg)
@@ -379,7 +391,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.info_text += ' {}: '.format(bodify(green_player.name))
         self.bell_positions.append(self.position_map[self.position])
 
-        msg = {'type': MSG_TYPE_BUZZING_RED, 'qid': self.qid, 
+        msg = {'qid': self.qid, 
                 'length': ANSWER_TIME_OUT,
                 'info_text': self.info_text}
 
@@ -391,6 +403,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         for player in self.players.values():
             if player.uid != buzzing_id:
                 player.sendMessage(msg)
+
+        self.latest_buzzing_msg = msg
 
         condition = partial(self.check_player_response, 
                 green_player, 'type', MSG_TYPE_BUZZING_ANSWER)
@@ -442,7 +456,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     'player_list': self.get_player_list(),
                     'info_text': self.info_text}
 
-            msg['type'] = MSG_TYPE_RESULT_MINE, 
+            msg['type'] = MSG_TYPE_RESULT_MINE
             green_player.sendMessage(msg)
 
             msg['type'] = MSG_TYPE_RESULT_OTHER

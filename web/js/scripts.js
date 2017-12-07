@@ -32,8 +32,7 @@ var buzz_button        = document.getElementById("buzz_button");
 var guesses_checkbox   = document.getElementById("guesses_checkbox");
 var highlight_checkbox = document.getElementById("highlight_checkbox");
 var matches_checkbox   = document.getElementById("matches_checkbox");
-var voice_checkbox     = document.getElementById("voice_checkbox");
-var machine_buzz_checkbox = document.getElementById("machine_buzz_checkbox");
+// var voice_checkbox     = document.getElementById("voice_checkbox");
 var answer_group       = document.getElementById("answer_area_row");
 var history_div        = document.getElementById('history');
 
@@ -51,6 +50,7 @@ var score               = 0;
 var history_number      = 0;
 var timer_set           = false;
 var timer_timeout;
+var buzzing_on_guess    = false; // buzzing by clicking on guess or not
 var bell_str = ' <span class="fa fa-bell" aria-hidden="true"></span> ';
 
 
@@ -81,6 +81,7 @@ function getCookie(cname) {
 var player_name = getCookie("player_name");
 var player_uid = getCookie("player_uid");
 var consent_accepted = getCookie("consent_accepted");
+// var consent_accepted = "";
 if (consent_accepted == "") {
     ///////// Consent Form ///////// 
     $('#exampleModalLong').modal('show');
@@ -170,15 +171,15 @@ function setsource(url, keys, output) {
 setsource(answer_json_dir);
 
 ///////// Speech synthesis ///////// 
-var voice_msg = new SpeechSynthesisUtterance();
-var voices = window.speechSynthesis.getVoices();
-voice_msg.voice = voices[10]; // Note: some voices don't support altering params
-voice_msg.voiceURI = 'native';
-voice_msg.volume = 1; // 0 to 1
-voice_msg.rate = 1.5; // 0.1 to 10
-voice_msg.pitch = 1; //0 to 2
-voice_msg.text = 'Hello World';
-voice_msg.lang = 'en-US';
+// var voice_msg = new SpeechSynthesisUtterance();
+// var voices = window.speechSynthesis.getVoices();
+// voice_msg.voice = voices[10]; // Note: some voices don't support altering params
+// voice_msg.voiceURI = 'native';
+// voice_msg.volume = 1; // 0 to 1
+// voice_msg.rate = 1.5; // 0.1 to 10
+// voice_msg.pitch = 1; //0 to 2
+// voice_msg.text = 'Hello World';
+// voice_msg.lang = 'en-US';
 
 function update_question_display() {
     if (highlight_checkbox.checked) {
@@ -195,6 +196,8 @@ function new_question(msg) {
     question_text = '';
     question_text_color = '';
     info_text = '';
+    answer_area.value = "";
+    buzzing_on_guess = false;
     update_question_display();
     guess_matches_area.innerHTML = '';
     buzz_button.disabled = false;
@@ -211,13 +214,13 @@ function new_question(msg) {
 
     is_buzzing = false;
     buzzed = false;
+    clearTimeout(timer_timeout);
     timer_set = false;
     var m = {
         type: MSG_TYPE_NEW,
         qid: msg.qid,
         player_name: player_name,
         player_uid: player_uid,
-        disable_machine_buzz: (machine_buzz_checkbox.checked === false)
     };
     sockt.send(JSON.stringify(m));
 }
@@ -250,8 +253,8 @@ function get_helps() {
     var helps = {
         guesses: guesses_checkbox.checked,
         highlight: highlight_checkbox.checked,
-        matches: matches_checkbox.checked,
-        voice: voice_checkbox.checked}
+        matches: matches_checkbox.checked
+    }
     return helps
 }
 
@@ -275,28 +278,19 @@ function send_answer() {
     sockt.send(JSON.stringify(m));
     answer_group.style.display = "none";
     is_buzzing = false;
+    buzzing_on_guess = false;
     clearTimeout(timer_timeout);
     timer_set = false;
 }
 
 function handle_result(msg) {
-    clearTimeout(timer_timeout);
-    timer_set = false;
-    // var text = msg.guess + ' ';
-    // if (msg.result === true) {
-    //     text += '<span class="badge badge-success">Correct</span><br />';
-    // } else {
-    //     text += '<span class="badge badge-warning">Wrong</span><br />';
-    // }
-    // info_text += text;
+    console.log('handle_result');
     update_question_display();
     answer_area.value = "";
+    buzzing_on_guess = false;
     answer_group.style.display = "none";
-
-    if (msg.type === MSG_TYPE_RESULT_MINE) {
-        score += msg.score;
-        // score_area.innerHTML = 'Your score: ' + score;
-    }
+    clearTimeout(timer_timeout);
+    timer_set = false;
 }
 
 function toggle_history_visability(history_id) {
@@ -329,13 +323,6 @@ function add_history(real_answer) {
     history_div.innerHTML = header + content + history_div.innerHTML;
 }
 
-
-function set_guess(guess) {
-    answer_area.value = guess;
-    curr_answer = guess;
-    answer_area.focus();
-}
-
 function update_interpretation(msg) {
     // update text and colored text
     if (typeof msg.text_highlighted != 'undefined') {
@@ -347,11 +334,11 @@ function update_interpretation(msg) {
         update_question_display();
     }
 
-    // speech synthesis
-    if (voice_checkbox.checked) {
-        voice_msg.text = msg.text;
-        speechSynthesis.speak(voice_msg);
-    }
+    //// speech synthesis
+    //if (voice_checkbox.checked) {
+    //    voice_msg.text = msg.text;
+    //    speechSynthesis.speak(voice_msg);
+    //}
 
     // update the list of guesses
     if (typeof msg.guesses !== 'undefined') {
@@ -359,25 +346,27 @@ function update_interpretation(msg) {
         for (var i = 0; i < Math.min(5, guesses.length); i++) {
             var guess = guesses[i][0];
             var guess_score = guesses[i][1].toFixed(4);
-            // var button_text = '<a id="guesses_' + i + '"';
-            // button_text += 'onclick=set_guess("' + guess + '")';
-            // button_text += '>' + guess.substr(0, 20) + '</a>';
             var button_text = guess.substr(0, 20);
             guesses_table.rows[i + 1].cells[1].innerHTML = button_text;
             guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
 
             var createClickHandler = function(guess) {
                 return function() { 
+                    buzzing_on_guess = true;
                     answer_area.value = guess;
                     curr_answer = guess;
-                    answer_area.focus();
+                    if (is_buzzing == false && buzz_button.disabled == false) {
+                        buzz_button.click();
+                    }
                 };
             };
 
             guesses_table.rows[i + 1].onclick = createClickHandler(guess);
         }
         if (guesses.length > 0) {
-            curr_answer = guesses[0][0];
+            if (is_buzzing == false) {
+                curr_answer = guesses[0][0];
+            }
             guess_matches_area.innerHTML = guesses[0][0];
         } else {
             guess_matches_area.innerHTML = '-';
@@ -386,8 +375,12 @@ function update_interpretation(msg) {
 
     //update the matches
     if (typeof msg.matches !== 'undefined') {
-        for (var i = 0; i < Math.min(4, msg.matches.length); i++) {
-            matches_table.rows[i].cells[0].innerHTML = msg.matches[i];
+        var matches = msg.matches;
+        if (highlight_checkbox.checked) {
+            matches = msg.matches_highlighted;
+        }
+        for (var i = 0; i < Math.min(4, matches.length); i++) {
+            matches_table.rows[i].cells[0].innerHTML = matches[i];
         }
     }
 }
@@ -427,9 +420,11 @@ function progress(timeleft, timetotal, is_red) {
 function handle_buzzing(msg) {
     if (msg.type === MSG_TYPE_BUZZING_GREEN) {
         answer_group.style.display = "initial";
-        answer_area.focus();
         $('#answer_area').typeahead('val', curr_answer);
-        answer_area.value = "";
+        if (buzzing_on_guess == false) {
+            answer_area.value = "";
+        }
+        answer_area.focus();
         is_buzzing = true;
         buzzed = true;
     }
@@ -460,6 +455,14 @@ function start() {
                 setCookie("player_uid", player_uid);
             }
         }
+        if (typeof msg.length != 'undefined') {
+            if (timer_set === false) {
+                var timetotal = msg.length / 2;
+                var timeleft = (msg.length - msg.position) / 2;
+                progress(timeleft, timetotal, false);
+                timer_set = true;
+            }
+        }
         if (typeof msg.player_list !== 'undefined') {
             var player_list = msg.player_list;
             for (var i = 0; i < 5; i++) {
@@ -486,12 +489,6 @@ function start() {
         if (msg.type === MSG_TYPE_NEW) {
             new_question(msg);
         } else if (msg.type === MSG_TYPE_RESUME) {
-            if (timer_set === false) {
-                var timetotal = msg.length / 2;
-                var timeleft = (msg.length - msg.position) / 2;
-                progress(timeleft, timetotal, false);
-                timer_set = true;
-            }
             update_question(msg);
         } else if (msg.type === MSG_TYPE_END) {
             end_of_question(msg);
@@ -512,6 +509,7 @@ $("#exampleModalLong").on("hidden.bs.modal", function () {
     if (chosen_name != "") {
         console.log("use chosen name", chosen_name);
         player_name = chosen_name;
+        setCookie("player_name", player_name);
     }
     start();
 });
