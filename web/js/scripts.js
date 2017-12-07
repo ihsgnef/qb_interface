@@ -3,6 +3,7 @@ var socket_addr = "ws://127.0.0.1:9000";
 // var socket_addr = "ws://34.209.31.242:9000";
 var answer_json_dir = "http://localhost/answers.json";
 // var answer_json_dir = "http://qbinterface.club/answers.json";
+$("#consent_form").load("consent_form.html"); 
 
 
 ///////// Message types ///////// 
