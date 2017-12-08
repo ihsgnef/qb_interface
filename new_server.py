@@ -57,7 +57,7 @@ class Player:
         if uid is not None:
             self.uid = uid
         else:
-            self.uid = str(uuid.uuid4()).replace('-', '')
+            self.uid = 'player_' + str(uuid.uuid4()).replace('-', '')
         if name is not None:
             self.name = name
         else:
