@@ -3,20 +3,11 @@ import json
 import uuid
 import sqlite3
 import logging
+from new_server import Player
 
 logger = logging.getLogger('db')
 
 DB_FILENAME = 'db.sqlite'
-PLAYER_TABLE_NAME = 'player'
-RECORD_TABLE_NAME = 'record'
-COL_ID = 'id' # unique record id
-COL_QID = 'qid' # question id
-COL_UID = 'uid' # user id
-COL_START = 'start_pos' # starting position
-COL_GUESS = 'guess' # dictionary with type, position, guess, result
-COL_HELPS = 'helps' # interpretations used
-COL_TIME = 'time' # starting time
-RECORD_COLUMNS = [COL_ID, COL_QID, COL_UID, COL_START, COL_GUESS, COL_HELPS]
 
 class QBDB:
 
@@ -32,8 +23,8 @@ class QBDB:
         c.execute('CREATE TABLE records (\
                 record_id PRIMARY KEY, \
                 game_id TEXT, \
-                question_id INTEGER, \
                 player_id TEXT, \
+                question_id INTEGER, \
                 position_start INTEGER DEFAULT 0, \
                 position_buzz INTEGER DEFAULT -1, \
                 guess TEXT, \
@@ -59,63 +50,48 @@ class QBDB:
         player_id = player.uid
         ip = player.client.peer
         name = player.name
-        cmd = 'INSERT INTO players ' \
-                + 'VALUES ("{}", "{}", "{}")'.format(
-                        player_id, ip, name)
-        try:
-            self.c.execute(cmd)
-        except sqlite3.IntegrityError:
-            logger.error('ERROR: ID already exists in PRIMARY KEY column')
+        self.c.execute('INSERT INTO players VALUES (?,?,?)',
+                (player_id, ip, name))
         self.conn.commit()
 
     def add_game(self, qid, players, question_text, info_text):
         game_id = 'game_' + str(uuid.uuid4()).replace('-', '')
         if isinstance(players, dict):
             players = player.values()
-        player_ids = [x.player.uid for x in players if x.active]
-        cmd = 'INSERT INTO games ' \
-                + 'VALUES ("{}", "{}", "{}", "{}", "{}")'.format(
-                        game_id, qid,
-                        json.dumps(player_ids),
-                        question_text, info_text)
-        try:
-            self.c.execute(cmd)
-        except sqlite3.IntegrityError:
-            logger.error('ERROR: ID already exists in PRIMARY KEY column')
+        player_ids = [x.uid for x in players if x.active]
+        self.c.execute('INSERT INTO games VALUES (?,?,?,?,?)',
+                (game_id, qid,
+                json.dumps(player_ids),
+                question_text, info_text))
         self.conn.commit()
-    '''
-                record_id PRIMARY KEY, \
-                game_id TEXT, \
-                question_id INTEGER, \
-                player_id TEXT, \
-                position_start INTEGER DEFAULT 0, \
-                position_buzz INTEGER DEFAULT -1, \
-                guess TEXT, \
-                result INTEGER, \
-                score INTEGER, \
-                enabled_tools TEXT)')
-    '''
+        return game_id
 
     def add_record(self, game_id, player_id, question_id,
             position_start=0, position_buzz=-1,
             guess='', result=False, score=0,
             enabled_tools=dict()):
         record_id = 'record_' + str(uuid.uuid4()).replace('-', '')
-        cmd = 'INSERT INTO records' \
-                + 'VALUES ("{}", "{}", {}, "{}", {}, "{}", "{}")'.format(
-                    rid, qid, uid, start,
-                    json.dumps(guess).replace('"', "'"),
-                    json.dumps(helps).replace('"', "'"))
-        logger.debug(cmd)
-        try:
-            self.c.execute(cmd)
-        except sqlite3.IntegrityError:
-            logger.error('ERROR: ID already exists in PRIMARY KEY column')
+        self.c.execute('INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?)',
+                (record_id, game_id, player_id, question_id,
+                position_start, position_buzz, guess, result, score,
+                json.dumps(enabled_tools)))
         self.conn.commit()
 
+class Namespace:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
 if __name__ == '__main__':
+    from new_server import Player
     db = QBDB()
-    row = {COL_QID: 1, COL_UID: 2, COL_START: 2,
-            COL_GUESS: {'type': 'buzz', 'guess': 'sony', 'result': False, 'score': -5},
-            COL_HELPS: {'guesses': True, 'highlight': True}}
-    db.add_row(row)
+    client = Namespace(peer="dummy_peer")
+    player_id = 'player_' + str(uuid.uuid4()).replace('-', '')
+    name = "dummy_name"
+    player = Player(client, player_id, name)
+    db.add_player(player)
+    qid = 20
+    game_id = db.add_game(qid, [player], "question text awd", "info text awd")
+    db.add_record(game_id, player.uid, qid,
+            position_start=0, position_buzz=-1,
+            guess='China', result=True, score=10,
+            enabled_tools=dict())
