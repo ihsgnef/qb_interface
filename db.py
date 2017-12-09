@@ -3,7 +3,6 @@ import json
 import uuid
 import sqlite3
 import logging
-from new_server import Player
 
 logger = logging.getLogger('db')
 
@@ -24,6 +23,7 @@ class QBDB:
                 record_id PRIMARY KEY, \
                 game_id TEXT, \
                 player_id TEXT, \
+                player_name TEXT, \
                 question_id INTEGER, \
                 position_start INTEGER DEFAULT 0, \
                 position_buzz INTEGER DEFAULT -1, \
@@ -50,14 +50,17 @@ class QBDB:
         player_id = player.uid
         ip = player.client.peer
         name = player.name
-        self.c.execute('INSERT INTO players VALUES (?,?,?)',
-                (player_id, ip, name))
+        try:
+            self.c.execute('INSERT INTO players VALUES (?,?,?)',
+                    (player_id, ip, name))
+        except sqlite3.IntegrityError:
+            logger.info("player {} exists".format(player_id))
         self.conn.commit()
 
     def add_game(self, qid, players, question_text, info_text):
         game_id = 'game_' + str(uuid.uuid4()).replace('-', '')
         if isinstance(players, dict):
-            players = player.values()
+            players = players.values()
         player_ids = [x.uid for x in players if x.active]
         self.c.execute('INSERT INTO games VALUES (?,?,?,?,?)',
                 (game_id, qid,
@@ -66,13 +69,13 @@ class QBDB:
         self.conn.commit()
         return game_id
 
-    def add_record(self, game_id, player_id, question_id,
+    def add_record(self, game_id, player_id, player_name, question_id,
             position_start=0, position_buzz=-1,
-            guess='', result=False, score=0,
+            guess='', result=None, score=0,
             enabled_tools=dict()):
         record_id = 'record_' + str(uuid.uuid4()).replace('-', '')
-        self.c.execute('INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?)',
-                (record_id, game_id, player_id, question_id,
+        self.c.execute('INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+                (record_id, game_id, player_id, player_name, question_id,
                 position_start, position_buzz, guess, result, score,
                 json.dumps(enabled_tools)))
         self.conn.commit()

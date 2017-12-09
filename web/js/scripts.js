@@ -36,6 +36,7 @@ var matches_checkbox   = document.getElementById("matches_checkbox");
 // var voice_checkbox     = document.getElementById("voice_checkbox");
 var answer_group       = document.getElementById("answer_area_row");
 var history_div        = document.getElementById('history');
+var logout_button      = document.getElementById("logout_button");
 
 
 ///////// State variables ///////// 
@@ -76,19 +77,40 @@ function getCookie(cname) {
             return c.substring(name.length, c.length);
         }
     }
-    return "";
+    return "N_O_T_S_E_T";
 }
+
+function deleteAllCookies() {
+    var cookies = document.cookie.split(";");
+
+    for (var i = 0; i < cookies.length; i++) {
+        var cookie = cookies[i];
+        var eqPos = cookie.indexOf("=");
+        var name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    }
+}
+
+logout_button.onclick = function(event) {
+    deleteAllCookies();
+    window.location.reload(false);
+    console.log(getCookie("player_name"));
+    console.log(getCookie("player_uid"));
+};
+
 
 var player_name = getCookie("player_name");
 var player_uid = getCookie("player_uid");
 var consent_accepted = getCookie("consent_accepted");
 // var consent_accepted = "";
-if (consent_accepted == "") {
+if (consent_accepted == "N_O_T_S_E_T") {
     ///////// Consent Form ///////// 
     $('#exampleModalLong').modal('show');
     accept_button.onclick = function(event) {
-        $('#exampleModalLong').modal('hide');
+        setCookie("player_name", "N_O_T_S_E_T");
+        setCookie("player_uid", "N_O_T_S_E_T");
         setCookie("consent_accepted", "True");
+        $('#exampleModalLong').modal('hide');
     };
 } else {
     start();
@@ -217,6 +239,7 @@ function new_question(msg) {
     buzzed = false;
     clearTimeout(timer_timeout);
     timer_set = false;
+    console.log('new ', player_uid, ' wtf');
     var m = {
         type: MSG_TYPE_NEW,
         qid: msg.qid,
@@ -225,6 +248,7 @@ function new_question(msg) {
     };
     sockt.send(JSON.stringify(m));
 }
+
 
 function update_question(msg) {
     if (typeof msg.buzzed != 'undefined') {
@@ -443,14 +467,14 @@ function start() {
     sockt.onmessage = function(event) {
         var msg = JSON.parse(event.data);
         if (typeof msg.player_name != 'undefined') {
-            if (player_name == "") {
+            if (player_name == "N_O_T_S_E_T") {
                 player_name = msg.player_name;
                 console.log(player_name);
                 setCookie("player_name", player_name);
             }
         }
         if (typeof msg.player_uid != 'undefined') {
-            if (player_uid == "") {
+            if (player_uid == "N_O_T_S_E_T") {
                 player_uid = msg.player_uid;
                 console.log(player_uid);
                 setCookie("player_uid", player_uid);

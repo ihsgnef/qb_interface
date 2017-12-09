@@ -27,6 +27,7 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
 from web_util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
         NEW_LINE, BELL, bodify
+from db import QBDB
 
 ANSWER_TIME_OUT = 10
 SECOND_PER_WORD = 0.5
@@ -65,13 +66,11 @@ class Player:
         self.score = score
         self.buzzed = False
         self.response = None
-
-    def new_row(self, qid, position):
-        self.db_row = {
-            COL_UID: self.uid,
-            COL_QID: qid,
-            COL_START: position,
-            COL_TIME: get_time()}
+        self.position_start = 0
+        self.position_buzz = -1
+        self.buzz_info = dict()
+        self.enabled_tools = {
+                'guesses': True, 'highlight': True, 'matches': True}
 
     def can_buzz(self):
         return self.active and not self.buzzed
@@ -150,8 +149,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     else:
                         new_player.uid = uid
                         new_player.name = name
+                        new_player.position_start = self.position
                         self.players[uid] = new_player
-                        new_player.new_row(self.qid, self.position)
+                        print('add player {} to db'.format(new_player.uid))
+                        self.db.add_player(new_player)
                         logger.info("[register] new player {} ({})".format(
                             name, client.peer))
 
@@ -219,20 +220,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
         else:
             logger.warning("Unknown source {}:\n{}".format(client.peer, msg))
 
-    def refresh_players(self):
-        # remove inactive player
-        # clear player response
-        # set buzzed to false
-        to_remove = []
-        for uid, player in self.players.items():
-            if not player.active:
-                to_remove.append(uid)
-                self.socket_to_player.pop(player.client.peer, None)
-            player.response = None
-            player.buzzed = False
-        for uid in to_remove:
-            self.players.pop(uid, None)
-
     def new_question(self):
         try:
             self.question_idx += 1
@@ -247,9 +234,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.question = self.questions[self.question_idx]
             self.question['answer'] = self.question['answer'].replace('_', ' ')
             self.qid = self.question['qid']
-            self.question_text = self.question['text'].split()
-            self.question_length = len(self.question_text)
+            self.question_length = len(self.question['text'].split())
 
+            self.question_text = ''
             self.info_text = ''
             self.record = self.records[int(self.qid)]
             self.position_map = self.pos_maps[self.qid]
@@ -275,9 +262,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     'length': self.question_length, 'position': 0,
                     'player_list': self.get_player_list()}
             for player in self.players.values():
-                player.new_row(qid=self.qid, position=0)
                 player.sendMessage(msg)
-
                 condition = partial(self.check_player_response,
                         player=player, key='qid', value=self.qid)
                 callback = make_callback(player)
@@ -356,6 +341,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             else:
                 self.position += 1
                 text, text_highlighted = self.get_text_highlighted()
+                self.question_text = text_highlighted
                 matches, matches_highlighted = self.get_matches_highlighted()
 
                 msg = {'type': MSG_TYPE_RESUME,  'qid': self.qid,
@@ -395,6 +381,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         msg['type'] = MSG_TYPE_BUZZING_GREEN
         green_player.sendMessage(msg)
         green_player.buzzed = True
+        green_player.position_buzz = self.position
 
         msg['type'] = MSG_TYPE_BUZZING_RED
         for player in self.players.values():
@@ -431,13 +418,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
             answer = 'TIME_OUT' if timed_out else green_player.response['text']
             result = self.judge(answer) and not timed_out
             score = 10 if result else (0 if end_of_question else -5)
-            green_player.db_row.update(
-                    {'position': self.position,
-                     'guess': answer,
-                     'result': result,
-                     'score': score})
-            # self.db_rows[buzzing_id][COL_HELPS] = \
-            #         self.player_responses[buzzing_id].get('helps', dict())
+            green_player.buzz_info = {
+                    'position': self.position,
+                    'guess': answer,
+                    'result': result,
+                    'score': score}
             
             green_player.score += score
             if not timed_out:
@@ -469,7 +454,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
             reactor.callLater(SECOND_PER_WORD * 2, self.stream_next)
 
     def _end_of_question(self):
-        self.info_text += NEW_LINE + bodify('Answer') + ': ' + self.question['answer']
+        # notify players of end of game and send correct answer
+        self.info_text += NEW_LINE + bodify('Answer') \
+                + ': ' + self.question['answer']
         msg = {'type': MSG_TYPE_END, 
                 'qid': self.qid, 'text': '', 
                 'answer': self.question['answer'],
@@ -479,16 +466,42 @@ class BroadcastServerFactory(WebSocketServerFactory):
         for player in self.players.values():
             player.sendMessage(msg)
 
-        # remove players that are marked of unlive
-        self.refresh_players()
+        try:
+            game_id = self.db.add_game(self.qid, self.players,
+                    self.question_text, self.info_text)
+        except Exception as e:
+            traceback.print_exc(file=sys.stdout)
+
+        try:
+            # remove inactive player
+            # clear player response
+            # set buzzed to false
+            to_remove = []
+            for uid, player in self.players.items():
+                if not player.active:
+                    to_remove.append(uid)
+                    self.socket_to_player.pop(player.client.peer, None)
+                    continue
+                self.db.add_record(game_id, uid, player.name, self.qid,
+                        player.position_start, player.position_buzz,
+                        player.buzz_info.get('guess', ''),
+                        player.buzz_info.get('result', None),
+                        player.buzz_info.get('score', 0),
+                        player.enabled_tools)
+                player.response = None
+                player.buzzed = False
+                player.position_start = 0
+                player.position_buzz = -1
+                player.buzz_info = dict()
+            for uid in to_remove:
+                self.players.pop(uid, None)
+        except Exception as e:
+            traceback.print_exc(file=sys.stdout)
+
         logger.info('-' * 60)
         self.pbar.close()
 
-        try:
-            for player in self.players.values():
-                self.db.add_row(player.db_row)
-        except Exception as e:
-            traceback.print_exc(file=sys.stdout)
+
         if len(self.players) > 0:
             reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self.new_question)
         else:
