@@ -239,7 +239,6 @@ function new_question(msg) {
     buzzed = false;
     clearTimeout(timer_timeout);
     timer_set = false;
-    console.log('new ', player_uid, ' wtf');
     var m = {
         type: MSG_TYPE_NEW,
         qid: msg.qid,
@@ -309,7 +308,6 @@ function send_answer() {
 }
 
 function handle_result(msg) {
-    console.log('handle_result');
     update_question_display();
     answer_area.value = "";
     buzzing_on_guess = false;
@@ -469,14 +467,14 @@ function start() {
         if (typeof msg.player_name != 'undefined') {
             if (player_name == "N_O_T_S_E_T") {
                 player_name = msg.player_name;
-                console.log(player_name);
+                console.log('set player name', player_name);
                 setCookie("player_name", player_name);
             }
         }
         if (typeof msg.player_uid != 'undefined') {
             if (player_uid == "N_O_T_S_E_T") {
                 player_uid = msg.player_uid;
-                console.log(player_uid);
+                console.log('set player uid', player_uid);
                 setCookie("player_uid", player_uid);
             }
         }
