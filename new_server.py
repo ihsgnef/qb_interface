@@ -215,7 +215,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
             logger.error("Message must be json string.")
             return
         if client.peer in self.socket_to_player:
-            self.socket_to_player[client.peer].response = msg
+            player = self.socket_to_player[client.peer]
+            player.response = msg
+            if 'enabled_tools' in msg:
+                player.enabled_tools = msg
             self.check_deferreds()
         else:
             logger.warning("Unknown source {}:\n{}".format(client.peer, msg))

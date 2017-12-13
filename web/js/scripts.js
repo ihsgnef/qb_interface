@@ -261,27 +261,24 @@ function update_question(msg) {
     var m = {
         qid: msg.qid,
         position: position,
+        enabled_tools: get_enabled_tools()
     };
     if (is_buzzing === false) {
         m.type = MSG_TYPE_RESUME,
         sockt.send(JSON.stringify(m));
     } else {
         m.type = MSG_TYPE_BUZZING_REQUEST;
-        m.helps = get_helps()
         sockt.send(JSON.stringify(m));
     }
 }
 
-function get_helps() {
-    // get the list of enabled interpretations
-    var helps = {
+function get_enabled_tools() {
+    return {
         guesses: guesses_checkbox.checked,
         highlight: highlight_checkbox.checked,
         matches: matches_checkbox.checked
     }
-    return helps
 }
-
 
 function send_answer() {
     if (is_buzzing == false) {
@@ -297,7 +294,7 @@ function send_answer() {
         qid: qid,
         position: position,
         text: answer,
-        helps: get_helps()
+        enabled_tools: get_enabled_tools()
     };
     sockt.send(JSON.stringify(m));
     answer_group.style.display = "none";
