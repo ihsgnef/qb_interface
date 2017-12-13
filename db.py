@@ -61,7 +61,8 @@ class QBDB:
         game_id = 'game_' + str(uuid.uuid4()).replace('-', '')
         if isinstance(players, dict):
             players = players.values()
-        player_ids = [x.uid for x in players if x.active]
+        player_ids = [x.uid for x in players]
+        # include players that are not active
         self.c.execute('INSERT INTO games VALUES (?,?,?,?,?)',
                 (game_id, qid,
                 json.dumps(player_ids),

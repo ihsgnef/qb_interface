@@ -151,7 +151,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         new_player.name = name
                         new_player.position_start = self.position
                         self.players[uid] = new_player
-                        print('add player {} to db'.format(new_player.uid))
+                        logger.info('add player {} to db'.format(new_player.uid))
                         self.db.add_player(new_player)
                         logger.info("[register] new player {} ({})".format(
                             name, client.peer))
@@ -484,7 +484,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 if not player.active:
                     to_remove.append(uid)
                     self.socket_to_player.pop(player.client.peer, None)
-                    continue
                 self.db.add_record(game_id, uid, player.name, self.qid,
                         player.position_start, player.position_buzz,
                         player.buzz_info.get('guess', ''),
