@@ -460,11 +460,16 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # notify players of end of game and send correct answer
         self.info_text += NEW_LINE + bodify('Answer') \
                 + ': ' + self.question['answer']
+        history = {'header': 'Answer: ' + self.question['answer'],
+                   'question_text': self.question_text,
+                   'info_text': self.info_text
+                   }
+
         msg = {'type': MSG_TYPE_END, 
                 'qid': self.qid, 'text': '', 
                 'answer': self.question['answer'],
                 'player_list': self.get_player_list(),
-                'info_text': self.info_text
+                'history_entry': history
                 }
         for player in self.players.values():
             player.sendMessage(msg)

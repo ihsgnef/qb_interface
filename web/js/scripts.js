@@ -1,8 +1,8 @@
 var sockt;
-// var socket_addr = "ws://127.0.0.1:9000";
-var socket_addr = "ws://34.209.31.242:9000";
-// var answer_json_dir = "http://localhost/answers.json";
-var answer_json_dir = "http://qbinterface.club/answers.json";
+var socket_addr = "ws://127.0.0.1:9000";
+// var socket_addr = "ws://34.209.31.242:9000";
+var answer_json_dir = "http://localhost/answers.json";
+// var answer_json_dir = "http://qbinterface.club/answers.json";
 $("#consent_form").load("consent_form.html"); 
 
 
@@ -322,24 +322,19 @@ function toggle_history_visability(history_id) {
     }
 }
 
-function add_history(real_answer) {
-    if (question_text == '' && info_text == '') { return; }
+function add_history(history) {
     history_number += 1;
     
     var elem_id = 'history_' + history_number;
     var head_id = 'heading_' + elem_id;
     var header = '<div class="card-header" role="tab" id="' + head_id + '">';
     header += '<a data-toggle="collapse" href="#' + elem_id + '" aria-expanded="false" aria-controls="' + elem_id + '">';
-    header += real_answer + '</a></div>';
+    header += history.header + '</a></div>';
 
     var content = '<div id="' + elem_id + '" class="collapse" role="tabpanel" aria-labelledby="' + head_id + '">';
     content += '<div class="card-body mx-2 my-2">';
-    if (highlight_checkbox.checked) {
-        content += question_text_color + '<br />' + info_text + '</div></div>';
-    } else {
-        content += question_text + '<br />' + info_text + '</div></div>';
-    }
-
+    content += history.question_text + '<br />';
+    content += history.info_text + '</div></div>';
     history_div.innerHTML = header + content + history_div.innerHTML;
 }
 
@@ -406,13 +401,9 @@ function update_interpretation(msg) {
 }
 
 function end_of_question(msg) {
-    var real_answer = 'Question';
-    if (typeof msg.answer !== 'undefined') {
-        // info_text += "<br />Correct answer: " + msg.answer;
-        // update_question_display();
-        real_answer = msg.answer;
+    if (typeof msg.history_entry !== 'undefined') {
+        add_history(msg.history_entry);
     }
-    add_history(real_answer);
 }
 
 function progress(timeleft, timetotal, is_red) {
