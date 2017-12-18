@@ -30,7 +30,7 @@ from web_util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
 from db import QBDB
 
 ANSWER_TIME_OUT = 10
-SECOND_PER_WORD = 0.5
+SECOND_PER_WORD = 0.4
 PLAYER_RESPONSE_TIME_OUT = 3
 HISTORY_LENGTH = 10
 
@@ -112,6 +112,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.qid = 0
         self.position = 0
         self.info_text = ''
+        self.raw_text = ['']
         self.history_entries = []
 
         self.latest_resume_msg = None
@@ -161,7 +162,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     msg = {'type': MSG_TYPE_NEW, 'qid': self.qid,
                             'player_list': self.get_player_list(),
                             'info_text': self.info_text,
-                            'history_entries': self.history_entries}
+                            'history_entries': self.history_entries,
+                            'position': self.position,
+                            'speech_text': ' '.join(self.raw_text[self.position:])}
                     self.players[uid].sendMessage(msg)
                     if self.latest_resume_msg is not None:
                         self.players[uid].sendMessage(self.latest_resume_msg)
@@ -243,6 +246,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.question_length = len(self.question['text'].split())
 
             self.question_text = ''
+            self.raw_text = self.question['text'].split()
             self.info_text = ''
             self.record = self.records[int(self.qid)]
             self.position_map = self.pos_maps[self.qid]
@@ -266,7 +270,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
             msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
                     'length': self.question_length, 'position': 0,
-                    'player_list': self.get_player_list()}
+                    'player_list': self.get_player_list(),
+                    'speech_text': ' '.join(self.raw_text)}
             for player in self.players.values():
                 player.sendMessage(msg)
                 condition = partial(self.check_player_response,

@@ -33,7 +33,7 @@ var buzz_button        = document.getElementById("buzz_button");
 var guesses_checkbox   = document.getElementById("guesses_checkbox");
 var highlight_checkbox = document.getElementById("highlight_checkbox");
 var matches_checkbox   = document.getElementById("matches_checkbox");
-// var voice_checkbox     = document.getElementById("voice_checkbox");
+var voice_checkbox     = document.getElementById("voice_checkbox");
 var answer_group       = document.getElementById("answer_area_row");
 var history_div        = document.getElementById('history');
 var logout_button      = document.getElementById("logout_button");
@@ -53,11 +53,19 @@ var timer_set           = false;
 var timer_timeout;
 var buzzing_on_guess    = false; // buzzing by clicking on guess or not
 var bell_str = ' <span class="fa fa-bell" aria-hidden="true"></span> ';
+var speech_text = '';
+var speech_starting_position = 0;
+
+
+///////// Constants ///////// 
 var HISTORY_LENGTH = 10;
+var highlight_color = '#ecff6d';
+var highlight_prefix = '<span style="background-color: ' + highlight_color + '">';
+var highlight_suffix = '</span>';
 
 
 ///////// Cookies ///////// 
-function setCookie(cname, cvalue, exdays=1) {
+function setCookie(cname, cvalue, exdays=10) {
     var d = new Date();
     d.setTime(d.getTime() + (exdays*24*60*60*1000));
     var expires = "expires="+ d.toUTCString();
@@ -117,13 +125,14 @@ if (consent_accepted == "N_O_T_S_E_T") {
 }
 
 ///////// Keyboard operations  ///////// 
-// Use space bar for buzzing & avoid scrolling
+
 window.onkeydown = function(e) {
-    if (e.keyCode == 32 && e.target == document.body) {
+    if (e.keyCode == 32 && e.target != answer_area) {
+        // Use space bar for buzzing & avoid scrolling
         buzz_button.click();
         is_buzzing = true;
         e.preventDefault();
-    }
+    } 
 };
 // use enter to submit answer
 answer_area.onkeydown = function(event) {
@@ -131,6 +140,9 @@ answer_area.onkeydown = function(event) {
         if (is_buzzing) { send_answer(); }
     }
 };
+
+
+///////// Button operations  ///////// 
 buzz_button.onclick = function() {
     is_buzzing = true;
     buzz_button.disabled = true;
@@ -149,6 +161,20 @@ matches_checkbox.onclick = function() {
         matches_card.style.display = "block";
     } else {
         matches_card.style.display = "none";
+    }
+};
+// stop speech synthesis
+voice_checkbox.onclick = function() {
+    if (!voice_checkbox.checked && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+    } else {
+        var st = speech_text.split(' ');
+        st = st.slice(position - speech_starting_position - 1, st.length);
+        st = st.join(' ');
+        window.speechSynthesis.cancel();
+        var utter = new SpeechSynthesisUtterance(st);
+        utter.rate = 0.77;
+        window.speechSynthesis.speak(utter);
     }
 };
 // show hide guesses panel
@@ -194,15 +220,8 @@ function setsource(url, keys, output) {
 setsource(answer_json_dir);
 
 ///////// Speech synthesis ///////// 
-// var voice_msg = new SpeechSynthesisUtterance();
-// var voices = window.speechSynthesis.getVoices();
-// voice_msg.voice = voices[10]; // Note: some voices don't support altering params
-// voice_msg.voiceURI = 'native';
-// voice_msg.volume = 1; // 0 to 1
-// voice_msg.rate = 1.5; // 0.1 to 10
-// voice_msg.pitch = 1; //0 to 2
-// voice_msg.text = 'Hello World';
-// voice_msg.lang = 'en-US';
+window.addEventListener('beforeunload', function(){
+    window.speechSynthesis.cancel();});
 
 function update_question_display() {
     if (highlight_checkbox.checked) {
@@ -250,6 +269,10 @@ function new_question(msg) {
 
 
 function update_question(msg) {
+    if (window.speechSynthesis.paused && voice_checkbox.checked) {
+        window.speechSynthesis.resume();
+    }
+
     if (typeof msg.buzzed != 'undefined') {
         buzz_button.disabled = msg.buzzed;
     } else if (buzzed === false) { 
@@ -362,11 +385,15 @@ function update_interpretation(msg) {
     // update the list of guesses
     if (typeof msg.guesses !== 'undefined') {
         var guesses = msg.guesses;
+        var score_sum = 0;
+        for (var i = 0; i < guesses.length; i++) {
+            score_sum += guesses[i][1];
+        }
         for (var i = 0; i < Math.min(5, guesses.length); i++) {
             var guess = guesses[i][0];
-            var guess_score = guesses[i][1].toFixed(4);
-            var button_text = guess.substr(0, 20);
-            guesses_table.rows[i + 1].cells[1].innerHTML = button_text;
+            var guess_score = (guesses[i][1]/score_sum).toFixed(4);
+            var guess_text = guess.substr(0, 20);
+            guesses_table.rows[i + 1].cells[1].innerHTML = guess_text;
             guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
 
             var createClickHandler = function(guess) {
@@ -431,6 +458,10 @@ function progress(timeleft, timetotal, is_red) {
 }
 
 function handle_buzzing(msg) {
+    if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.pause();
+    }
+
     if (msg.type === MSG_TYPE_BUZZING_GREEN) {
         answer_group.style.display = "initial";
         $('#answer_area').typeahead('val', curr_answer);
@@ -501,6 +532,16 @@ function start() {
         if (typeof msg.info_text != 'undefined') {
             info_text = msg.info_text;
             update_question_display();
+        }
+        if (typeof msg.speech_text != 'undefined') {
+            speech_text = msg.speech_text;
+            speech_starting_position = msg.position;
+            if (voice_checkbox.checked) {
+                window.speechSynthesis.cancel();
+                var utter = new SpeechSynthesisUtterance(speech_text);
+                utter.rate = 0.78;
+                window.speechSynthesis.speak(utter);
+            }
         }
         if (msg.type === MSG_TYPE_NEW) {
             new_question(msg);
