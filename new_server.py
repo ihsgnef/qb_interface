@@ -32,6 +32,7 @@ from db import QBDB
 ANSWER_TIME_OUT = 10
 SECOND_PER_WORD = 0.5
 PLAYER_RESPONSE_TIME_OUT = 3
+HISTORY_LENGTH = 10
 
 highlight_color = '#ecff6d'
 highlight_prefix = '<span style="background-color: ' + highlight_color + '">'
@@ -111,6 +112,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.qid = 0
         self.position = 0
         self.info_text = ''
+        self.history_entries = []
 
         self.latest_resume_msg = None
         self.latest_buzzing_msg = None
@@ -158,7 +160,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
                     msg = {'type': MSG_TYPE_NEW, 'qid': self.qid,
                             'player_list': self.get_player_list(),
-                            'info_text': self.info_text}
+                            'info_text': self.info_text,
+                            'history_entries': self.history_entries}
                     self.players[uid].sendMessage(msg)
                     if self.latest_resume_msg is not None:
                         self.players[uid].sendMessage(self.latest_resume_msg)
@@ -433,7 +436,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
             self.info_text += answer
             self.info_text += BADGE_CORRECT if result else BADGE_WRONG
-            self.info_text += '({})'.format(green_player.score)
+            self.info_text += ' ({})'.format(green_player.score)
             self.info_text += NEW_LINE
 
             msg = {'qid': self.qid, 'result': result,
@@ -460,17 +463,22 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # notify players of end of game and send correct answer
         self.info_text += NEW_LINE + bodify('Answer') \
                 + ': ' + self.question['answer']
-        history = {'header': 'Answer: ' + self.question['answer'],
+
+        history = {'header': self.question['answer'],
                    'question_text': self.question_text,
                    'info_text': self.info_text
                    }
-
+        self.history_entries.append(history)
+        self.history_entries = self.history_entries[-HISTORY_LENGTH:]
+        
         msg = {'type': MSG_TYPE_END, 
                 'qid': self.qid, 'text': '', 
                 'answer': self.question['answer'],
                 'player_list': self.get_player_list(),
-                'history_entry': history
+                'info_text': self.info_text,
+                'history_entries': self.history_entries
                 }
+
         for player in self.players.values():
             player.sendMessage(msg)
 

@@ -1,8 +1,8 @@
 var sockt;
-var socket_addr = "ws://127.0.0.1:9000";
-// var socket_addr = "ws://34.209.31.242:9000";
-var answer_json_dir = "http://localhost/answers.json";
-// var answer_json_dir = "http://qbinterface.club/answers.json";
+// var socket_addr = "ws://127.0.0.1:9000";
+var socket_addr = "ws://34.209.31.242:9000";
+// var answer_json_dir = "http://localhost/answers.json";
+var answer_json_dir = "http://qbinterface.club/answers.json";
 $("#consent_form").load("consent_form.html"); 
 
 
@@ -49,11 +49,11 @@ var buzzed              = false;
 var position            = 0;
 var qid                 = 0;
 var score               = 0;
-var history_number      = 0;
 var timer_set           = false;
 var timer_timeout;
 var buzzing_on_guess    = false; // buzzing by clicking on guess or not
 var bell_str = ' <span class="fa fa-bell" aria-hidden="true"></span> ';
+var HISTORY_LENGTH = 10;
 
 
 ///////// Cookies ///////// 
@@ -322,20 +322,24 @@ function toggle_history_visability(history_id) {
     }
 }
 
-function add_history(history) {
-    history_number += 1;
-    
-    var elem_id = 'history_' + history_number;
-    var head_id = 'heading_' + elem_id;
-    var header = '<div class="card-header" role="tab" id="' + head_id + '">';
-    header += '<a data-toggle="collapse" href="#' + elem_id + '" aria-expanded="false" aria-controls="' + elem_id + '">';
-    header += history.header + '</a></div>';
-
-    var content = '<div id="' + elem_id + '" class="collapse" role="tabpanel" aria-labelledby="' + head_id + '">';
-    content += '<div class="card-body mx-2 my-2">';
-    content += history.question_text + '<br />';
-    content += history.info_text + '</div></div>';
-    history_div.innerHTML = header + content + history_div.innerHTML;
+function update_history_entries(history_entries) {
+    var elem_id = '';
+    var head_id = '';
+    var header = '';
+    history_div.innerHTML = '';
+    var ll = history_entries.length;
+    for (var i = Math.max(0, ll - HISTORY_LENGTH); i < ll; i++) {
+        elem_id = 'history_' + i;
+        head_id = 'heading_' + elem_id;
+        header = '<div class="card-header" role="tab" id="' + head_id + '">';
+        header += '<a data-toggle="collapse" href="#' + elem_id + '" aria-expanded="false" aria-controls="' + elem_id + '">';
+        header += history_entries[i].header + '</a></div>';
+        var content = '<div id="' + elem_id + '" class="collapse" role="tabpanel" aria-labelledby="' + head_id + '">';
+        content += '<div class="card-body mx-2 my-2">';
+        content += history_entries[i].question_text + '<br />';
+        content += history_entries[i].info_text + '</div></div>';
+        history_div.innerHTML = header + content + history_div.innerHTML;
+    }
 }
 
 function update_interpretation(msg) {
@@ -401,9 +405,7 @@ function update_interpretation(msg) {
 }
 
 function end_of_question(msg) {
-    if (typeof msg.history_entry !== 'undefined') {
-        add_history(msg.history_entry);
-    }
+    // 
 }
 
 function progress(timeleft, timetotal, is_red) {
@@ -492,6 +494,9 @@ function start() {
                 players_table.rows[i + 1].cells[1].innerHTML = name;
                 players_table.rows[i + 1].cells[2].innerHTML = player_list[i][1];
             }
+        }
+        if (typeof msg.history_entries !== 'undefined') {
+            update_history_entries(msg.history_entries);
         }
         if (typeof msg.info_text != 'undefined') {
             info_text = msg.info_text;
