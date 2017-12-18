@@ -471,7 +471,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         history = {'header': self.question['answer'],
                    'question_text': self.question_text,
-                   'info_text': self.info_text
+                   'info_text': self.info_text,
+                   'guesses': self.latest_resume_msg['guesses'],
+                   'matches': self.latest_resume_msg['matches_highlighted']
                    }
         self.history_entries.append(history)
         self.history_entries = self.history_entries[-HISTORY_LENGTH:]

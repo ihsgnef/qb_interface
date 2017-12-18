@@ -173,7 +173,7 @@ voice_checkbox.onclick = function() {
         st = st.join(' ');
         window.speechSynthesis.cancel();
         var utter = new SpeechSynthesisUtterance(st);
-        utter.rate = 0.77;
+        utter.rate = 0.78;
         window.speechSynthesis.speak(utter);
     }
 };
@@ -360,7 +360,26 @@ function update_history_entries(history_entries) {
         var content = '<div id="' + elem_id + '" class="collapse" role="tabpanel" aria-labelledby="' + head_id + '">';
         content += '<div class="card-body mx-2 my-2">';
         content += history_entries[i].question_text + '<br />';
-        content += history_entries[i].info_text + '</div></div>';
+        content += history_entries[i].info_text + '</div>';
+        content += '<table class="table"> <tbody>';
+        var guesses = history_entries[i].guesses;
+        for (var j = 0; j < Math.min(5, guesses.length); j++) {
+            var guess_score = guesses[j][1].toFixed(4);
+            var guess_text = guesses[j][0].substr(0, 20);
+            guesses_table.rows[i + 1].cells[1].innerHTML = guess_text;
+            guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
+            content += '<tr><td>' + (j+1).toString() +'</td>';
+            content += '<td>' + guess_text + '</td>';
+            content += '<td>' + guess_score + '</td></tr>';
+        }
+        content += '</tbody></table>';
+        content += '<table class="table"><tbody>';
+        var matches = history_entries[i].matches;
+        for (var j = 0; j < Math.min(4, matches.length); j++) {
+            content += '<tr><td>' + matches[j] +'</td></tr>';
+        }
+        content += '</tbody></table>';
+        content += '</div>';
         history_div.innerHTML = header + content + history_div.innerHTML;
     }
 }
