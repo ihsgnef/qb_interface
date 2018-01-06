@@ -21,11 +21,11 @@ from twisted.internet.defer import Deferred, inlineCallbacks
 from autobahn.twisted.websocket import WebSocketServerFactory, \
     WebSocketServerProtocol, listenWS
 
-from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
+from util.constants import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
         MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
-from web_util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
+from util.web_util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
         NEW_LINE, BELL, bodify
 from db import QBDB
 

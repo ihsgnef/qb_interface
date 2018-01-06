@@ -12,7 +12,7 @@ from autobahn.twisted.websocket import WebSocketClientFactory, \
     connectWS
 
 from client import PlayerProtocol
-from util import MSG_TYPE_BUZZING_ANSWER
+from util.constants import MSG_TYPE_BUZZING_ANSWER
 ''' Listens to the user's keyboard for key presses that indicate a buzz'''
 
 logging.basicConfig(level=logging.INFO)
