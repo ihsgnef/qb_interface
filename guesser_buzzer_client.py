@@ -14,8 +14,7 @@ from qanta.config import conf
 from qanta.guesser.abstract import AbstractGuesser
 from qanta.guesser.experimental.elasticsearch_instance_of import ElasticSearchWikidataGuesser
 from qanta.new_expo.agent import RNNBuzzer
-from qanta.experimental.get_highlights import get_highlights
-
+from qanta.new_expo.hook import HighlightHook
 from client import PlayerProtocol
 from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
@@ -24,6 +23,9 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
 
 import spacy
 from nltk.corpus import stopwords as sw
+''' Contains the different 'guessers' and 'buzzers' that implement the core of the QA system.
+Also contains functions for doing the in-text highlighting using beautiful soup '''
+
 stopwords = set(sw.words('english'))
 nlp = spacy.load('en')
         
@@ -36,9 +38,8 @@ highlight_prefix = '<span style="background-color: ' + highlight_color + '">'
 highlight_suffix = '</span>'
 highlight_template = highlight_prefix + '{}' + highlight_suffix
 
-
 def get_matched(text):
-    matches = get_highlights(text)
+    matches = HightlightHook.get_highlights(text)
     matches = matches['qb'][:2] + matches['wiki'][:2]
     match_words = set()
     for match in matches:
@@ -86,7 +87,7 @@ class StupidBuzzer:
 
     def new_round(self):
         self.step = 0
-    
+
     def buzz(self, guesses):
         self.step += 1
         if self.step > 40:

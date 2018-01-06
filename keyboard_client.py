@@ -13,13 +13,13 @@ from autobahn.twisted.websocket import WebSocketClientFactory, \
 
 from client import PlayerProtocol
 from util import MSG_TYPE_BUZZING_ANSWER
+''' Listens to the user's keyboard for key presses that indicate a buzz'''
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('human_client')
 
 buzzed = threading.Event()
 buzzing_lock = threading.Lock()
-
 
 class KeyboardProtocol(PlayerProtocol):
 
@@ -42,7 +42,6 @@ class KeyboardProtocol(PlayerProtocol):
                 'qid': self.qid, 'position': self.position}
         self.sendMessage(json.dumps(msg).encode('utf-8'))
 
-
 class KeyPoller(threading.Thread):
     
     def run(self):
@@ -53,7 +52,6 @@ class KeyPoller(threading.Thread):
                 if ch == 'b':
                     buzzed.set()
             time.sleep(0.1)
-
 
 if __name__ == '__main__':
     KeyPoller().start()

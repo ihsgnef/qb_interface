@@ -11,6 +11,8 @@ from autobahn.twisted.websocket import WebSocketClientFactory, \
 from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED
+''' Streaming interface for updating questions in game. Also handles 
+new questions and showing whole question when opponent buzzes''' 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('streamer')

@@ -1,6 +1,8 @@
 import json
 from qanta.util.constants import GUESSER_DEV_FOLD
 from qanta.datasets.quiz_bowl import QuizBowlDataset
+''' Preprocess the questions from a database (like data/naqt.db) and extracts 
+the text, qid and answer. Stores the data in sample_questions.json '''
 
 dataset = QuizBowlDataset(guesser_train=True, qb_question_db='data/naqt.db')
 questions = dataset.questions_by_fold([GUESSER_DEV_FOLD])[GUESSER_DEV_FOLD]
