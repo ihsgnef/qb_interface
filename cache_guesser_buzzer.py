@@ -12,7 +12,7 @@ from qanta.guesser.abstract import AbstractGuesser
 from qanta.guesser.experimental.elasticsearch_instance_of import ElasticSearchWikidataGuesser
 from qanta.new_expo.agent import RNNBuzzer
 
-from guesser_buzzer_client import GuesserBuzzer, get_matched
+from guesser_buzzer_client import GuesserBuzzer
 '''Runs the guesser and buzzer on sample questions and caches the results to 
    data/guesser_buzzer_cache.pkl'''
 

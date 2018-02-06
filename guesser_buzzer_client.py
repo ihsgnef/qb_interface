@@ -14,7 +14,7 @@ from qanta.config import conf
 from qanta.guesser.abstract import AbstractGuesser
 from qanta.guesser.experimental.elasticsearch_instance_of import ElasticSearchWikidataGuesser
 from qanta.new_expo.agent import RNNBuzzer
-from qanta.new_expo.hook import HighlightHook
+from qanta.experimental.get_highlights import get_highlights
 from client import PlayerProtocol
 from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
@@ -39,7 +39,7 @@ highlight_suffix = '</span>'
 highlight_template = highlight_prefix + '{}' + highlight_suffix
 
 def get_matched(text):
-    matches = HightlightHook.get_highlights(text)
+    matches = get_highlights(text)
     matches = matches['qb'][:2] + matches['wiki'][:2]
     match_words = set()
     for match in matches:

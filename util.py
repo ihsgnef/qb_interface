@@ -1,6 +1,9 @@
 import json
+import pickle
+from tqdm import tqdm
 from qanta.util.constants import GUESSER_DEV_FOLD
-from qanta.datasets.quiz_bowl import QuizBowlDataset
+from qanta.datasets.quiz_bowl import QuestionDatabase, Question
+from qanta.preprocess import tokenize_question
 
 MSG_TYPE_NEW = 0 # beginning of a new question
 MSG_TYPE_RESUME = 1 # continue
@@ -26,13 +29,37 @@ highlight_template = highlight_prefix + '{}' + highlight_suffix
 def bodify(text):
     return '<b>{}</b>'.format(text) 
 
+class QBQuestion:
+    '''We need word tokens for the computation but raw text for the display, to
+    unify them, we introduce `pos_map`, which maps positions in the text
+    splited by space, to positions in the word token sequence.
+    So at position `i`, what's displayed is ' '.join(self.raw_text[:i]),
+    and the tokens are self.words[:self.pos_map[i]].
+    '''
+
+    def __init__(self, question: Question):
+        self._question = question
+        self.qid = question.qnum
+        self.answer = question.page
+        self.raw_text = question.flatten_text().split()
+        self.tokens = tokenize_question(' '.join(self.raw_text))
+        self.pos_map = dict()
+        for i in range(1, len(self.raw_text) + 1): # because we take [:i]
+            s = ' '.join(self.raw_text[:i])
+            n_tokens = len(tokenize_question(s))
+            self.pos_map[i] = n_tokens
+
 def preprocess():
-    dataset = QuizBowlDataset(guesser_train=True, qb_question_db='data/naqt.db')
-    questions = dataset.questions_by_fold([GUESSER_DEV_FOLD])[GUESSER_DEV_FOLD]
-    
-    def convert(q):
-        return {'qid': q.qnum, 'text': ' '.join(q.text.values()), 'answer': q.page}
-    
-    questions = [convert(q) for q in questions]
-    with open('data/sample_questions.json', 'w') as f:
-        f.write(json.dumps(questions))
+    questions = QuestionDatabase(location='data/naqt.db').all_questions()
+    questions = list(questions.values())
+    questions = [x for x in questions if 'PACE' in x.tournaments]
+    print('preprocessing {} questions'.format(len(questions)))
+    qs = []
+    for question in tqdm(questions):
+        qs.append(QBQuestion(question))
+    with open('data/questions.pkl', 'wb') as f:
+        pickle.dump(qs, f)
+
+if __name__ == '__main__':
+    preprocess()
+
