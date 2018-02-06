@@ -330,7 +330,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
         return matches_plain, matches_highlighted
 
     def stream_next(self):
-        # send next word of the question to all players
         end_of_question = self.position >= self.question.length
 
         self.latest_buzzing_msg = None
@@ -342,7 +341,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     player, 'type', MSG_TYPE_BUZZING_REQUEST):
                 buzzing_ids.append(uid)
 
-        # if no one if buzzing
         if len(buzzing_ids) > 0:
             self._buzzing(buzzing_ids, end_of_question)
         else:
