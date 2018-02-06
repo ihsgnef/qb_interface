@@ -27,6 +27,7 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
 from util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
         NEW_LINE, BELL, bodify, highlight_template
+from util import QBQuestion, QantaCacheEntry
 from db import QBDB
 
 ANSWER_TIME_OUT = 10
@@ -92,10 +93,18 @@ class BroadcastServerProtocol(WebSocketServerProtocol):
 
 class BroadcastServerFactory(WebSocketServerFactory):
 
-    def __init__(self, url, questions, db, loop=False):
+    def __init__(self, url, loop=False):
         WebSocketServerFactory.__init__(self, url)
-        self.questions = questions
-        self.db = db
+
+        with open('data/questions.pkl', 'rb') as f:
+            self.questions = json.loads(f.read())
+            random.shuffle(self.questions)
+        logger.info('Loaded {} questions'.format(len(self.questions)))
+
+        with open('data/cache.pkl', 'rb') as f:
+            self.records = pickle.load(f)
+
+        self.db = QBDB()
         self.loop = loop
         self.question_idx = -1
 
@@ -104,20 +113,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.deferreds = []
 
         self.started = False
-        self.qid = 0
         self.position = 0
         self.info_text = ''
-        self.raw_text = ['']
         self.history_entries = []
 
-        self.latest_resume_msg = None
+        # to get new user started in the middle of a round
+        self.latest_resume_msg = None 
         self.latest_buzzing_msg = None
-
-        with open('data/guesser_buzzer_cache_rematches.pkl', 'rb') as f:
-            self.records = pickle.load(f)
-        with open('data/pos_maps.pkl', 'rb') as f:
-            self.pos_maps = pickle.load(f)
-        logger.info('Loaded {} questions'.format(len(self.questions)))
 
 
     def register(self, client):
@@ -125,7 +127,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             new_player = Player(client)
             self.socket_to_player[client.peer] = new_player
             msg = {'type': MSG_TYPE_NEW,
-                    'qid': self.qid,
+                    'qid': self.question.qid,
                     'player_uid': new_player.uid,
                     'player_name': new_player.name}
             new_player.sendMessage(msg)
@@ -154,12 +156,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         logger.info("[register] new player {} ({})".format(
                             name, client.peer))
 
-                    msg = {'type': MSG_TYPE_NEW, 'qid': self.qid,
+                    msg = {'type': MSG_TYPE_NEW, 'qid': self.question.qid,
                             'player_list': self.get_player_list(),
                             'info_text': self.info_text,
                             'history_entries': self.history_entries,
                             'position': self.position,
-                            'speech_text': ' '.join(self.raw_text[self.position:])}
+                            'speech_text': ' '.join(self.question.raw_text[self.position:])}
                     self.players[uid].sendMessage(msg)
                     if self.latest_resume_msg is not None:
                         self.players[uid].sendMessage(self.latest_resume_msg)
@@ -176,7 +178,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 logger.info('[register] client {} timed out'.format(client.peer))
 
             condition = partial(self.check_player_response,
-                                player=new_player, key='qid', value=self.qid)
+                                player=new_player, key='qid',
+                                value=self.question.qid)
             if condition():
                 callback(None)
             else:
@@ -236,15 +239,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     return
             
             self.question = self.questions[self.question_idx]
-            self.question['answer'] = self.question['answer'].replace('_', ' ')
-            self.qid = self.question['qid']
-            self.question_length = len(self.question['text'].split())
+            self.question.answer = self.question.answer.replace('_', ' ')
 
-            self.question_text = ''
-            self.raw_text = self.question['text'].split()
+            self.display_question = ''
             self.info_text = ''
-            self.record = self.records[int(self.qid)]
-            self.position_map = self.pos_maps[self.qid]
+            self.record = self.records[int(self.question.qid)]
             self.bell_positions = []
             self.position = 0
             self.latest_resume_msg = None
@@ -263,14 +262,14 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     self.unregister(player=player)
                 return f
 
-            msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 
-                    'length': self.question_length, 'position': 0,
+            msg = {'type': MSG_TYPE_NEW, 'qid': self.question.qid, 
+                    'length': self.question.length, 'position': 0,
                     'player_list': self.get_player_list(),
-                    'speech_text': ' '.join(self.raw_text)}
+                    'speech_text': ' '.join(self.question.raw_text)}
             for player in self.players.values():
                 player.sendMessage(msg)
                 condition = partial(self.check_player_response,
-                        player=player, key='qid', value=self.qid)
+                        player=player, key='qid', value=self.question.qid)
                 callback = make_callback(player)
                 errback = make_errback(player)
                 
@@ -288,46 +287,51 @@ class BroadcastServerFactory(WebSocketServerFactory):
             for player in self.players.values():
                 logger.info("player {} score {}".format(
                     player.name, player.score))
-            self.pbar = tqdm(total=self.question_length, leave=False)
+            self.pbar = tqdm(total=self.question.length, leave=False)
             self.stream_next()
 
         reactor.callLater(SECOND_PER_WORD, calllater)
 
-    def get_text_highlighted(self):
-        words = self.record[self.position]['text']
-        words_hi = self.record[self.position]['text_highlight']
-        text = ''
+    def get_display_question(self):
+        '''
+        Get the current question text for display, both plain and highlighted,
+        with visual elements like buzzing bells.
+        '''
+        text_plain = ''
         text_highlighted = ''
+
+        words = self.question.raw_text[:self.position]
+        highlight = self.record[self.position].text_highlight
+
         for i, (x, y) in enumerate(zip(words, words_hi)):
-            text += x + ' '
-            if y:
-                text_highlighted += highlight_template.format(x) + ' '
-            else:
-                text_highlighted += x + ' '
+            text_plain += x + ' '
+            x = highlight_template.format(x) if y else x
+            text_highlighted += x + ' '
             if i + 1 in self.bell_positions:
-                text += BELL
+                text_plain += BELL
                 text_highlighted += BELL
-        return text, text_highlighted
-    
-    def get_matches_highlighted(self):
-        ms = self.record[self.position]['matches']
-        ms_hi = self.record[self.position]['matches_highlight']
-        matches = []
+        return text_plain, text_highlighted
+        
+    def get_display_matches(self):
+        '''
+        Get the current matches for display, both plain and highlighted.
+        '''
+        matches = self.record[self.position].matches
+        highlights = self.record[self.position].matches_highlight
+        matches_plain = []
         matches_highlighted = []
-        for i, (m, mh) in enumerate(zip(ms, ms_hi)):
-            matches.append('')
+        for i, (match, high) in enumerate(zip(matches, highlights)):
+            matches_plain.append('')
             matches_highlighted.append('')
-            for x, y in zip(m, mh):
-                matches[i] += x + ' '
-                if y:
-                    matches_highlighted[i] += highlight_template.format(x) + ' '
-                else:
-                    matches_highlighted[i] += x + ' '
-        return matches, matches_highlighted
+            for x, y in zip(match, high):
+                matches_plain[i] += x + ' '
+                x = highlight_template.format(x) if y else x
+                matches_highlighted[i] += x + ' '
+        return matches_plain, matches_highlighted
 
     def stream_next(self):
         # send next word of the question to all players
-        end_of_question = self.position >= self.question_length
+        end_of_question = self.position >= self.question.length
 
         self.latest_buzzing_msg = None
         buzzing_ids = []
@@ -346,17 +350,17 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 self._end_of_question()
             else:
                 self.position += 1
-                text, text_highlighted = self.get_text_highlighted()
-                self.question_text = text_highlighted
-                matches, matches_highlighted = self.get_matches_highlighted()
+                text_plain, text_highlighted = self.get_display_question()
+                matches_plain, matches_highlighted = self.get_display_matches()
+                self.display_question = text_highlighted
 
-                msg = {'type': MSG_TYPE_RESUME,  'qid': self.qid,
-                        'text': text,
+                msg = {'type': MSG_TYPE_RESUME,  'qid': self.question.qid,
+                        'text': text_plain,
                         'text_highlighted': text_highlighted,
                         'position': self.position,
-                        'length': self.question_length,
-                        'guesses': self.record[self.position]['guesses'],
-                        'matches': matches,
+                        'length': self.question.length,
+                        'guesses': self.record[self.position].guesses,
+                        'matches': matches_plain,
                         'matches_highlighted': matches_highlighted
                         }
                 self.latest_resume_msg = msg
@@ -380,7 +384,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.info_text += ' {}: '.format(bodify(green_player.name))
         self.bell_positions.append(self.position_map[self.position])
 
-        msg = {'qid': self.qid, 
+        msg = {'qid': self.question.qid, 
                 'length': ANSWER_TIME_OUT,
                 'info_text': self.info_text}
 
@@ -439,7 +443,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.info_text += ' ({})'.format(green_player.score)
             self.info_text += NEW_LINE
 
-            msg = {'qid': self.qid, 'result': result,
+            msg = {'qid': self.question.qid, 'result': result,
                     'score': score,'uid': buzzing_id, 'guess': answer,
                     'player_list': self.get_player_list(),
                     'info_text': self.info_text}
@@ -465,7 +469,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 + ': ' + self.question['answer']
 
         history = {'header': self.question['answer'],
-                   'question_text': self.question_text,
+                   'question_text': self.display_question,
                    'info_text': self.info_text,
                    'guesses': self.latest_resume_msg['guesses'],
                    'matches': self.latest_resume_msg['matches_highlighted']
@@ -474,7 +478,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.history_entries = self.history_entries[-HISTORY_LENGTH:]
         
         msg = {'type': MSG_TYPE_END, 
-                'qid': self.qid, 'text': '', 
+                'qid': self.question.qid, 'text': '', 
                 'answer': self.question['answer'],
                 'player_list': self.get_player_list(),
                 'info_text': self.info_text,
@@ -485,8 +489,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
             player.sendMessage(msg)
 
         try:
-            game_id = self.db.add_game(self.qid, self.players,
-                    self.question_text, self.info_text)
+            game_id = self.db.add_game(self.question.qid, self.players,
+                    self.display_question,
+                    self.info_text)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
 
@@ -499,7 +504,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 if not player.active:
                     to_remove.append(uid)
                     self.socket_to_player.pop(player.client.peer, None)
-                self.db.add_record(game_id, uid, player.name, self.qid,
+                self.db.add_record(game_id, uid, player.name, self.question.qid,
                         player.position_start, player.position_buzz,
                         player.buzz_info.get('guess', ''),
                         player.buzz_info.get('result', None),
@@ -526,12 +531,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
 
 if __name__ == '__main__':
-    with open('data/sample_questions.json', 'r') as f:
-        questions = json.loads(f.read())
-        random.shuffle(questions)
-
-    db = QBDB()
-    factory = BroadcastServerFactory(u"ws://127.0.0.1:9000", questions, db, loop=True)
+    factory = BroadcastServerFactory(u"ws://127.0.0.1:9000", loop=True)
     factory.protocol = BroadcastServerProtocol
     listenWS(factory)
 

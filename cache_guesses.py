@@ -79,11 +79,10 @@ def main():
     with open('data/questions.pkl', 'rb') as f:
         questions = pickle.load(f)
 
-    questions = questions[:10]
+    # questions = questions[:10]
 
     records = dict()
-    for idx, q in enumerate(questions):
-        print(idx, len(questions))
+    for q in tqdm(questions):
         records[q.qid] = get_cache(gb, q)
 
     with open('data/cache.pkl', 'wb') as f:

@@ -3,7 +3,6 @@ import json
 import uuid
 import sqlite3
 import logging
-'''Creates sqlite3 database to store user information and games results (buzz info, guess, etc.)'''
 
 logger = logging.getLogger('db')
 DB_FILENAME = 'db.sqlite'
