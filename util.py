@@ -31,13 +31,26 @@ def bodify(text):
 
 class QBQuestion:
 
-    def __init__(self, question: Question):
-        self._question = question
-        self.qid = question.qnum
-        self.answer = question.page
-        self.raw_text = question.flatten_text().split()
-        self.length = len(self.raw_text)
-        self.tokens = [tokenize_question(x) for x in self.raw_text]
+    def __init__(self, question=None):
+        # question should be a qanta.datasets.quiz_bowl.Question
+        if question is not None:
+            self._question = question
+            self.qid = question.qnum
+            self.answer = question.page
+            self.raw_text = question.flatten_text().split()
+            self.length = len(self.raw_text)
+            self.tokens = [tokenize_question(x) for x in self.raw_text]
+
+class NullQuestion:
+
+    def __init__(self):
+        self.qnum = 0
+        self.page = ''
+    
+    def flatten_text(self):
+        return ''
+
+null_question = QBQuestion(NullQuestion())
 
 class QantaCacheEntry:
     '''cache entry for one question'''

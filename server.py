@@ -27,7 +27,7 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
 from util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
         NEW_LINE, BELL, bodify, highlight_template
-from util import QBQuestion, QantaCacheEntry
+from util import QBQuestion, QantaCacheEntry, null_question
 from db import QBDB
 
 ANSWER_TIME_OUT = 10
@@ -97,12 +97,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         WebSocketServerFactory.__init__(self, url)
 
         with open('data/questions.pkl', 'rb') as f:
-            self.questions = json.loads(f.read())
+            self.questions = pickle.load(f)
             random.shuffle(self.questions)
         logger.info('Loaded {} questions'.format(len(self.questions)))
-
-        with open('data/cache.pkl', 'rb') as f:
-            self.records = pickle.load(f)
 
         self.db = QBDB()
         self.loop = loop
@@ -112,6 +109,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.players = dict() # uid -> Player
         self.deferreds = []
 
+        self.question = null_question
         self.started = False
         self.position = 0
         self.info_text = ''
@@ -243,7 +241,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
             self.display_question = ''
             self.info_text = ''
-            self.record = self.records[int(self.question.qid)]
+            # self.record = self.records[int(self.question.qid)]
+            self.record = self.db.get_cache(self.question.qid)
+            # print(self.record[10].matches)
             self.bell_positions = []
             self.position = 0
             self.latest_resume_msg = None
@@ -266,6 +266,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     'length': self.question.length, 'position': 0,
                     'player_list': self.get_player_list(),
                     'speech_text': ' '.join(self.question.raw_text)}
+
             for player in self.players.values():
                 player.sendMessage(msg)
                 condition = partial(self.check_player_response,
@@ -303,7 +304,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         words = self.question.raw_text[:self.position]
         highlight = self.record[self.position].text_highlight
 
-        for i, (x, y) in enumerate(zip(words, words_hi)):
+        for i, (x, y) in enumerate(zip(words, highlight)):
             text_plain += x + ' '
             x = highlight_template.format(x) if y else x
             text_highlighted += x + ' '
@@ -380,7 +381,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         self.info_text += NEW_LINE + BADGE_BUZZ
         self.info_text += ' {}: '.format(bodify(green_player.name))
-        self.bell_positions.append(self.position_map[self.position])
+        self.bell_positions.append(self.position)
 
         msg = {'qid': self.question.qid, 
                 'length': ANSWER_TIME_OUT,
@@ -418,7 +419,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.deferreds.append((deferred, condition))
 
     def judge(self, guess):
-        return guess.lower() == self.question['answer'].lower()
+        return guess.lower() == self.question.answer.lower()
 
     def _buzzing_after(self, buzzing_id, end_of_question, timed_out):
         try:
@@ -464,9 +465,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def _end_of_question(self):
         # notify players of end of game and send correct answer
         self.info_text += NEW_LINE + bodify('Answer') \
-                + ': ' + self.question['answer']
+                + ': ' + self.question.answer
 
-        history = {'header': self.question['answer'],
+        history = {'header': self.question.answer,
                    'question_text': self.display_question,
                    'info_text': self.info_text,
                    'guesses': self.latest_resume_msg['guesses'],
@@ -477,7 +478,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         
         msg = {'type': MSG_TYPE_END, 
                 'qid': self.question.qid, 'text': '', 
-                'answer': self.question['answer'],
+                'answer': self.question.answer,
                 'player_list': self.get_player_list(),
                 'info_text': self.info_text,
                 'history_entries': self.history_entries
