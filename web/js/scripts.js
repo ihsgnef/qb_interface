@@ -366,8 +366,6 @@ function update_history_entries(history_entries) {
         for (var j = 0; j < Math.min(5, guesses.length); j++) {
             var guess_score = guesses[j][1].toFixed(4);
             var guess_text = guesses[j][0].substr(0, 20);
-            guesses_table.rows[i + 1].cells[1].innerHTML = guess_text;
-            guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
             content += '<tr><td>' + (j+1).toString() +'</td>';
             content += '<td>' + guess_text + '</td>';
             content += '<td>' + guess_score + '</td></tr>';
