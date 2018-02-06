@@ -393,12 +393,6 @@ function update_interpretation(msg) {
         update_question_display();
     }
 
-    //// speech synthesis
-    //if (voice_checkbox.checked) {
-    //    voice_msg.text = msg.text;
-    //    speechSynthesis.speak(voice_msg);
-    //}
-
     // update the list of guesses
     if (typeof msg.guesses !== 'undefined') {
         var guesses = msg.guesses;
