@@ -16,7 +16,7 @@ from qanta.guesser.experimental.elasticsearch_instance_of import ElasticSearchWi
 from qanta.new_expo.agent import RNNBuzzer
 from qanta.new_expo.hook import HighlightHook
 from client import PlayerProtocol
-from util.constants import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
+from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
         MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
