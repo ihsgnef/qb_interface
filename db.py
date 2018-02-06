@@ -3,7 +3,7 @@ import json
 import uuid
 import sqlite3
 import logging
-'''Creates sqlite3 database to store user information and games results (buzz info, guess, etc.)'''
+from util import QantaCacheEntry
 
 logger = logging.getLogger('db')
 DB_FILENAME = 'db.sqlite'
@@ -14,7 +14,6 @@ class QBDB:
         if not os.path.exists(DB_FILENAME):
             self.create()
         self.conn = sqlite3.connect(DB_FILENAME)
-        self.c = self.conn.cursor()
 
     def create(self):
         conn = sqlite3.connect(DB_FILENAME)
@@ -43,6 +42,11 @@ class QBDB:
                 players TEXT, \
                 question_text TEXT, \
                 info_text TEXT)')
+
+        c.execute('CREATE TABLE qanta_cache (\
+                question_id PRIMARY KEY, \
+                json_str TEXT)')
+
         conn.commit()
         conn.close() 
 
@@ -50,8 +54,9 @@ class QBDB:
         player_id = player.uid
         ip = player.client.peer
         name = player.name
+        c = self.conn.cursor()
         try:
-            self.c.execute('INSERT INTO players VALUES (?,?,?)',
+            c.execute('INSERT INTO players VALUES (?,?,?)',
                     (player_id, ip, name))
         except sqlite3.IntegrityError:
             logger.info("player {} exists".format(player_id))
@@ -63,7 +68,8 @@ class QBDB:
             players = players.values()
         player_ids = [x.uid for x in players]
         # include players that are not active
-        self.c.execute('INSERT INTO games VALUES (?,?,?,?,?)',
+        c = self.conn.cursor()
+        c.execute('INSERT INTO games VALUES (?,?,?,?,?)',
                 (game_id, qid,
                 json.dumps(player_ids),
                 question_text, info_text))
@@ -75,18 +81,52 @@ class QBDB:
             guess='', result=None, score=0,
             enabled_tools=dict()):
         record_id = 'record_' + str(uuid.uuid4()).replace('-', '')
-        self.c.execute('INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+        c = self.conn.cursor()
+        c.execute('INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                 (record_id, game_id, player_id, player_name, question_id,
                 position_start, position_buzz, guess, result, score,
                 json.dumps(enabled_tools)))
         self.conn.commit()
+
+    def add_cache(self, question_id, records):
+        # records is a list of QantaCacheEntry
+        records = {i: {'qid': e.qid, 'position': e.position,
+                'answer': e.answer, 'guesses': e.guesses,
+                'buzz_scores': e.buzz_scores,
+                'matches': e.matches, 'text_highlight': e.text_highlight,
+                'matches_highlight': e.matches_highlight}
+            for i, e in records.items()}
+        c = self.conn.cursor()
+        try:
+            c.execute('INSERT INTO qanta_cache VALUES (?,?)',
+                    (question_id, json.dumps(records)))
+
+        except sqlite3.IntegrityError:
+            logger.info("question {} cache exists".format(question_id))
+        self.conn.commit()
+
+    def get_cache(self, question_id):
+        c = self.conn.cursor()
+        c.execute("SELECT * FROM qanta_cache WHERE question_id=?",
+                (question_id,))
+        records = c.fetchall()
+        if len(records) == 0:
+            logger.info("cache {} does not exist".format(question_id))
+            return None
+        records = json.loads(records[0][1]) # key, value
+        records = {int(i): QantaCacheEntry(e['qid'], e['position'], 
+                    e['answer'], e['guesses'], e['buzz_scores'], e['matches'],
+                    e['text_highlight'], e['matches_highlight'])
+                   for i, e in records.items()}
+        return records
+
 
 class Namespace:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
 if __name__ == '__main__':
-    from new_server import Player
+    from server import Player
     db = QBDB()
     client = Namespace(peer="dummy_peer")
     player_id = 'player_' + str(uuid.uuid4()).replace('-', '')
@@ -95,7 +135,7 @@ if __name__ == '__main__':
     db.add_player(player)
     qid = 20
     game_id = db.add_game(qid, [player], "question text awd", "info text awd")
-    db.add_record(game_id, player.uid, qid,
+    db.add_record(game_id, player.uid, name, qid,
             position_start=0, position_buzz=-1,
             guess='China', result=True, score=10,
             enabled_tools=dict())
