@@ -30,24 +30,39 @@ def bodify(text):
     return '<b>{}</b>'.format(text) 
 
 class QBQuestion:
-    '''We need word tokens for the computation but raw text for the display, to
-    unify them, we introduce `pos_map`, which maps positions in the text
-    splited by space, to positions in the word token sequence.
-    So at position `i`, what's displayed is ' '.join(self.raw_text[:i]),
-    and the tokens are self.words[:self.pos_map[i]].
-    '''
 
     def __init__(self, question: Question):
         self._question = question
         self.qid = question.qnum
         self.answer = question.page
         self.raw_text = question.flatten_text().split()
-        self.tokens = tokenize_question(' '.join(self.raw_text))
-        self.pos_map = dict()
-        for i in range(1, len(self.raw_text) + 1): # because we take [:i]
-            s = ' '.join(self.raw_text[:i])
-            n_tokens = len(tokenize_question(s))
-            self.pos_map[i] = n_tokens
+        self.length = len(self.raw_text)
+        self.tokens = [tokenize_question(x) for x in self.raw_text]
+
+class QantaCacheEntry:
+    '''cache entry for one question'''
+
+    def __init__(self, qid, position, answer, guesses, buzz_scores,
+            matches, text_highlight, matches_highlight):
+        '''
+        Args:
+            qid (int): question id
+            position (int): question text is `question.raw_text[:position]`
+            answer (string): the top guess
+            guesses: list of (guess, score) tuples
+            buzz_scores: [score of buzzing, score of not buzzing]
+            matches: list of lists of words, tokenized matches
+            text_highlight: list of booleans indicating highlight or not
+            matches_highlight: list of lists of booleans
+        '''
+        self.qid = qid
+        self.position = position
+        self.answer = answer
+        self.guesses = guesses
+        self.buzz_scores = buzz_scores
+        self.matches = matches
+        self.text_highlight = text_highlight
+        self.matches_highlight = matches_highlight
 
 def preprocess():
     questions = QuestionDatabase(location='data/naqt.db').all_questions()
