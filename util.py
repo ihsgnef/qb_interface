@@ -34,12 +34,18 @@ class QBQuestion:
     def __init__(self, question=None):
         # question should be a qanta.datasets.quiz_bowl.Question
         if question is not None:
-            self._question = question
             self.qid = question.qnum
             self.answer = question.page
             self.raw_text = question.flatten_text().split()
             self.length = len(self.raw_text)
             self.tokens = [tokenize_question(x) for x in self.raw_text]
+
+    def set(self, qid, answer, text):
+        self.qid = qid
+        self.answer = answer
+        self.raw_text = text.split()
+        self.length = len(self.raw_text)
+        self.tokens = [tokenize_question(x) for x in self.raw_text]
 
 class NullQuestion:
 
@@ -77,7 +83,7 @@ class QantaCacheEntry:
         self.text_highlight = text_highlight
         self.matches_highlight = matches_highlight
 
-def preprocess():
+def preprocess_pace():
     questions = QuestionDatabase(location='data/naqt.db').all_questions()
     questions = list(questions.values())
     questions = [x for x in questions if 'PACE' in x.tournaments]
@@ -85,9 +91,23 @@ def preprocess():
     qs = []
     for question in tqdm(questions):
         qs.append(QBQuestion(question))
-    with open('data/questions.pkl', 'wb') as f:
+    with open('data/pace_questions.pkl', 'wb') as f:
+        pickle.dump(qs, f)
+
+def preprocess_expo():
+    with open('data/expo_questions.txt') as f:
+        questions = f.readlines()
+    with open('data/expo_answers.txt') as f:
+        answers = f.readlines()
+    qs = []
+    for i, (q, a) in enumerate(tqdm(zip(questions, answers))):
+        qbq = QBQuestion()
+        qbq.set(900000 + i, a.strip(), q.strip())
+        qs.append(qbq)
+    with open('data/expo_questions.pkl', 'wb') as f:
         pickle.dump(qs, f)
 
 if __name__ == '__main__':
-    preprocess()
+    preprocess_pace()
+    preprocess_expo()
 

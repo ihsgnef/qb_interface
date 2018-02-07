@@ -68,6 +68,8 @@ class Player:
         self.buzz_info = dict()
         self.enabled_tools = {
                 'guesses': True, 'highlight': True, 'matches': True}
+        self.questions_seen = []
+        self.questions_answered = []
 
     def can_buzz(self):
         return self.active and not self.buzzed
@@ -96,7 +98,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def __init__(self, url, loop=False):
         WebSocketServerFactory.__init__(self, url)
 
-        with open('data/questions.pkl', 'rb') as f:
+        with open('data/expo_questions.pkl', 'rb') as f:
             self.questions = pickle.load(f)
             random.shuffle(self.questions)
         logger.info('Loaded {} questions'.format(len(self.questions)))
@@ -149,8 +151,16 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         new_player.name = name
                         new_player.position_start = self.position
                         self.players[uid] = new_player
-                        logger.info('add player {} to db'.format(new_player.uid))
-                        self.db.add_player(new_player)
+
+                        db_player = self.db.get_player(uid)
+                        if db_player is not None:
+                            qa = db_player['questions_answered']
+                            qs = db_player['questions_seen']
+                            new_player.questions_answered = qa
+                            new_player.questions_seen = qs
+                        else:
+                            logger.info('add player {} to db'.format(new_player.uid))
+                            self.db.add_player(new_player)
                         logger.info("[register] new player {} ({})".format(
                             name, client.peer))
 
@@ -161,6 +171,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             'position': self.position,
                             'speech_text': ' '.join(self.question.raw_text[self.position:])}
                     self.players[uid].sendMessage(msg)
+
+                    # keep player up to date
                     if self.latest_resume_msg is not None:
                         self.players[uid].sendMessage(self.latest_resume_msg)
                     if self.latest_buzzing_msg is not None:
@@ -288,6 +300,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             for player in self.players.values():
                 logger.info("player {} score {}".format(
                     player.name, player.score))
+                player.questions_seen.append(self.question.qid)
             self.pbar = tqdm(total=self.question.length, leave=False)
             self.stream_next()
 
@@ -391,6 +404,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         green_player.sendMessage(msg)
         green_player.buzzed = True
         green_player.position_buzz = self.position
+        green_player.questions_answered.append(self.question.qid)
 
         msg['type'] = MSG_TYPE_BUZZING_RED
         for player in self.players.values():
@@ -500,6 +514,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             # set buzzed to false
             to_remove = []
             for uid, player in self.players.items():
+                self.db.update_player(player)
                 if not player.active:
                     to_remove.append(uid)
                     self.socket_to_player.pop(player.client.peer, None)

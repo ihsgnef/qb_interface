@@ -34,7 +34,9 @@ class QBDB:
         c.execute('CREATE TABLE players (\
                 player_id PRIMARY KEY, \
                 ip TEXT, \
-                name TEXT)')
+                name TEXT, \
+                questions_answered TEXT, \
+                questions_seen TEXT)')
 
         c.execute('CREATE TABLE games (\
                 game_id PRIMARY KEY, \
@@ -51,15 +53,16 @@ class QBDB:
         conn.close() 
 
     def add_player(self, player):
-        player_id = player.uid
-        ip = player.client.peer
-        name = player.name
         c = self.conn.cursor()
+        questions_answered = json.dumps(player.questions_answered)
+        questions_seen = json.dumps(player.questions_seen)
         try:
-            c.execute('INSERT INTO players VALUES (?,?,?)',
-                    (player_id, ip, name))
+            c.execute('INSERT INTO players VALUES (?,?,?,?,?)',
+                    (player.uid, player.client.peer, 
+                        player.name, questions_answered,
+                        questions_seen))
         except sqlite3.IntegrityError:
-            logger.info("player {} exists".format(player_id))
+            logger.info("player {} exists".format(player.uid))
         self.conn.commit()
 
     def add_game(self, qid, players, question_text, info_text):
@@ -119,7 +122,31 @@ class QBDB:
                     e['text_highlight'], e['matches_highlight'])
                    for i, e in records.items()}
         return records
-
+    
+    def get_player(self, player_id=None):
+        c = self.conn.cursor()
+        if player_id is None:
+            c.execute("SELECT * FROM players")
+            return c.fetchall()
+        else:
+            c.execute("SELECT * FROM players WHERE player_id=?",
+                    (player_id,))
+            r = c.fetchall()
+            if len(r) == 0:
+                return None
+            else:
+                r = r[0]
+                return {'player_id': r[0], 'ip': r[1], 'name': r[2],
+                        'questions_answered': json.loads(r[3]),
+                        'questions_seen': json.loads(r[4])}
+    
+    def update_player(self, player):
+        c = self.conn.cursor()
+        c.execute("UPDATE players SET questions_answered=? WHERE player_id=?",
+                (json.dumps(player.questions_answered), player.uid,))
+        c.execute("UPDATE players SET questions_seen=? WHERE player_id=?",
+                (json.dumps(player.questions_seen), player.uid,))
+        self.conn.commit()
 
 class Namespace:
     def __init__(self, **kwargs):
