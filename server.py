@@ -8,13 +8,11 @@ import logging
 import traceback
 import datetime
 from tqdm import tqdm
-from threading import Thread
+from collections import Counter
 from functools import partial
-from collections import defaultdict
 from haikunator import Haikunator
 
 from twisted.internet import reactor
-from twisted.python import log
 from twisted.web.server import Site
 from twisted.web.static import File
 from twisted.internet.defer import Deferred, inlineCallbacks
@@ -101,12 +99,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         with open('data/pace_questions.pkl', 'rb') as f:
             self.questions = pickle.load(f)
-            random.shuffle(self.questions)
+            self.questions = {x.qid : x for x in self.questions}
+            # random.shuffle(self.questions)
         logger.info('Loaded {} questions'.format(len(self.questions)))
 
         self.db = QBDB()
         self.loop = loop
-        self.question_idx = -1
 
         self.socket_to_player = dict() # client.peer -> Player
         self.players = dict() # uid -> Player
@@ -118,6 +116,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.info_text = ''
         self.history_entries = []
         self.player_list = []
+        self.bell_positions = []
 
         # to get new user started in the middle of a round
         self.latest_resume_msg = None 
@@ -240,18 +239,29 @@ class BroadcastServerFactory(WebSocketServerFactory):
         else:
             logger.warning("Unknown source {}:\n{}".format(client.peer, msg))
 
+    def next_question(self):
+        counter = Counter()
+        counter.update({qid: 0 for qid in self.questions})
+        for p in self.players.values():
+            if p.active:
+                counter.update(p.questions_seen)
+        min_count = min(counter.values())
+        qids = [x for x, y in counter.items() if y == min_count]
+        random.shuffle(qids)
+        return self.questions[qids[0]]
+        # self.question_idx += 1
+        # if self.question_idx >= len(self.questions):
+        #     if self.loop:
+        #         random.shuffle(self.questions)
+        #         self.question_idx = 0
+        #     else:
+        #         self._end_of_game()
+        #         return
+        # return self.question_idx
+        
     def new_question(self):
         try:
-            self.question_idx += 1
-            if self.question_idx >= len(self.questions):
-                if self.loop:
-                    random.shuffle(self.questions)
-                    self.question_idx = 0
-                else:
-                    self._end_of_game()
-                    return
-            
-            self.question = self.questions[self.question_idx]
+            self.question = self.next_question()
             self.question.answer = self.question.answer.replace('_', ' ')
 
             self.display_question = ''
