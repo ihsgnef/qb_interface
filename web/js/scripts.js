@@ -60,7 +60,7 @@ var speech_starting_position = 0;
 
 
 ///////// Constants ///////// 
-var HISTORY_LENGTH = 10;
+var HISTORY_LENGTH = 30;
 var highlight_color = '#ecff6d';
 var highlight_prefix = '<span style="background-color: ' + highlight_color + '">';
 var highlight_suffix = '</span>';

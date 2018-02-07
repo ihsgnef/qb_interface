@@ -33,7 +33,7 @@ from db import QBDB
 ANSWER_TIME_OUT = 10
 SECOND_PER_WORD = 0.4
 PLAYER_RESPONSE_TIME_OUT = 3
-HISTORY_LENGTH = 10
+HISTORY_LENGTH = 30
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
