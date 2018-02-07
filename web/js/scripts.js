@@ -1,8 +1,8 @@
 var sockt;
-var socket_addr = "ws://127.0.0.1:9000";
-// var socket_addr = "ws://34.209.31.242:9000";
-var answer_json_dir = "http://localhost/answers.json";
-// var answer_json_dir = "http://qbinterface.club/answers.json";
+// var socket_addr = "ws://127.0.0.1:9000";
+var socket_addr = "ws://34.209.31.242:9000";
+// var answer_json_dir = "http://localhost/answers.json";
+var answer_json_dir = "http://qbinterface.club/answers.json";
 $("#consent_form").load("consent_form.html"); 
 
 
@@ -26,6 +26,7 @@ var answer_area        = document.getElementById("answer_area");
 var guesses_card       = document.getElementById("guesses_card");
 var guesses_table      = document.getElementById("guesses_table");
 var players_table      = document.getElementById("players_table");
+var players_tbody      = document.getElementById("players_tbody");
 var matches_card       = document.getElementById("matches_card");
 var matches_table      = document.getElementById("matches_table");
 var guess_matches_area = document.getElementById("guess_of_matches");
@@ -519,23 +520,44 @@ function start() {
             }
         }
         if (typeof msg.player_list !== 'undefined') {
+            var new_tbody = document.createElement('tbody');
             var player_list = msg.player_list;
-            for (var i = 0; i < 5; i++) {
-                if (i >= player_list.length) {
-                    players_table.rows[i + 1].cells[1].innerHTML = '-';
-                    players_table.rows[i + 1].cells[2].innerHTML = '-';
-                    players_table.rows[i + 1].className = "";
-                    continue;
+            for (var i = 0; i < Math.min(10, player_list.length); i++) {
+                var ply = player_list[i];
+
+                var tr = document.createElement('tr');
+
+                var td = document.createElement('td');
+                td.appendChild(document.createTextNode(i+1));
+                tr.appendChild(td);
+
+                var td = document.createElement('td');
+                td.appendChild(document.createTextNode(ply.score));
+                tr.appendChild(td);
+
+                var td = document.createElement('td');
+                td.appendChild(document.createTextNode(ply.name));
+                tr.appendChild(td);
+
+                var stat = ply.questions_correct.length + '/'
+                           + ply.questions_answered.length + '/'
+                           + ply.questions_seen.length;
+
+                var td = document.createElement('td');
+                td.appendChild(document.createTextNode(stat));
+                tr.appendChild(td);
+
+                new_tbody.appendChild(tr);
+
+                if (ply.uid == player_uid) {
+                    tr.className = "table-success";
                 }
-                var name = player_list[i][0];
-                if (name == player_name) {
-                    players_table.rows[i + 1].className = "table-info";
-                } else {
-                    players_table.rows[i + 1].className = "";
+                if (ply.active) {
+                    tr.className = "table-info";
                 }
-                players_table.rows[i + 1].cells[1].innerHTML = name;
-                players_table.rows[i + 1].cells[2].innerHTML = player_list[i][1];
             }
+            players_tbody.parentNode.replaceChild(new_tbody, players_tbody);
+            players_tbody = new_tbody;
         }
         if (typeof msg.history_entries !== 'undefined') {
             update_history_entries(msg.history_entries);

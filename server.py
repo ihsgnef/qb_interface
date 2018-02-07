@@ -70,6 +70,7 @@ class Player:
                 'guesses': True, 'highlight': True, 'matches': True}
         self.questions_seen = []
         self.questions_answered = []
+        self.questions_correct = []
 
     def can_buzz(self):
         return self.active and not self.buzzed
@@ -98,7 +99,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def __init__(self, url, loop=False):
         WebSocketServerFactory.__init__(self, url)
 
-        with open('data/expo_questions.pkl', 'rb') as f:
+        with open('data/pace_questions.pkl', 'rb') as f:
             self.questions = pickle.load(f)
             random.shuffle(self.questions)
         logger.info('Loaded {} questions'.format(len(self.questions)))
@@ -116,6 +117,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.position = 0
         self.info_text = ''
         self.history_entries = []
+        self.player_list = []
 
         # to get new user started in the middle of a round
         self.latest_resume_msg = None 
@@ -152,12 +154,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         new_player.position_start = self.position
                         self.players[uid] = new_player
 
-                        db_player = self.db.get_player(uid)
-                        if db_player is not None:
-                            qa = db_player['questions_answered']
-                            qs = db_player['questions_seen']
-                            new_player.questions_answered = qa
-                            new_player.questions_seen = qs
+                        dbp = self.db.get_player(uid)
+                        if dbp is not None:
+                            new_player.score = dbp['score']
+                            new_player.questions_seen = dbp['questions_seen']
+                            new_player.questions_answered = dbp['questions_answered']
+                            new_player.questions_correct = dbp['questions_correct']
                         else:
                             logger.info('add player {} to db'.format(new_player.uid))
                             self.db.add_player(new_player)
@@ -165,7 +167,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             name, client.peer))
 
                     msg = {'type': MSG_TYPE_NEW, 'qid': self.question.qid,
-                            'player_list': self.get_player_list(),
+                            'player_list': self.player_list,
                             'info_text': self.info_text,
                             'history_entries': self.history_entries,
                             'position': self.position,
@@ -274,9 +276,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     self.unregister(player=player)
                 return f
 
+            self.player_list = self.get_player_list()
             msg = {'type': MSG_TYPE_NEW, 'qid': self.question.qid, 
                     'length': self.question.length, 'position': 0,
-                    'player_list': self.get_player_list(),
+                    'player_list': self.player_list,
                     'speech_text': ' '.join(self.question.raw_text)}
 
             for player in self.players.values():
@@ -382,9 +385,20 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 reactor.callLater(SECOND_PER_WORD, self.stream_next)
 
     def get_player_list(self):
+        db_players = self.db.get_player()
         players = sorted(self.players.values(), key=lambda x: x.score)[::-1]
         player_list = []
-        return [(x.name, x.score) for x in players if x.active]
+        for x in db_players:
+            uid = x['player_id']
+            active = (uid in self.players) and (self.players[uid].active)
+            player_list.append({'uid': x['player_id'], 'name': x['name'],
+                'score': x['score'],
+                'questions_seen': x['questions_seen'],
+                'questions_answered': x['questions_answered'],
+                'questions_correct': x['questions_correct'],
+                'active': active})
+        player_list = sorted(player_list, key=lambda x: x['score'])[::-1]
+        return player_list 
 
     def _buzzing(self, buzzing_ids, end_of_question):
         random.shuffle(buzzing_ids)
@@ -448,6 +462,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     'score': score}
             
             green_player.score += score
+            if result:
+                green_player.questions_correct.append(self.question.qid)
             if not timed_out:
                 logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
 
@@ -458,7 +474,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
             msg = {'qid': self.question.qid, 'result': result,
                     'score': score,'uid': buzzing_id, 'guess': answer,
-                    'player_list': self.get_player_list(),
                     'info_text': self.info_text}
 
             msg['type'] = MSG_TYPE_RESULT_MINE
@@ -493,7 +508,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
         msg = {'type': MSG_TYPE_END, 
                 'qid': self.question.qid, 'text': '', 
                 'answer': self.question.answer,
-                'player_list': self.get_player_list(),
                 'info_text': self.info_text,
                 'history_entries': self.history_entries
                 }

@@ -35,8 +35,10 @@ class QBDB:
                 player_id PRIMARY KEY, \
                 ip TEXT, \
                 name TEXT, \
+                score INT, \
+                questions_seen TEXT, \
                 questions_answered TEXT, \
-                questions_seen TEXT)')
+                questions_correct TEXT)')
 
         c.execute('CREATE TABLE games (\
                 game_id PRIMARY KEY, \
@@ -54,13 +56,13 @@ class QBDB:
 
     def add_player(self, player):
         c = self.conn.cursor()
-        questions_answered = json.dumps(player.questions_answered)
         questions_seen = json.dumps(player.questions_seen)
+        questions_answered = json.dumps(player.questions_answered)
+        questions_correct = json.dumps(player.questions_correct)
         try:
-            c.execute('INSERT INTO players VALUES (?,?,?,?,?)',
-                    (player.uid, player.client.peer, 
-                        player.name, questions_answered,
-                        questions_seen))
+            c.execute('INSERT INTO players VALUES (?,?,?,?,?,?,?)',
+                    (player.uid, player.client.peer, player.name, player.score, 
+                    questions_seen, questions_answered, questions_correct))
         except sqlite3.IntegrityError:
             logger.info("player {} exists".format(player.uid))
         self.conn.commit()
@@ -124,10 +126,16 @@ class QBDB:
         return records
     
     def get_player(self, player_id=None):
+        def row_to_dict(r):
+            return {'player_id': r[0], 'ip': r[1],
+                    'name': r[2], 'score': r[3],
+                    'questions_seen': json.loads(r[4]),
+                    'questions_answered': json.loads(r[5]),
+                    'questions_correct': json.loads(r[6])}
         c = self.conn.cursor()
         if player_id is None:
             c.execute("SELECT * FROM players")
-            return c.fetchall()
+            return [row_to_dict(r) for r in c.fetchall()]
         else:
             c.execute("SELECT * FROM players WHERE player_id=?",
                     (player_id,))
@@ -135,17 +143,18 @@ class QBDB:
             if len(r) == 0:
                 return None
             else:
-                r = r[0]
-                return {'player_id': r[0], 'ip': r[1], 'name': r[2],
-                        'questions_answered': json.loads(r[3]),
-                        'questions_seen': json.loads(r[4])}
+                return row_to_dict(r[0])
     
     def update_player(self, player):
         c = self.conn.cursor()
-        c.execute("UPDATE players SET questions_answered=? WHERE player_id=?",
-                (json.dumps(player.questions_answered), player.uid,))
-        c.execute("UPDATE players SET questions_seen=? WHERE player_id=?",
-                (json.dumps(player.questions_seen), player.uid,))
+        c.execute("UPDATE players SET score=?,\
+                questions_seen=?,questions_answered=?,questions_correct=? \
+                WHERE player_id=?", (
+                    player.score,
+                    json.dumps(player.questions_seen),
+                    json.dumps(player.questions_answered),
+                    json.dumps(player.questions_correct),
+                    player.uid))
         self.conn.commit()
 
 class Namespace:
