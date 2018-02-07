@@ -166,6 +166,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         logger.info("[register] new player {} ({})".format(
                             name, client.peer))
 
+                    self.player_list = self.get_player_list()
                     msg = {'type': MSG_TYPE_NEW, 'qid': self.question.qid,
                             'player_list': self.player_list,
                             'info_text': self.info_text,

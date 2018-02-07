@@ -58,6 +58,7 @@ var speech_text = '';
 var speech_starting_position = 0;
 
 
+
 ///////// Constants ///////// 
 var HISTORY_LENGTH = 10;
 var highlight_color = '#ecff6d';
@@ -108,18 +109,25 @@ logout_button.onclick = function(event) {
 };
 
 
+//////// Starting process ////////
+
 var player_name = getCookie("player_name");
 var player_uid = getCookie("player_uid");
 var consent_accepted = getCookie("consent_accepted");
+
+introJs.fn.oncomplete(function() {console.log('complete'); start();});
+introJs.fn.onexit(function() {console.log('complete'); start();});
+
 // var consent_accepted = "";
 if (consent_accepted == "N_O_T_S_E_T") {
     ///////// Consent Form ///////// 
-    $('#exampleModalLong').modal('show');
+    $('#consent_modal').modal('show');
     accept_button.onclick = function(event) {
         setCookie("player_name", "N_O_T_S_E_T");
         setCookie("player_uid", "N_O_T_S_E_T");
         setCookie("consent_accepted", "True");
-        $('#exampleModalLong').modal('hide');
+        $('#consent_modal').modal('hide');
+        introJs().start();
     };
 } else {
     start();
@@ -419,7 +427,7 @@ function update_interpretation(msg) {
                 };
             };
 
-            guesses_table.rows[i + 1].onclick = createClickHandler(guess);
+            // guesses_table.rows[i + 1].onclick = createClickHandler(guess);
         }
         if (guesses.length > 0) {
             if (is_buzzing == false) {
@@ -522,7 +530,7 @@ function start() {
         if (typeof msg.player_list !== 'undefined') {
             var new_tbody = document.createElement('tbody');
             var player_list = msg.player_list;
-            for (var i = 0; i < Math.min(10, player_list.length); i++) {
+            for (var i = 0; i < player_list.length; i++) {
                 var ply = player_list[i];
 
                 var tr = document.createElement('tr');
@@ -552,8 +560,8 @@ function start() {
                 if (ply.uid == player_uid) {
                     tr.className = "table-success";
                 }
-                if (ply.active) {
-                    tr.className = "table-info";
+                if (!ply.active) {
+                    tr.style.color = "#c1c1c1";
                 }
             }
             players_tbody.parentNode.replaceChild(new_tbody, players_tbody);
@@ -594,12 +602,12 @@ function start() {
     };
 }
 
-$("#exampleModalLong").on("hidden.bs.modal", function () {
-    var chosen_name = $("#choose_user_name").val();
-    if (chosen_name != "") {
-        console.log("use chosen name", chosen_name);
-        player_name = chosen_name;
-        setCookie("player_name", player_name);
-    }
-    start();
-});
+// $("#consent_modal").on("hidden.bs.modal", function () {
+//     var chosen_name = $("#choose_user_name").val();
+//     if (chosen_name != "") {
+//         console.log("use chosen name", chosen_name);
+//         player_name = chosen_name;
+//         setCookie("player_name", player_name);
+//     }
+//     start();
+// });
