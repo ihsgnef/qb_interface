@@ -70,12 +70,19 @@ class Player:
         self.questions_answered = []
         self.questions_correct = []
 
-    def can_buzz(self):
-        return self.active and not self.buzzed
+    def can_buzz(self, qid):
+        if not self.active:
+            return False 
+        if self.buzzed:
+            return False
+        if qid in self.questions_answered:
+            return False
+        return True
 
     def sendMessage(self, msg):
         if self.active:
-            msg['buzzed'] = self.buzzed
+            if 'qid' in msg:
+                msg['can_buzz'] = self.can_buzz(msg['qid'])
             self.client.sendMessage(json.dumps(msg).encode('utf-8'))
 
 
@@ -375,7 +382,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.latest_buzzing_msg = None
         buzzing_ids = []
         for uid, player in self.players.items():
-            if not player.can_buzz():
+            if not player.can_buzz(self.question.qid):
                 continue
             if self.check_player_response(
                     player, 'type', MSG_TYPE_BUZZING_REQUEST):
@@ -510,7 +517,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             for player in self.players.values():
                 if player.uid != green_player.uid:
                     player.sendMessage(msg)
-                    if player.can_buzz():
+                    if player.can_buzz(self.question.qid):
                         can_buzz_players += 1
 
             if can_buzz_players == 0:

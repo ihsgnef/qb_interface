@@ -290,8 +290,8 @@ function update_question(msg) {
         window.speechSynthesis.resume();
     }
 
-    if (typeof msg.buzzed != 'undefined') {
-        buzz_button.disabled = msg.buzzed;
+    if (typeof msg.can_buzz != 'undefined') {
+        buzz_button.disabled = !msg.can_buzz;
     } else if (buzzed === false) { 
         buzz_button.disabled = false;
     }
