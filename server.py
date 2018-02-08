@@ -491,9 +491,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
             green_player.sendMessage(msg)
 
             msg['type'] = MSG_TYPE_RESULT_OTHER
+            can_buzz_players = 0
             for player in self.players.values():
                 if player.uid != green_player.uid:
                     player.sendMessage(msg)
+                    if player.can_buzz():
+                        can_buzz_players += 1
+
+            if can_buzz_players == 0:
+                end_of_question = True
         except:
             traceback.print_exc(file=sys.stdout)
 
