@@ -3,6 +3,7 @@ import json
 import time
 import uuid
 import random
+import numpy as np
 import pickle
 import logging
 import traceback
@@ -38,6 +39,9 @@ logger = logging.getLogger('server')
 
 haikunator = Haikunator()
 
+TOOLS = ['guesses', 'highlight', 'matches']
+TOOL_COMBOS = list(range(7)) # 000 -> 111
+
 def get_time():
     ts = time.time()
     return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
@@ -64,8 +68,8 @@ class Player:
         self.position_start = 0
         self.position_buzz = -1
         self.buzz_info = dict()
-        self.enabled_tools = {
-                'guesses': False, 'highlight': False, 'matches': False}
+        self.enabled_tools = {x: False for x in TOOLS}
+        self.combo_count = {x: 0 for x in TOOL_COMBOS}
         self.questions_seen = []
         self.questions_answered = []
         self.questions_correct = []
@@ -104,7 +108,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def __init__(self, url, loop=False):
         WebSocketServerFactory.__init__(self, url)
 
-        with open('data/pace_questions.pkl', 'rb') as f:
+        with open('data/expo_questions.pkl', 'rb') as f:
             self.questions = pickle.load(f)
             self.questions = {x.qid : x for x in self.questions}
             # random.shuffle(self.questions)
@@ -266,16 +270,27 @@ class BroadcastServerFactory(WebSocketServerFactory):
         #         return
         # return self.question_idx
 
-    def update_player_tools(self):
+    def combo_to_tools(self, combo):
+        # combo is a number from 0-7 representing a combination of the three
+        # tools
+        enabled = {}
+        enabled[TOOLS[0]] = (combo % 2) != 0
+        enabled[TOOLS[1]] = ((combo /2) % 2) != 0
+        enabled[TOOLS[2]] = (combo /4) != 0
+        return enabled
+
+    def update_enabled_tools(self):
         # for each active player return a dictionry of 
         # tools -> boolean indicating if each tool is enabled for this round
-        tools = ['guesses', 'highlight', 'matches']
         for uid, player in self.players.items():
-            player.enabled_tools = {x: False for x in tools}
             if not player.active:
                 continue
-            for t in tools:
-                player.enabled_tools[t] = (random.random() > 0.5)
+            params = [20 - player.combo_count[x] for x in TOOL_COMBOS]
+            combo = np.argmax(np.random.dirichlet(params)).tolist()
+            player.enabled_tools = self.combo_to_tools(combo)
+            player.combo_count[combo] += 1
+            # for t in TOOLS:
+            #     player.enabled_tools[t] = (random.random() > 0.5)
         
     def new_question(self):
         try:
@@ -310,7 +325,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     'player_list': self.player_list,
                     'speech_text': ' '.join(self.question.raw_text)}
 
-            self.update_player_tools()
+            self.update_enabled_tools()
             for player in self.players.values():
                 msg['enabled_tools'] = player.enabled_tools
                 player.sendMessage(msg)
@@ -392,7 +407,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self._buzzing(buzzing_ids, end_of_question)
         else:
             if end_of_question:
-                self._end_of_question()
+                reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self._end_of_question)
             else:
                 self.position += 1
                 text_plain, text_highlighted = self.get_display_question()
