@@ -92,7 +92,7 @@
                 <div class="row mt-3">
                     <button type="submit" class="btn btn-danger"
                         style="width:10%; margin-left:17px;" id="buzz_button"
-                        data-step="3" data-intro="Click or press
+                        data-step="3" data-intro="Click this button or press
                         <code>space</code> to buzz, type or select answer from the
                         dropdown menu, then press <code>enter</code> to submit."> Buzz </button>
                     <div class="progress progress-striped active pull-left" style="width:84%; margin: 0px auto; height: 40px;">
@@ -139,8 +139,8 @@
                 </div>
 
                 <div id="history_card" class="card card-outline-primary mt-3"
-                    data-step="6" data-intro="Previous questions. Click to
-                    expand each.">
+                    data-step="6" data-intro="Game history. Click to
+                    expand each question.">
                     <div class="card-body mx-2">
                     <h4 class="card-title">History</h4>
                     <div id="history"> </div>
@@ -151,17 +151,21 @@
             </div>
             <div class="col-md-3">
                 <div class="card card-outline-primary mt-3" data-step="7"
-                    data-intro="Enable / disable the helps from Qanta here.">
+                    data-intro="At each round you are randomly given access to
+                    some of the information from Qanta. They are listed here.">
                     <div class="card-body my-2 mx-2">
                         <h4 class="card-title">Settings</h4>
                         <div class="checkbox">
-                            <label><input type="checkbox" value="" id="guesses_checkbox" checked>Guesses</label>
+                            <label><input type="checkbox" value=""
+                                id="guesses_checkbox" disabled>Guesses</label>
                         </div>
                         <div class="checkbox">
-                            <label><input type="checkbox" value="" id="highlight_checkbox" checked>Highlights</label>
+                            <label><input type="checkbox" value=""
+                                id="highlight_checkbox" disabled>Highlights</label>
                         </div>
                         <div class="checkbox">
-                            <label><input type="checkbox" value="" id="matches_checkbox" checked>Evidence</label>
+                            <label><input type="checkbox" value=""
+                                id="matches_checkbox" disabled>Evidence</label>
                         </div>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
@@ -172,11 +176,12 @@
                     </div>
                 </div>
                 <div id="players_card" class="card card-outline-primary mt-3"
-                    data-step="8" data-intro="Players and are shown here. Stat
+                    data-step="8" data-intro="Players are shown here. Stat
                     shows the number of questions answered correctly, answered,
                     and seen. Inactive players are shown in grey.">
                     <div class="card-body mx-2 my-2">
                         <h4 class="card-title">Players</h4>
+                        <a id="n_active"> 0 active </a>
                         <table class="table table-sm table-hover" id="players_table">
                             <thead>
                                 <tr> <th> #</th> <th> Score </th> <th> Name </th> <th> Stat </th> </tr>
