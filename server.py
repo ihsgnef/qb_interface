@@ -390,9 +390,34 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 x = highlight_template.format(x) if y else x
                 matches_highlighted[i] += x + ' '
         return matches_plain, matches_highlighted
+    
+    def last_chance(self, countdown):
+        buzzing_ids = []
+        for uid, player in self.players.items():
+            if not player.can_buzz(self.question.qid):
+                continue
+            if self.check_player_response(
+                    player, 'type', MSG_TYPE_BUZZING_REQUEST):
+                buzzing_ids.append(uid)
+        if len(buzzing_ids) > 0:
+            self._buzzing(buzzing_ids, end_of_question=True)
+        else:
+            if countdown == 0:
+                self._end_of_question()
+            else:
+                msg = {'type': MSG_TYPE_RESUME,
+                        'qid': self.question.qid,
+                        'position': self.position,
+                        'length': self.question.length,
+                        }
+                for player in self.players.values():
+                    player.sendMessage(msg)
+                reactor.callLater(SECOND_PER_WORD, 
+                        self.last_chance, countdown - 1)
+
 
     def stream_next(self):
-        end_of_question = self.position >= self.question.length
+        end_of_question = self.position == self.question.length
 
         self.latest_buzzing_msg = None
         buzzing_ids = []
@@ -407,7 +432,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self._buzzing(buzzing_ids, end_of_question)
         else:
             if end_of_question:
-                reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self._end_of_question)
+                self.last_chance(6)
             else:
                 self.position += 1
                 text_plain, text_highlighted = self.get_display_question()

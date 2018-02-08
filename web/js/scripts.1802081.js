@@ -623,6 +623,7 @@ function start() {
             update_question(msg);
         } else if (msg.type === MSG_TYPE_END) {
             update_interpretation(msg);
+            clearTimeout(timer_timeout);
             end_of_question(msg);
         } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
             handle_buzzing(msg);
