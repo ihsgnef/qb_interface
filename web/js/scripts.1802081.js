@@ -2,7 +2,7 @@ var sockt;
 // var socket_addr = "ws://127.0.0.1:9000";
 var socket_addr = "ws://34.209.31.242:9000";
 // var answer_json_dir = "http://localhost/answers.json";
-var answer_json_dir = "http://qbinterface.club/answers.json";
+var answer_json_dir = "http://qbinterface.club/answers.0212.json";
 $("#consent_form").load("consent_form.html"); 
 
 
@@ -614,7 +614,7 @@ function start() {
                 matches_card.style.display = "none";
                 matches_checkbox.checked = false;
             }
-            highlight_checkbox = tools.highlight;
+            highlight_checkbox.checked = tools.highlight;
 
         }
         if (msg.type === MSG_TYPE_NEW) {

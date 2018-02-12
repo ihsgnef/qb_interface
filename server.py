@@ -27,6 +27,7 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
 from util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
         NEW_LINE, BELL, bodify, highlight_template
 from util import QBQuestion, QantaCacheEntry, null_question
+from alternative import alternative_answers
 from db import QBDB
 
 ANSWER_TIME_OUT = 10
@@ -520,14 +521,24 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.deferreds.append((deferred, condition))
 
     def judge(self, guess):
-        return guess.lower() == self.question.answer.lower()
+        answer = self.question.answer.lower()
+        if guess.lower() == answer:
+            return True
+        if guess.lower() in alternative_answers[answer]:
+            return True
+        return False
 
     def _buzzing_after(self, buzzing_id, end_of_question, timed_out):
         try:
             green_player = self.players[buzzing_id]
             answer = 'TIME_OUT' if timed_out else green_player.response['text']
             result = self.judge(answer) and not timed_out
-            score = 10 if result else (0 if end_of_question else -5)
+            score = 0
+            if result:
+                score = 10
+            else:
+                if not end_of_question:
+                    score = -5
             green_player.buzz_info = {
                     'position': self.position,
                     'guess': answer,
@@ -542,7 +553,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
             self.info_text += answer
             self.info_text += BADGE_CORRECT if result else BADGE_WRONG
-            self.info_text += ' ({})'.format(green_player.score)
+            self.info_text += ' ({})'.format(score)
             self.info_text += NEW_LINE
 
             msg = {'qid': self.question.qid, 'result': result,
