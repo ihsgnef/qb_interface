@@ -49,12 +49,10 @@
     </div>
     <div class="container-fluid">
         <ul class="breadcrumb">QuizBowl</ul>
-        <div class="row" data-step="1" data-intro="Welcome! 
-        Please follow this short tour to get familiar with the
-        functionalities of this interface.">
+        <div class="row" data-step="1" data-intro="This is what the interface might look like in the middle of a question.">
             <div class="col-md-3">
                 <div id="guesses_card" class="card card-outline-primary mt-3"
-                    data-step="4" data-intro="Top guesses from
+                    data-step="4" data-intro="<b>Guesses</b> from
                     Qanta are shown here.">
                     <div class="card-body mx-2 my-2">
                         <h4 class="card-title">Guesses</h4>
@@ -63,11 +61,11 @@
                                 <tr> <th> #</th> <th> Guess </th> <th> Score </th> </tr>
                             </thead>
                             <tbody>
-                                <tr> <td> 1 </td> <td> - </td> <td> - </td> </tr>
-                                <tr> <td> 2 </td> <td> - </td> <td> - </td> </tr>
-                                <tr> <td> 3 </td> <td> - </td> <td> - </td> </tr>
-                                <tr> <td> 4 </td> <td> - </td> <td> - </td> </tr>
-                                <tr> <td> 5 </td> <td> - </td> <td> - </td> </tr>
+                                <tr> <td> 1 </td> <td> Electron </td> <td> 1.76456 </td> </tr>
+                                <tr> <td> 2 </td> <td> Positron </td> <td> 1.37278 </td> </tr>
+                                <tr> <td> 3 </td> <td> Atomic nucleaus </td> <td> 1.0303 </td> </tr>
+                                <tr> <td> 4 </td> <td> Photon </td> <td> 0.9937 </td> </tr>
+                                <tr> <td> 5 </td> <td> Neutrino </td> <td> 0.96870 </td> </tr>
                             </tbody>
                         </table>
                     </div>
@@ -117,22 +115,24 @@
                 <div class="card card-outline-primary mt-1" data-step="2" data-intro="Questions are displayed here.">
                     <div class="card-body my-2 mx-2">
                         <h4 class="card-title">Question</h4>
-                        <a class="card-text" id="question_area"> question text</a>
+                        <a class="card-text" id="question_area">
+                            These <span style="background-color: #ecff6d">particles</span> are solvated in strongly reducing solutions, such as that <span style="background-color: #ecff6d">used</span> in the Birch reduction. The <span style="background-color: #ecff6d">charge</span> of these <span style="background-color: #ecff6d">particles</span> was measured in an <span style="background-color: #ecff6d">experiment</span> that balanced the <span style="background-color: #ecff6d">gravitational</span> and buoyant <span style="background-color: #ecff6d">forces</span> acting on <span style="background-color: #ecff6d">drops</span> of (*) oil against
+                        </a>
                     </div>
                 </div>
                 <div id="matches_card" class="card card-outline-primary mt-3"
-                    data-step="5" data-intro="The evidence of Qanta's prediction
+                    data-step="5" data-intro="The <b>evidence</b> of Qanta's prediction
                     is shown here. Each line is a snippet from either a previous
-                    quizbowl question or Wikipedia page." >
+                    quizbowl question or Wikipedia page. <b>Highlights</b> shows the most important words." >
                     <div class="card-body mx-2">
                         <h4 class="card-title">Evidence</h4>
-                        <span>for </span> <b><span id="guess_of_matches"></span></b></br></br>
+                        <span>for </span> <b><span id="guess_of_matches">Electron</span></b></br></br>
                         <table class="table table-sm" id="matches_table">
                             <tbody>
-                                <tr><td> - </td></tr>
-                                <tr><td> - </td></tr>
-                                <tr><td> - </td></tr>
-                                <tr><td> - </td></tr>
+                                <tr><td> <span style="background-color: #ecff6d">gravitational</span> <span style="background-color: #ecff6d">forces</span> on oil <span style="background-color: #ecff6d">drops</span> to measure the <span style="background-color: #ecff6d">charge</span> of these <span style="background-color: #ecff6d">particles</span> , an <span style="background-color: #ecff6d">experiment</span> conducted by </td></tr>
+                                <tr><td> pudding model. The <span style="background-color: #ecff6d">charge</span> on one of these <span style="background-color: #ecff6d">particles</span> is also known as the fundamental <span style="background-color: #ecff6d">charge</span> . In the Bohr </td></tr>
+                                <tr><td> be deflected by an electric field, and that their mass-to-__charge ratio was the same as for cathode </td></tr>
+                                <tr><td> which is <span style="background-color: #ecff6d">used</span> as a standard unit of <span style="background-color: #ecff6d">charge</span> for subatomic <span style="background-color: #ecff6d">particles</span> , and is also called the elementary </td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -152,24 +152,25 @@
             <div class="col-md-3">
                 <div class="card card-outline-primary mt-3" data-step="7"
                     data-intro="At each round you are randomly given access to
-                    some of the information from Qanta. They are listed here.">
+                    some of the information from Qanta. They are listed here.
+                    Note that <b>Highlights</b> affects both the question and the evidence.">
                     <div class="card-body my-2 mx-2">
                         <h4 class="card-title">Settings</h4>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
-                                id="guesses_checkbox" disabled>Guesses</label>
+                                id="guesses_checkbox" checked disabled>Guesses</label>
                         </div>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
-                                id="highlight_checkbox" disabled>Highlights</label>
+                                id="highlight_checkbox" checked disabled>Highlights</label>
                         </div>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
-                                id="matches_checkbox" disabled>Evidence</label>
+                                id="matches_checkbox" checked disabled>Evidence</label>
                         </div>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
-                                id="voice_checkbox" disabled>Voice</label>
+                                id="voice_checkbox" checked disabled>Voice</label>
                         </div>
                         <button class="btn btn-secondary btn-sm" id="logout_button">Sign Out</button>
 
@@ -181,12 +182,15 @@
                     and seen. Inactive players are shown in grey.">
                     <div class="card-body mx-2 my-2">
                         <h4 class="card-title">Players</h4>
-                        <a id="n_active"> 0 active </a>
+                        <a id="n_active"> 2 active </a>
                         <table class="table table-sm table-hover" id="players_table">
                             <thead>
                                 <tr> <th> #</th> <th> Score </th> <th> Name </th> <th> Stat </th> </tr>
                             </thead>
                             <tbody id="players_tbody">
+                                <tr> <td> 1</td> <td> 100 </td> <td> Trusty Tahr </td> <td> 10/14/20 </td> </tr>
+                                <tr> <td> 2</td> <td> 75 </td> <td>  Xenial Xerus </td> <td> 9/12/18 </td> </tr>
+                                <tr style='color: #c1c1c1'> <td> 3</td> <td> 30 </td> <td> Precise Pangolin </td> <td> 5/7/18 </td> </tr>
                             </tbody>
                         </table>
                     </div>
