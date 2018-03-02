@@ -558,9 +558,8 @@ function start() {
                 td.appendChild(document.createTextNode(ply.name));
                 tr.appendChild(td);
 
-                var stat = ply.questions_correct.length + '/'
-                           + ply.questions_answered.length + '/'
-                           + ply.questions_seen.length;
+                var neg = ply.questions_answered - ply.questions_correct;
+                var stat = ply.questions_correct.length + '/' + neg;
 
                 var td = document.createElement('td');
                 td.appendChild(document.createTextNode(stat));
