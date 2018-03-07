@@ -23,7 +23,8 @@ from autobahn.twisted.websocket import WebSocketServerFactory, \
 from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
         MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
-        MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
+        MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER, \
+        MSG_TYPE_COMPLETE
 from util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
         NEW_LINE, BELL, bodify, highlight_template
 from util import QBQuestion, QantaCacheEntry, null_question
@@ -34,6 +35,7 @@ ANSWER_TIME_OUT = 10
 SECOND_PER_WORD = 0.4
 PLAYER_RESPONSE_TIME_OUT = 3
 HISTORY_LENGTH = 30
+NUM_QUESTIONS = 10
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
@@ -74,6 +76,7 @@ class Player:
         self.questions_seen = []
         self.questions_answered = []
         self.questions_correct = []
+        self.complete = False # answered all questions
 
     def can_buzz(self, qid):
         if not self.active:
@@ -112,6 +115,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         with open('data/expo_questions.pkl', 'rb') as f:
             self.questions = pickle.load(f)
             self.questions = {x.qid : x for x in self.questions}
+            # global NUM_QUESTIONS
+            # NUM_QUESTIONS = len(self.questions)
             # random.shuffle(self.questions)
         logger.info('Loaded {} questions'.format(len(self.questions)))
 
@@ -171,6 +176,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             new_player.questions_seen = dbp['questions_seen']
                             new_player.questions_answered = dbp['questions_answered']
                             new_player.questions_correct = dbp['questions_correct']
+                            new_player.complete = len(set(dbp['questions_answered'])) >= NUM_QUESTIONS
+                            if new_player.complete:
+                                new_player.enabled_tools = {x: True for x in TOOLS}
                         else:
                             logger.info('add player {} to db'.format(new_player.uid))
                             self.db.add_player(new_player)
@@ -245,8 +253,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
         if client.peer in self.socket_to_player:
             player = self.socket_to_player[client.peer]
             player.response = msg
-            # if 'enabled_tools' in msg:
-            #     player.enabled_tools = msg
             self.check_deferreds()
         else:
             logger.warning("Unknown source {}:\n{}".format(client.peer, msg))
@@ -286,12 +292,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
         for uid, player in self.players.items():
             if not player.active:
                 continue
+            if player.complete:
+                player.enabled_tools = {x: True for x in TOOLS}
+                continue
             params = [20 - player.combo_count[x] for x in TOOL_COMBOS]
             combo = np.argmax(np.random.dirichlet(params)).tolist()
             player.enabled_tools = self.combo_to_tools(combo)
             player.combo_count[combo] += 1
-            # for t in TOOLS:
-            #     player.enabled_tools[t] = (random.random() > 0.5)
         
     def new_question(self):
         try:
@@ -322,13 +329,17 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
             self.player_list = self.get_player_list()
             msg = {'type': MSG_TYPE_NEW, 'qid': self.question.qid, 
+                    'info_text': '',
                     'length': self.question.length, 'position': 0,
                     'player_list': self.player_list,
                     'speech_text': ' '.join(self.question.raw_text)}
 
             self.update_enabled_tools()
             for player in self.players.values():
+                # allow all tools when player has finished all questions
                 msg['enabled_tools'] = player.enabled_tools
+                if player.complete:
+                    msg['free_mode'] = True
                 player.sendMessage(msg)
                 condition = partial(self.check_player_response,
                         player=player, key='qid', value=self.question.qid)
@@ -468,9 +479,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'uid': x['player_id'],
                 'name': x['name'],
                 'score': x['score'],
-                'questions_seen': x['questions_seen'],
-                'questions_answered': x['questions_answered'],
-                'questions_correct': x['questions_correct'],
+                'questions_seen': len(set(x['questions_seen'])),
+                'questions_answered': len(set(x['questions_answered'])),
+                'questions_correct': len(set(x['questions_correct'])),
                 'active': x['active']})
         return player_list 
 
@@ -638,12 +649,19 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         player.buzz_info.get('guess', ''),
                         player.buzz_info.get('result', None),
                         player.buzz_info.get('score', 0),
-                        player.enabled_tools)
+                        player.enabled_tools,
+                        player.complete)
                 player.response = None
                 player.buzzed = False
                 player.position_start = 0
                 player.position_buzz = -1
                 player.buzz_info = dict()
+                n_answered = len(set(player.questions_answered))
+                # print(player.name, player.complete, n_answered, NUM_QUESTIONS)
+                if not player.complete and n_answered >= NUM_QUESTIONS:
+                    logger.info("player {} complete".format(player.name))
+                    player.complete = True
+                    player.sendMessage({'type': MSG_TYPE_COMPLETE})
             for uid in to_remove:
                 self.players.pop(uid, None)
         except Exception as e:

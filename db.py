@@ -29,7 +29,8 @@ class QBDB:
                 guess TEXT, \
                 result INTEGER, \
                 score INTEGER, \
-                enabled_tools TEXT)')
+                enabled_tools TEXT, \
+                free_mode INTEGER)')
 
         c.execute('CREATE TABLE players (\
                 player_id PRIMARY KEY, \
@@ -84,13 +85,13 @@ class QBDB:
     def add_record(self, game_id, player_id, player_name, question_id,
             position_start=0, position_buzz=-1,
             guess='', result=None, score=0,
-            enabled_tools=dict()):
+            enabled_tools=dict(), free_mode=False):
         record_id = 'record_' + str(uuid.uuid4()).replace('-', '')
         c = self.conn.cursor()
-        c.execute('INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+        c.execute('INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
                 (record_id, game_id, player_id, player_name, question_id,
                 position_start, position_buzz, guess, result, score,
-                json.dumps(enabled_tools)))
+                json.dumps(enabled_tools), int(free_mode)))
         self.conn.commit()
 
     def add_cache(self, question_id, records):
@@ -179,7 +180,8 @@ class QBDB:
                     'guess': row[7],
                     'result': row[8],
                     'score': row[9],
-                    'enabled_tools': json.loads(row[10])}
+                    'enabled_tools': json.loads(row[10]),
+                    'free_mode': bool(row[11])}
         c = self.conn.cursor()
         c.execute("SELECT * FROM records WHERE player_id=?",
                 (player_id,))
@@ -205,4 +207,5 @@ if __name__ == '__main__':
     db.add_record(game_id, player.uid, name, qid,
             position_start=0, position_buzz=-1,
             guess='China', result=True, score=10,
-            enabled_tools=dict())
+            enabled_tools=dict(),
+            free_mode=False)

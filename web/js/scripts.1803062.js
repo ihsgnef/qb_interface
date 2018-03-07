@@ -16,6 +16,7 @@ var MSG_TYPE_BUZZING_GREEN = 5; // tell user you win the buzz and can answer now
 var MSG_TYPE_BUZZING_RED = 6; // tell user you cannot buzz now
 var MSG_TYPE_RESULT_MINE = 7; // result of my answer
 var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
+var MSG_TYPE_COMPLETE = 9; // answered all questions
 
 
 ///////// HTML Elements ///////// 
@@ -41,7 +42,6 @@ var answer_group       = document.getElementById("answer_area_row");
 var history_div        = document.getElementById('history');
 var logout_button      = document.getElementById("logout_button");
 var pause_button      = document.getElementById("pause_button");
-var resume_button      = document.getElementById("resume_button");
 
 
 ///////// State variables ///////// 
@@ -115,6 +115,8 @@ logout_button.onclick = function(event) {
 
 pause_button.onclick = function(event) {
     if (pause_button.firstChild.data == "Resume") {
+        clearTimeout(timer_timeout);
+        timer_set = false;
         pause_button.firstChild.data = "Pause";
         pause_button.classList.remove('btn-success');
         pause_button.classList.add('btn-warning');
@@ -122,6 +124,7 @@ pause_button.onclick = function(event) {
     } else {
         // $('pause_modal').modal('show');
         clearTimeout(timer_timeout);
+        timer_set = false;
         sockt.onclose = function() {};
         sockt.onmessage = function() {};
         sockt.close();
@@ -138,8 +141,8 @@ var player_name = getCookie("player_name");
 var player_uid = getCookie("player_uid");
 var consent_accepted = getCookie("consent_accepted");
 
-introJs.fn.oncomplete(function() {console.log('complete'); start();});
-introJs.fn.onexit(function() {console.log('complete'); start();});
+introJs.fn.oncomplete(function() {start();});
+introJs.fn.onexit(function() {start();});
 
 // var consent_accepted = "";
 if (consent_accepted == "N_O_T_S_E_T") {
@@ -323,7 +326,6 @@ function update_question(msg) {
     var m = {
         qid: msg.qid,
         position: position,
-        // enabled_tools: get_enabled_tools()
     };
     if (is_buzzing === false) {
         m.type = MSG_TYPE_RESUME,
@@ -331,14 +333,6 @@ function update_question(msg) {
     } else {
         m.type = MSG_TYPE_BUZZING_REQUEST;
         sockt.send(JSON.stringify(m));
-    }
-}
-
-function get_enabled_tools() {
-    return {
-        guesses: guesses_checkbox.checked,
-        highlight: highlight_checkbox.checked,
-        matches: matches_checkbox.checked
     }
 }
 
@@ -355,8 +349,7 @@ function send_answer() {
         type: MSG_TYPE_BUZZING_ANSWER,
         qid: qid,
         position: position,
-        text: answer,
-        // enabled_tools: get_enabled_tools()
+        text: answer
     };
     sockt.send(JSON.stringify(m));
     answer_group.style.display = "none";
@@ -488,7 +481,6 @@ function end_of_question(msg) {
     if (pause_countdown == 0) {
         pause_button.click();
     }
-    console.log('pause countdown', pause_countdown);
 }
 
 function progress(timeleft, timetotal, is_red) {
@@ -530,9 +522,10 @@ function handle_buzzing(msg) {
         is_buzzing = true;
         buzzed = true;
     }
-    buzz_button.disabled = true;
     clearTimeout(timer_timeout);
     progress(7, 7, true);
+    timer_set = true;
+    buzz_button.disabled = true;
     question_text += bell_str;
     question_text_color += bell_str;
     update_question_display();
@@ -544,6 +537,7 @@ function start() {
     sockt = new WebSocket(socket_addr);
     sockt.onmessage = function(event) {
         var msg = JSON.parse(event.data);
+        console.log('type', msg.type);
         if (typeof msg.player_name != 'undefined') {
             if (player_name == "N_O_T_S_E_T") {
                 player_name = msg.player_name;
@@ -556,14 +550,6 @@ function start() {
                 player_uid = msg.player_uid;
                 console.log('set player uid', player_uid);
                 setCookie("player_uid", player_uid);
-            }
-        }
-        if (typeof msg.length != 'undefined') {
-            if (timer_set === false) {
-                var timetotal = msg.length / 2;
-                var timeleft = (msg.length - msg.position) / 2;
-                progress(timeleft, timetotal, false);
-                timer_set = true;
             }
         }
         if (typeof msg.player_list !== 'undefined') {
@@ -587,8 +573,8 @@ function start() {
                 td.appendChild(document.createTextNode(ply.name));
                 tr.appendChild(td);
 
-                var neg = ply.questions_answered.length - ply.questions_correct.length;
-                var stat = ply.questions_correct.length + '/' + neg;
+                var neg = ply.questions_answered - ply.questions_correct;
+                var stat = ply.questions_correct + '/' + neg;
 
                 var td = document.createElement('td');
                 td.appendChild(document.createTextNode(stat));
@@ -628,6 +614,15 @@ function start() {
         }
         if (typeof msg.enabled_tools != 'undefined') {
             var tools = msg.enabled_tools;
+            if (typeof msg.free_mode != 'undefined') {
+                guesses_checkbox.disabled = false;
+                matches_checkbox.disabled = false;
+                highlight_checkbox.disabled = false;
+                return
+            }
+            guesses_checkbox.disabled = true;
+            matches_checkbox.disabled = true;
+            highlight_checkbox.disabled = true;
             if (tools.guesses) {
                 guesses_card.style.display = "block";
                 guesses_checkbox.checked = true;
@@ -652,6 +647,7 @@ function start() {
         } else if (msg.type === MSG_TYPE_END) {
             update_interpretation(msg);
             clearTimeout(timer_timeout);
+            timer_set = false;
             end_of_question(msg);
         } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
             handle_buzzing(msg);
@@ -661,6 +657,18 @@ function start() {
             handle_result(msg);
         } else if (msg.type === MSG_TYPE_RESULT_OTHER) {
             handle_result(msg);
+        } else if (msg.type === MSG_TYPE_COMPLETE) {
+            alert("Congrats! You have answered all the questions.");
+            pause_button.click();
+        }
+        if (typeof msg.length != 'undefined') {
+            console.log("length", msg.length, timer_set);
+            if (timer_set === false) {
+                var timetotal = msg.length / 2;
+                var timeleft = (msg.length - msg.position) / 2;
+                progress(timeleft, timetotal, false);
+                timer_set = true;
+            }
         }
     };
 }

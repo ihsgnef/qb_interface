@@ -14,6 +14,7 @@ MSG_TYPE_BUZZING_GREEN = 5 # tell user you win the buzz and can answer now
 MSG_TYPE_BUZZING_RED = 6 # tell user you cannot buzz now
 MSG_TYPE_RESULT_MINE = 7 # result of my answer
 MSG_TYPE_RESULT_OTHER = 8 # result of someone else's answer
+MSG_TYPE_COMPLETE = 9 # answered all questions
 
 BADGE_CORRECT = ' <span class="badge badge-success">Correct</span>'
 BADGE_WRONG = ' <span class="badge badge-warning">Wrong</span>'
