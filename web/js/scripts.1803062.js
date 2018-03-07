@@ -40,6 +40,8 @@ var voice_checkbox     = document.getElementById("voice_checkbox");
 var answer_group       = document.getElementById("answer_area_row");
 var history_div        = document.getElementById('history');
 var logout_button      = document.getElementById("logout_button");
+var pause_button      = document.getElementById("pause_button");
+var resume_button      = document.getElementById("resume_button");
 
 
 ///////// State variables ///////// 
@@ -58,7 +60,8 @@ var buzzing_on_guess    = false; // buzzing by clicking on guess or not
 var bell_str = ' <span class="fa fa-bell" aria-hidden="true"></span> ';
 var speech_text = '';
 var speech_starting_position = 0;
-
+var PAUSE_COUNTDOWN = 5;
+var pause_countdown = PAUSE_COUNTDOWN;
 
 
 ///////// Constants ///////// 
@@ -108,6 +111,24 @@ logout_button.onclick = function(event) {
     window.location.reload(false);
     console.log(getCookie("player_name"));
     console.log(getCookie("player_uid"));
+};
+
+pause_button.onclick = function(event) {
+    if (pause_button.firstChild.data == "Resume") {
+        pause_button.firstChild.data = "Pause";
+        pause_button.classList.remove('btn-success');
+        pause_button.classList.add('btn-warning');
+        start();
+    } else {
+        // $('pause_modal').modal('show');
+        clearTimeout(timer_timeout);
+        sockt.onclose = function() {};
+        sockt.onmessage = function() {};
+        sockt.close();
+        pause_button.firstChild.data = "Resume";
+        pause_button.classList.remove('btn-warning');
+        pause_button.classList.add('btn-success');
+    }
 };
 
 
@@ -163,6 +184,7 @@ answer_area.onkeydown = function(event) {
 buzz_button.onclick = function() {
     is_buzzing = true;
     buzz_button.disabled = true;
+    pause_countdown = PAUSE_COUNTDOWN;
 };
 // show hide guesses panel
 guesses_checkbox.onclick = function() {
@@ -460,7 +482,13 @@ function update_interpretation(msg) {
 }
 
 function end_of_question(msg) {
-    // 
+    if (buzzed == false) {
+        pause_countdown -= 1;
+    }
+    if (pause_countdown == 0) {
+        pause_button.click();
+    }
+    console.log('pause countdown', pause_countdown);
 }
 
 function progress(timeleft, timetotal, is_red) {
@@ -512,6 +540,7 @@ function handle_buzzing(msg) {
 
 
 function start() {
+    pause_countdown = PAUSE_COUNTDOWN;
     sockt = new WebSocket(socket_addr);
     sockt.onmessage = function(event) {
         var msg = JSON.parse(event.data);
@@ -558,7 +587,7 @@ function start() {
                 td.appendChild(document.createTextNode(ply.name));
                 tr.appendChild(td);
 
-                var neg = ply.questions_answered - ply.questions_correct;
+                var neg = ply.questions_answered.length - ply.questions_correct.length;
                 var stat = ply.questions_correct.length + '/' + neg;
 
                 var td = document.createElement('td');
