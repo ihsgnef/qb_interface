@@ -125,7 +125,7 @@ class QBDB:
                    for i, e in records.items()}
         return records
     
-    def get_player(self, player_id=None):
+    def get_player(self, player_id=None, player_name=None):
         def row_to_dict(r):
             return {'player_id': r[0], 'ip': r[1],
                     'name': r[2], 'score': r[3],
@@ -133,10 +133,10 @@ class QBDB:
                     'questions_answered': json.loads(r[5]),
                     'questions_correct': json.loads(r[6])}
         c = self.conn.cursor()
-        if player_id is None:
+        if player_id is None and player_name is None:
             c.execute("SELECT * FROM players")
             return [row_to_dict(r) for r in c.fetchall()]
-        else:
+        elif player_id is not None:
             c.execute("SELECT * FROM players WHERE player_id=?",
                     (player_id,))
             r = c.fetchall()
@@ -144,6 +144,16 @@ class QBDB:
                 return None
             else:
                 return row_to_dict(r[0])
+        else:
+            assert player_name is not None
+            c.execute("SELECT * FROM players WHERE name=?",
+                    (player_name,))
+            rs = c.fetchall()
+            if len(rs) == 0:
+                return None
+            else:
+                return [row_to_dict(r) for r in rs]
+            
     
     def update_player(self, player):
         c = self.conn.cursor()
@@ -156,6 +166,27 @@ class QBDB:
                     json.dumps(player.questions_correct),
                     player.uid))
         self.conn.commit()
+
+    def get_records(self, player_id):
+        def row_to_dict(row):
+            return {'record_id': row[0],
+                    'game_id': row[1],
+                    'player_id': row[2],
+                    'player_name': row[3],
+                    'question_id': row[4],
+                    'position_start': row[5],
+                    'position_buzz': row[6],
+                    'guess': row[7],
+                    'result': row[8],
+                    'score': row[9],
+                    'enabled_tools': json.loads(row[10])}
+        c = self.conn.cursor()
+        c.execute("SELECT * FROM records WHERE player_id=?",
+                (player_id,))
+        rs = c.fetchall()
+        rs = [row_to_dict(r) for r in rs]
+        return rs
+
 
 class Namespace:
     def __init__(self, **kwargs):
