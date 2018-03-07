@@ -41,7 +41,8 @@ var voice_checkbox     = document.getElementById("voice_checkbox");
 var answer_group       = document.getElementById("answer_area_row");
 var history_div        = document.getElementById('history');
 var logout_button      = document.getElementById("logout_button");
-var pause_button      = document.getElementById("pause_button");
+var pause_button       = document.getElementById("pause_button");
+var resume_button      = document.getElementById("resume_button");
 
 
 ///////// State variables ///////// 
@@ -114,26 +115,19 @@ logout_button.onclick = function(event) {
 };
 
 pause_button.onclick = function(event) {
-    if (pause_button.firstChild.data == "Resume") {
-        clearTimeout(timer_timeout);
-        timer_set = false;
-        pause_button.firstChild.data = "Pause";
-        pause_button.classList.remove('btn-success');
-        pause_button.classList.add('btn-warning');
-        start();
-    } else {
-        // $('pause_modal').modal('show');
-        clearTimeout(timer_timeout);
-        timer_set = false;
-        sockt.onclose = function() {};
-        sockt.onmessage = function() {};
-        sockt.close();
-        pause_button.firstChild.data = "Resume";
-        pause_button.classList.remove('btn-warning');
-        pause_button.classList.add('btn-success');
-    }
+    $('#pause_modal').modal('show');
+    clearTimeout(timer_timeout);
+    timer_set = false;
+    sockt.onclose = function() {};
+    sockt.onmessage = function() {};
+    sockt.close();
 };
 
+resume_button.onclick = function(event) {
+    clearTimeout(timer_timeout);
+    timer_set = false;
+    start();
+};
 
 //////// Starting process ////////
 
@@ -537,7 +531,6 @@ function start() {
     sockt = new WebSocket(socket_addr);
     sockt.onmessage = function(event) {
         var msg = JSON.parse(event.data);
-        console.log('type', msg.type);
         if (typeof msg.player_name != 'undefined') {
             if (player_name == "N_O_T_S_E_T") {
                 player_name = msg.player_name;
@@ -642,6 +635,7 @@ function start() {
         }
         if (msg.type === MSG_TYPE_NEW) {
             new_question(msg);
+            timer_set = false;
         } else if (msg.type === MSG_TYPE_RESUME) {
             update_question(msg);
         } else if (msg.type === MSG_TYPE_END) {
@@ -662,7 +656,6 @@ function start() {
             pause_button.click();
         }
         if (typeof msg.length != 'undefined') {
-            console.log("length", msg.length, timer_set);
             if (timer_set === false) {
                 var timetotal = msg.length / 2;
                 var timeleft = (msg.length - msg.position) / 2;

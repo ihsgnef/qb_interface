@@ -190,6 +190,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             'player_list': self.player_list,
                             'info_text': self.info_text,
                             'history_entries': self.history_entries,
+                            'length': self.question.length,
                             'position': self.position,
                             'speech_text': ' '.join(self.question.raw_text[self.position:])}
                     self.players[uid].sendMessage(msg)

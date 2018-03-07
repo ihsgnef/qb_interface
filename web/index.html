@@ -48,19 +48,25 @@
       </div>
     </div>
 
-    <div class="modal fade" id="pause_modal" role="dialog"
-        aria-labelledby="pause_title" aria-hidden="true">
-      <div class="modal-dialog modal-lg" role="document">
+
+    <div id="pause_modal" class="modal fade" role="dialog">
+      <div class="modal-dialog">
+    
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="consent_title">Paused</h5>
+            <h4 class="modal-title">Paused</h4>
           </div>
           <div class="modal-body">
-                <button type="submit" class="btn btn-primary" id="resume_button">Resume</button>
+            <p>User paused client or haven't answered question in a while.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-success" id="resume_button" data-dismiss="modal">Resume</button>
           </div>
         </div>
+    
       </div>
     </div>
+
 
     <div class="container-fluid" data-step="1" data-intro="Welcome! Please follow this
     tutorial to get familiar with the interface." data-position='auto'>
@@ -228,7 +234,7 @@
     <script src="js/intro.js"></script>
     <script src="js/FuzzySearch.min.js"></script>
     <script data-cfasync="false" type="text/javascript" src="js/form-submission-handler.js"></script>
-    <script src="js/scripts.1803063.js"></script>
+    <script src="js/scripts.1803064.js"></script>
 </body>
 
 </html>
