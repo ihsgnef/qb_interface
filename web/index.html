@@ -24,7 +24,8 @@
 <body>
     <!-- Modal -->
     <div class="modal fade" id="consent_modal" role="dialog"
-        aria-labelledby="consent_title" aria-hidden="true">
+        aria-labelledby="consent_title" aria-hidden="true"
+        data-backdrop="static" data-keyboard="false">
       <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
@@ -49,7 +50,8 @@
     </div>
 
 
-    <div id="pause_modal" class="modal fade" role="dialog">
+    <div id="pause_modal" class="modal fade" role="dialog" 
+        data-backdrop="static" data-keyboard="false">
       <div class="modal-dialog">
     
         <div class="modal-content">
@@ -58,6 +60,25 @@
           </div>
           <div class="modal-body">
             <p>User paused client or haven't answered question in a while.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-success" id="resume_button" data-dismiss="modal">Resume</button>
+          </div>
+        </div>
+    
+      </div>
+    </div>
+
+    <div id="complete_modal" class="modal fade" role="dialog"
+        data-backdrop="static" data-keyboard="false">
+      <div class="modal-dialog">
+    
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title">Paused</h4>
+          </div>
+          <div class="modal-body">
+            <p>Congrats! You have answered all the questions.</p>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-success" id="resume_button" data-dismiss="modal">Resume</button>

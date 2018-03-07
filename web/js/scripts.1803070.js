@@ -531,6 +531,20 @@ function start() {
     sockt = new WebSocket(socket_addr);
     sockt.onmessage = function(event) {
         var msg = JSON.parse(event.data);
+        if (typeof msg.player_name != 'undefined') {
+            if (player_name == "N_O_T_S_E_T") {
+                player_name = msg.player_name;
+                console.log('set player name', player_name);
+                setCookie("player_name", player_name);
+            }
+        }
+        if (typeof msg.player_uid != 'undefined') {
+            if (player_uid == "N_O_T_S_E_T") {
+                player_uid = msg.player_uid;
+                console.log('set player uid', player_uid);
+                setCookie("player_uid", player_uid);
+            }
+        }
         if (msg.type === MSG_TYPE_NEW) {
             new_question(msg);
             timer_set = false;
@@ -560,20 +574,6 @@ function start() {
                 var timeleft = (msg.length - msg.position) / 2;
                 progress(timeleft, timetotal, false);
                 timer_set = true;
-            }
-        }
-        if (typeof msg.player_name != 'undefined') {
-            if (player_name == "N_O_T_S_E_T") {
-                player_name = msg.player_name;
-                console.log('set player name', player_name);
-                setCookie("player_name", player_name);
-            }
-        }
-        if (typeof msg.player_uid != 'undefined') {
-            if (player_uid == "N_O_T_S_E_T") {
-                player_uid = msg.player_uid;
-                console.log('set player uid', player_uid);
-                setCookie("player_uid", player_uid);
             }
         }
         if (typeof msg.player_list !== 'undefined') {
