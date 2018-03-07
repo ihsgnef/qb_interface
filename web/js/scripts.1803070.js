@@ -531,6 +531,37 @@ function start() {
     sockt = new WebSocket(socket_addr);
     sockt.onmessage = function(event) {
         var msg = JSON.parse(event.data);
+        if (msg.type === MSG_TYPE_NEW) {
+            new_question(msg);
+            timer_set = false;
+            console.log(msg.qid, msg.length, msg.position, timer_set);
+        } else if (msg.type === MSG_TYPE_RESUME) {
+            update_question(msg);
+        } else if (msg.type === MSG_TYPE_END) {
+            update_interpretation(msg);
+            clearTimeout(timer_timeout);
+            timer_set = false;
+            end_of_question(msg);
+        } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
+            handle_buzzing(msg);
+        } else if (msg.type === MSG_TYPE_BUZZING_RED) {
+            handle_buzzing(msg);
+        } else if (msg.type === MSG_TYPE_RESULT_MINE) {
+            handle_result(msg);
+        } else if (msg.type === MSG_TYPE_RESULT_OTHER) {
+            handle_result(msg);
+        } else if (msg.type === MSG_TYPE_COMPLETE) {
+            alert("Congrats! You have answered all the questions.");
+            pause_button.click();
+        }
+        if (typeof msg.length != 'undefined') {
+            if (timer_set === false) {
+                var timetotal = msg.length / 2;
+                var timeleft = (msg.length - msg.position) / 2;
+                progress(timeleft, timetotal, false);
+                timer_set = true;
+            }
+        }
         if (typeof msg.player_name != 'undefined') {
             if (player_name == "N_O_T_S_E_T") {
                 player_name = msg.player_name;
@@ -632,36 +663,6 @@ function start() {
             }
             highlight_checkbox.checked = tools.highlight;
 
-        }
-        if (msg.type === MSG_TYPE_NEW) {
-            new_question(msg);
-            timer_set = false;
-        } else if (msg.type === MSG_TYPE_RESUME) {
-            update_question(msg);
-        } else if (msg.type === MSG_TYPE_END) {
-            update_interpretation(msg);
-            clearTimeout(timer_timeout);
-            timer_set = false;
-            end_of_question(msg);
-        } else if (msg.type === MSG_TYPE_BUZZING_GREEN) {
-            handle_buzzing(msg);
-        } else if (msg.type === MSG_TYPE_BUZZING_RED) {
-            handle_buzzing(msg);
-        } else if (msg.type === MSG_TYPE_RESULT_MINE) {
-            handle_result(msg);
-        } else if (msg.type === MSG_TYPE_RESULT_OTHER) {
-            handle_result(msg);
-        } else if (msg.type === MSG_TYPE_COMPLETE) {
-            alert("Congrats! You have answered all the questions.");
-            pause_button.click();
-        }
-        if (typeof msg.length != 'undefined') {
-            if (timer_set === false) {
-                var timetotal = msg.length / 2;
-                var timeleft = (msg.length - msg.position) / 2;
-                progress(timeleft, timetotal, false);
-                timer_set = true;
-            }
         }
     };
 }
