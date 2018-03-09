@@ -115,8 +115,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         with open('data/expo_questions.pkl', 'rb') as f:
             self.questions = pickle.load(f)
             self.questions = {x.qid : x for x in self.questions}
-            # global NUM_QUESTIONS
-            # NUM_QUESTIONS = len(self.questions)
+            global NUM_QUESTIONS
+            NUM_QUESTIONS = len(self.questions)
             # random.shuffle(self.questions)
         logger.info('Loaded {} questions'.format(len(self.questions)))
 

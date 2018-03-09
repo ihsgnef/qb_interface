@@ -168,23 +168,29 @@ class QBDB:
                     player.uid))
         self.conn.commit()
 
-    def get_records(self, player_id):
+    def get_records(self, player_id=None, question_id=None):
         def row_to_dict(row):
-            return {'record_id': row[0],
-                    'game_id': row[1],
-                    'player_id': row[2],
-                    'player_name': row[3],
-                    'question_id': row[4],
-                    'position_start': row[5],
-                    'position_buzz': row[6],
-                    'guess': row[7],
-                    'result': row[8],
-                    'score': row[9],
-                    'enabled_tools': json.loads(row[10]),
-                    'free_mode': bool(row[11])}
+            rs = {'record_id': row[0],
+                 'game_id': row[1],
+                 'player_id': row[2],
+                 'player_name': row[3],
+                 'question_id': row[4],
+                 'position_start': row[5],
+                 'position_buzz': row[6],
+                 'guess': row[7],
+                 'result': row[8],
+                 'score': row[9],
+                 'enabled_tools': json.loads(row[10])}
+            if len(row) == 10:
+                 rs['free_mode'] = bool(row[11])
+            return rs
         c = self.conn.cursor()
-        c.execute("SELECT * FROM records WHERE player_id=?",
-                (player_id,))
+        if player_id is not None:
+            c.execute("SELECT * FROM records WHERE player_id=?", (player_id,))
+        elif question_id is not None:
+            c.execute("SELECT * FROM records WHERE question_id=?", (question_id,))
+        else:
+            c.execute("SELECT * FROM records")
         rs = c.fetchall()
         rs = [row_to_dict(r) for r in rs]
         return rs
