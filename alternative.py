@@ -123,3 +123,30 @@ def create_alternatives:
             wks.update_acell(n_col + n_row, a)
     
 def read_alternatives:
+    import gspread
+    from oauth2client.service_account import ServiceAccountCredentials
+    
+    scope = ['https://spreadsheets.google.com/feeds']
+    credentials = ServiceAccountCredentials.from_json_keyfile_name('API Project-21af541bdeea.json', scope)
+    gc = gspread.authorize(credentials)
+    wks = gc.open("expo_alternative_answers").sheet1
+    
+    from alternative import alternative_answers
+    alternative_answers = dict(alternative_answers)
+    print(alternative_answers.keys())
+    
+    for i in range(2, 162):
+        answer = wks.cell(i, 2).value.lower().strip()
+        print(answer)
+        if answer not in alternative_answers:
+            alternative_answers[answer] = []
+        for j in range(3, 6):
+            alt = wks.cell(i, j).value.lower().strip()
+            if alt != '':
+                if alt not in alternative_answers[answer]:
+                    alternative_answers[answer].append(alt)
+    
+    with open('bb.txt', 'w') as f:
+        for k, v in alternative_answers.items():
+            if len(v) > 0:
+                f.write("'{}': {},\n".format(k, v))
