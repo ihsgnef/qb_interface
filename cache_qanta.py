@@ -20,7 +20,8 @@ def get_matched(q: QBQuestion, position, matches):
         matches: list of matches
     '''
     # take the top 2 mathces from both qb and wiki
-    matches = matches['qb'][:2] + matches['wiki'][:2]
+    matches = matches['wiki'][:4]
+    # matches = matches['qb'][:2] + matches['wiki'][:2]
 
     # find words highligted in the matches
     highlighted_words = set() # words highlighted in the matches
@@ -98,5 +99,7 @@ def move_cache_to_db(cache_path):
         db.add_cache(qid, records)
 
 if __name__ == '__main__':
-    move_cache_to_db('data/cache.pkl')
+    # generate_cache('data/questions.pkl', 'data/cache.pkl')
+    # move_cache_to_db('data/cache.pkl')
+    generate_cache('data/expo_questions.pkl', 'data/cache_expo.pkl')
     move_cache_to_db('data/cache_expo.pkl')

@@ -307,13 +307,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.question.answer = self.question.answer.replace('_', ' ')
 
             self.info_text = ''
-            # self.record = self.records[int(self.question.qid)]
-            self.record = self.db.get_cache(self.question.qid)
-            # print(self.record[10].matches)
+            self.cache_entry = self.db.get_cache(self.question.qid)
             self.bell_positions = []
             self.position = 0
             self.latest_resume_msg = None
             self.latest_buzzing_msg = None
+            logger.info('[new question] {}'.format(self.question.answer))
+            ans = self.question.answer.lower()
+            if ans in alternative_answers:
+                logger.info('alternatives: {}'.format(alternative_answers[ans]))
 
             def make_callback(player):
                 def f(x):
@@ -376,7 +378,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         text_highlighted = ''
 
         words = self.question.raw_text[:self.position]
-        highlight = self.record[self.position].text_highlight
+        highlight = self.cache_entry[self.position].text_highlight
 
         for i, (x, y) in enumerate(zip(words, highlight)):
             text_plain += x + ' '
@@ -391,8 +393,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         '''
         Get the current matches for display, both plain and highlighted.
         '''
-        matches = self.record[self.position].matches
-        highlights = self.record[self.position].matches_highlight
+        matches = self.cache_entry[self.position].matches
+        highlights = self.cache_entry[self.position].matches_highlight
         matches_plain = []
         matches_highlighted = []
         for i, (match, high) in enumerate(zip(matches, highlights)):
@@ -456,7 +458,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         'text_highlighted': text_highlighted,
                         'position': self.position,
                         'length': self.question.length,
-                        'guesses': self.record[self.position].guesses,
+                        'guesses': self.cache_entry[self.position].guesses,
                         'matches': matches_plain,
                         'matches_highlighted': matches_highlighted
                         }
@@ -537,7 +539,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         if guess.lower() == answer:
             return True
         if answer in alternative_answers:
-            if guess.lower() in alternative_answers[answer]:
+            alts = [x.strip().lower() for x in alternative_answers[answer]]
+            if guess.lower() in alts:
                 return True
         return False
 
@@ -652,7 +655,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         player.buzz_info.get('result', None),
                         player.buzz_info.get('score', 0),
                         player.enabled_tools,
-                        player.complete)
+                        free_mode=player.complete)
                 player.response = None
                 player.buzzed = False
                 player.position_start = 0
