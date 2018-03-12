@@ -536,8 +536,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         answer = self.question.answer.lower()
         if guess.lower() == answer:
             return True
-        if guess.lower() in alternative_answers[answer]:
-            return True
+        if answer in alternative_answers:
+            if guess.lower() in alternative_answers[answer]:
+                return True
         return False
 
     def _buzzing_after(self, buzzing_id, end_of_question, timed_out):
