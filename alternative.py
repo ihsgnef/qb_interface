@@ -1,4 +1,11 @@
+import pickle
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 from collections import defaultdict
+    
+from db import QBDB
+from util import *
+
 alternative_answers = defaultdict(list)
 alternative_answers.update({
 'pankhurst': ['emmeline pankhurst'],
@@ -83,13 +90,8 @@ alternative_answers.update({
 'c. s. lewis': ['c.s lews', 'clive staples lewis'],
 })
 
-def create_alternatives:
-    import pickle
-    import gspread
-    from oauth2client.service_account import ServiceAccountCredentials
-    
-    from db import QBDB
-    from util import *
+def create_alternatives():
+
     
     scope = ['https://spreadsheets.google.com/feeds']
     credentials = ServiceAccountCredentials.from_json_keyfile_name('API Project-21af541bdeea.json', scope)
@@ -122,10 +124,7 @@ def create_alternatives:
             n_col = COLS[j+2]
             wks.update_acell(n_col + n_row, a)
     
-def read_alternatives:
-    import gspread
-    from oauth2client.service_account import ServiceAccountCredentials
-    
+def read_alternatives():
     scope = ['https://spreadsheets.google.com/feeds']
     credentials = ServiceAccountCredentials.from_json_keyfile_name('API Project-21af541bdeea.json', scope)
     gc = gspread.authorize(credentials)

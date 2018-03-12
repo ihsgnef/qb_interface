@@ -265,6 +265,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             if p.active:
                 counter.update(p.questions_seen)
         min_count = min(counter.values())
+        print('min count {}'.format(min_count))
         qids = [x for x, y in counter.items() if y == min_count]
         random.shuffle(qids)
         return self.questions[qids[0]]
