@@ -22,10 +22,11 @@ BADGE_BUZZ = '<span class="badge badge-danger">Buzz</span>'
 BELL = ' <span class="fa fa-bell" aria-hidden="true"></span> '
 NEW_LINE = '</br>'
 
-highlight_color = '#ecff6d'
+highlight_color = '#43c6fc'
 highlight_prefix = '<span style="background-color: ' + highlight_color + '">'
 highlight_suffix = '</span>'
 highlight_template = highlight_prefix + '{}' + highlight_suffix
+highlight_template = '<mark data-entity=\"norp\"> {} </mark>'
 
 def bodify(text):
     return '<b>{}</b>'.format(text) 

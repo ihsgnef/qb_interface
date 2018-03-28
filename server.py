@@ -91,6 +91,7 @@ class Player:
         if self.active:
             if 'qid' in msg:
                 msg['can_buzz'] = self.can_buzz(msg['qid'])
+                msg['enabled_tools'] = self.enabled_tools
             self.client.sendMessage(json.dumps(msg).encode('utf-8'))
 
 
@@ -261,12 +262,16 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def next_question(self):
         counter = Counter()
         counter.update({qid: 0 for qid in self.questions})
+        questions_answered = []
         for p in self.players.values():
             if p.active:
-                counter.update(p.questions_seen)
-        min_count = min(counter.values())
-        print('min count {}'.format(min_count))
-        qids = [x for x, y in counter.items() if y == min_count]
+                questions_answered.append(set(p.questions_answered))
+        if len(questions_answered) == 0:
+            questions_answered = []
+        else:
+            questions_answered = sorted(questions_answered, key=lambda x: -len(x))
+            questions_answered = questions_answered[0]
+        qids = [x for x in self.questions.keys() if x not in questions_answered]
         random.shuffle(qids)
         return self.questions[qids[0]]
         # self.question_idx += 1
@@ -291,13 +296,14 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def update_enabled_tools(self):
         # for each active player return a dictionry of 
         # tools -> boolean indicating if each tool is enabled for this round
+        expected_each = len(self.questions) / len(TOOL_COMBOS)
         for uid, player in self.players.items():
             if not player.active:
                 continue
             if player.complete:
                 player.enabled_tools = {x: True for x in TOOLS}
                 continue
-            params = [20 - player.combo_count[x] for x in TOOL_COMBOS]
+            params = [expected_each - player.combo_count[x] for x in TOOL_COMBOS]
             combo = np.argmax(np.random.dirichlet(params)).tolist()
             player.enabled_tools = self.combo_to_tools(combo)
             player.combo_count[combo] += 1

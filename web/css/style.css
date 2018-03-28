@@ -19,3 +19,28 @@
     background-color: #3576be !important;
     color: #FFFFFF !important;
 }
+
+[data-entity][data-entity="norp"] {
+    background: rgba(224,0,132,0.2);
+    border-color: #e00084;
+}
+
+[data-entity][data-entity="org"] {
+    background: rgba(67,198,252,0.2);
+    border-color: #43c6fc;
+}
+
+[data-entity][data-entity="person"] {
+    background: rgba(166,226,45,0.2);
+    border-color: #a6e22d;
+}
+
+[data-entity] {
+  padding: 0.25em 0.35em;
+      margin: 0 0.25em;
+    line-height: 1;
+    display: inline-block;
+    border-radius: 0.25em;
+    border: 1px solid;
+
+}
