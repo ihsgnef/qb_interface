@@ -45,6 +45,9 @@ haikunator = Haikunator()
 TOOLS = ['guesses', 'highlight', 'matches']
 TOOL_COMBOS = list(range(7)) # 000 -> 111
 
+# enable all tools when user finishes all questions
+GOD_MODE = False
+
 def get_time():
     ts = time.time()
     return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
@@ -113,7 +116,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def __init__(self, url, loop=False):
         WebSocketServerFactory.__init__(self, url)
 
-        with open('data/expo_questions.pkl', 'rb') as f:
+        # with open('data/expo_questions.pkl', 'rb') as f:
+        with open('data/pace_questions.pkl', 'rb') as f:
             self.questions = pickle.load(f)
             self.questions = {x.qid : x for x in self.questions}
             global NUM_QUESTIONS
@@ -179,7 +183,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             new_player.questions_correct = dbp['questions_correct']
                             new_player.complete = len(set(dbp['questions_answered'])) >= NUM_QUESTIONS
                             if new_player.complete:
-                                new_player.enabled_tools = {x: True for x in TOOLS}
+                                if GOD_MODE:
+                                    new_player.enabled_tools = {x: True for x in TOOLS}
                         else:
                             logger.info('add player {} to db'.format(new_player.uid))
                             self.db.add_player(new_player)
@@ -301,9 +306,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
             if not player.active:
                 continue
             if player.complete:
-                player.enabled_tools = {x: True for x in TOOLS}
-                continue
-            params = [expected_each - player.combo_count[x] for x in TOOL_COMBOS]
+                if GOD_MODE:
+                    player.enabled_tools = {x: True for x in TOOLS}
+            params = [max(expected_each - player.combo_count[x], 0) for x in TOOL_COMBOS]
             combo = np.argmax(np.random.dirichlet(params)).tolist()
             player.enabled_tools = self.combo_to_tools(combo)
             player.combo_count[combo] += 1
@@ -349,7 +354,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 # allow all tools when player has finished all questions
                 msg['enabled_tools'] = player.enabled_tools
                 if player.complete:
-                    msg['free_mode'] = True
+                    if GOD_MODE:
+                        msg['free_mode'] = True
                 player.sendMessage(msg)
                 condition = partial(self.check_player_response,
                         player=player, key='qid', value=self.question.qid)

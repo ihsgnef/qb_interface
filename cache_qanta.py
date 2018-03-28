@@ -100,6 +100,6 @@ def move_cache_to_db(cache_path):
 
 if __name__ == '__main__':
     # generate_cache('data/questions.pkl', 'data/cache.pkl')
-    # move_cache_to_db('data/cache.pkl')
-    generate_cache('data/expo_questions.pkl', 'data/cache_expo.pkl')
-    move_cache_to_db('data/cache_expo.pkl')
+    move_cache_to_db('data/cache.pkl')
+    # generate_cache('data/expo_questions.pkl', 'data/cache_expo.pkl')
+    # move_cache_to_db('data/cache_expo.pkl')

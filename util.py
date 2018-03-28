@@ -26,7 +26,7 @@ highlight_color = '#43c6fc'
 highlight_prefix = '<span style="background-color: ' + highlight_color + '">'
 highlight_suffix = '</span>'
 highlight_template = highlight_prefix + '{}' + highlight_suffix
-highlight_template = '<mark data-entity=\"norp\"> {} </mark>'
+highlight_template = '<mark data-entity=\"person\"> {} </mark>'
 
 def bodify(text):
     return '<b>{}</b>'.format(text) 
