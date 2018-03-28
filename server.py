@@ -31,22 +31,21 @@ from util import QBQuestion, QantaCacheEntry, null_question
 from alternative import alternative_answers
 from db import QBDB
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('server')
+haikunator = Haikunator()
+
 ANSWER_TIME_OUT = 10
 SECOND_PER_WORD = 0.4
 PLAYER_RESPONSE_TIME_OUT = 3
 HISTORY_LENGTH = 30
 NUM_QUESTIONS = 10
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('server')
-
-haikunator = Haikunator()
-
+# enable all tools when user finishes all questions
+FREE_MODE = False
+GOD_MODE = True
 TOOLS = ['guesses', 'highlight', 'matches']
 TOOL_COMBOS = list(range(7)) # 000 -> 111
-
-# enable all tools when user finishes all questions
-GOD_MODE = False
 
 def get_time():
     ts = time.time()
@@ -117,7 +116,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         WebSocketServerFactory.__init__(self, url)
 
         # with open('data/expo_questions.pkl', 'rb') as f:
-        with open('data/pace_questions.pkl', 'rb') as f:
+        with open('data/expo_questions.pkl', 'rb') as f:
             self.questions = pickle.load(f)
             self.questions = {x.qid : x for x in self.questions}
             global NUM_QUESTIONS
@@ -183,7 +182,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             new_player.questions_correct = dbp['questions_correct']
                             new_player.complete = len(set(dbp['questions_answered'])) >= NUM_QUESTIONS
                             if new_player.complete:
-                                if GOD_MODE:
+                                if FREE_MODE:
                                     new_player.enabled_tools = {x: True for x in TOOLS}
                         else:
                             logger.info('add player {} to db'.format(new_player.uid))
@@ -301,12 +300,17 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def update_enabled_tools(self):
         # for each active player return a dictionry of 
         # tools -> boolean indicating if each tool is enabled for this round
+        if GOD_MODE:
+            for uid, player in self.players.items():
+                player.enabled_tools = {x: True for x in TOOLS}
+            return
+
         expected_each = len(self.questions) / len(TOOL_COMBOS)
         for uid, player in self.players.items():
             if not player.active:
                 continue
             if player.complete:
-                if GOD_MODE:
+                if FREE_MODE:
                     player.enabled_tools = {x: True for x in TOOLS}
             params = [max(expected_each - player.combo_count[x], 0) for x in TOOL_COMBOS]
             combo = np.argmax(np.random.dirichlet(params)).tolist()
@@ -354,7 +358,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 # allow all tools when player has finished all questions
                 msg['enabled_tools'] = player.enabled_tools
                 if player.complete:
-                    if GOD_MODE:
+                    if FREE_MODE:
                         msg['free_mode'] = True
                 player.sendMessage(msg)
                 condition = partial(self.check_player_response,
