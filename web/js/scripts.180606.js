@@ -63,6 +63,7 @@ var speech_text = '';
 var speech_starting_position = 0;
 var PAUSE_COUNTDOWN = 5;
 var pause_countdown = PAUSE_COUNTDOWN;
+var completed = false;
 
 
 ///////// Constants ///////// 
@@ -116,6 +117,9 @@ logout_button.onclick = function(event) {
 
 pause_button.onclick = function(event) {
     $('#pause_modal').modal('show');
+    if (completed) {
+        $('#pause_modal_content').text('Congrats! You have finished 40 questions. Your code is: ' + player_uid);
+    }
     clearTimeout(timer_timeout);
     timer_set = false;
     sockt.onclose = function() {};
@@ -294,6 +298,12 @@ function new_question(msg) {
     buzzed = false;
     clearTimeout(timer_timeout);
     timer_set = false;
+
+    if (typeof msg.completed != 'undefined') {
+        completed = msg.completed;
+        console.log('setting completed' + completed);
+    }
+
     var m = {
         type: MSG_TYPE_NEW,
         qid: msg.qid,
@@ -548,7 +558,6 @@ function start() {
         if (msg.type === MSG_TYPE_NEW) {
             new_question(msg);
             timer_set = false;
-            console.log(msg.qid, msg.length, msg.position, timer_set);
         } else if (msg.type === MSG_TYPE_RESUME) {
             update_question(msg);
         } else if (msg.type === MSG_TYPE_END) {
@@ -565,7 +574,8 @@ function start() {
         } else if (msg.type === MSG_TYPE_RESULT_OTHER) {
             handle_result(msg);
         } else if (msg.type === MSG_TYPE_COMPLETE) {
-            alert("Congrats! You have answered all the questions.");
+            // alert("Congrats! You have answered all the questions.");
+            completed = true;
             pause_button.click();
         }
         if (typeof msg.length != 'undefined') {
@@ -644,9 +654,9 @@ function start() {
                 highlight_checkbox.disabled = false;
                 return
             }
-            guesses_checkbox.disabled = true;
-            matches_checkbox.disabled = true;
-            highlight_checkbox.disabled = true;
+            guesses_checkbox.disabled = false;
+            matches_checkbox.disabled = false;
+            highlight_checkbox.disabled = false;
             if (tools.guesses) {
                 guesses_card.style.display = "block";
                 guesses_checkbox.checked = true;

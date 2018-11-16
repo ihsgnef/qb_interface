@@ -35,11 +35,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
 haikunator = Haikunator()
 
-ANSWER_TIME_OUT = 10
-SECOND_PER_WORD = 0.4
+ANSWER_TIME_OUT = 14
+SECOND_PER_WORD = 0.5
 PLAYER_RESPONSE_TIME_OUT = 3
 HISTORY_LENGTH = 30
 NUM_QUESTIONS = 10
+THRESHOLD = 5
 
 # enable all tools when user finishes all questions
 FREE_MODE = False
@@ -79,6 +80,7 @@ class Player:
         self.questions_answered = []
         self.questions_correct = []
         self.complete = False # answered all questions
+        self.before_half_correct = 0
 
     def can_buzz(self, qid):
         if not self.active:
@@ -116,7 +118,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         WebSocketServerFactory.__init__(self, url)
 
         # with open('data/expo_questions.pkl', 'rb') as f:
-        with open('data/expo_questions.pkl', 'rb') as f:
+        with open('data/pace_questions.pkl', 'rb') as f:
             self.questions = pickle.load(f)
             self.questions = {x.qid : x for x in self.questions}
             global NUM_QUESTIONS
@@ -168,6 +170,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         self.players[uid].active = True
                         logger.info("[register] old player {} ({} -> {})".format(
                             name, old_peer, client.peer))
+                        logger.info(self.players[uid].complete)
                     else:
                         new_player.uid = uid
                         new_player.name = name
@@ -180,7 +183,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             new_player.questions_seen = dbp['questions_seen']
                             new_player.questions_answered = dbp['questions_answered']
                             new_player.questions_correct = dbp['questions_correct']
-                            new_player.complete = len(set(dbp['questions_answered'])) >= NUM_QUESTIONS
+                            new_player.complete = len(set(dbp['questions_answered'])) >= THRESHOLD 
                             if new_player.complete:
                                 if FREE_MODE:
                                     new_player.enabled_tools = {x: True for x in TOOLS}
@@ -192,12 +195,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
                     self.player_list = self.get_player_list()
                     msg = {'type': MSG_TYPE_NEW, 'qid': self.question.qid,
-                            'player_list': self.player_list,
-                            'info_text': self.info_text,
-                            'history_entries': self.history_entries,
-                            'length': self.question.length,
-                            'position': self.position,
-                            'speech_text': ' '.join(self.question.raw_text[self.position:])}
+                           'player_list': self.player_list,
+                           'info_text': self.info_text,
+                           'history_entries': self.history_entries,
+                           'length': self.question.length,
+                           'position': self.position,
+                           'completed': self.players[uid].complete,
+                           'speech_text': ' '.join(self.question.raw_text[self.position:])}
                     self.players[uid].sendMessage(msg)
 
                     # keep player up to date
@@ -584,6 +588,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
             if not timed_out:
                 logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
 
+            if result and self.position <= self.question.length / 2 + 1:
+                green_player.before_half_correct += 1
+
             self.info_text += answer
             self.info_text += BADGE_CORRECT if result else BADGE_WRONG
             self.info_text += ' ({})'.format(score)
@@ -672,7 +679,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         player.buzz_info.get('result', None),
                         player.buzz_info.get('score', 0),
                         player.enabled_tools,
-                        free_mode=player.complete)
+                        free_mode=player.complete and FREE_MODE)
                 player.response = None
                 player.buzzed = False
                 player.position_start = 0
@@ -680,10 +687,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 player.buzz_info = dict()
                 n_answered = len(set(player.questions_answered))
                 # print(player.name, player.complete, n_answered, NUM_QUESTIONS)
-                if not player.complete and n_answered >= NUM_QUESTIONS:
-                    logger.info("player {} complete".format(player.name))
-                    player.complete = True
-                    player.sendMessage({'type': MSG_TYPE_COMPLETE})
+                if not player.complete and n_answered >= THRESHOLD and player.score > 0:
+                    if player.before_half_correct >= 10:
+                        logger.info("player {} complete".format(player.name))
+                        player.complete = True
+                        player.sendMessage({'type': MSG_TYPE_COMPLETE})
             for uid in to_remove:
                 self.players.pop(uid, None)
         except Exception as e:

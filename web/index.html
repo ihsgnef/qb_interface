@@ -49,7 +49,6 @@
       </div>
     </div>
 
-
     <div id="pause_modal" class="modal fade" role="dialog" 
         data-backdrop="static" data-keyboard="false">
       <div class="modal-dialog">
@@ -59,7 +58,7 @@
             <h4 class="modal-title">Paused</h4>
           </div>
           <div class="modal-body">
-            <p>User paused client or haven't answered question in a while.</p>
+            <p id="pause_modal_content">User paused client or haven't answered question in a while.</p>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-success" id="resume_button" data-dismiss="modal">Resume</button>
@@ -201,15 +200,15 @@
                         <h4 class="card-title">Settings</h4>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
-                                id="guesses_checkbox" checked disabled>Guesses</label>
+                                id="guesses_checkbox" checked>Guesses</label>
                         </div>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
-                                id="highlight_checkbox" checked disabled>Highlights</label>
+                                id="highlight_checkbox" checked>Highlights</label>
                         </div>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
-                                id="matches_checkbox" checked disabled>Evidence</label>
+                                id="matches_checkbox" checked>Evidence</label>
                         </div>
                         <div class="checkbox" style="display: None">
                             <label><input type="checkbox" value=""
@@ -255,7 +254,7 @@
     <script src="js/intro.js"></script>
     <script src="js/FuzzySearch.min.js"></script>
     <script data-cfasync="false" type="text/javascript" src="js/form-submission-handler.js"></script>
-    <script src="js/scripts.1803121.js"></script>
+    <script src="js/scripts.180606.js"></script>
 </body>
 
 </html>
