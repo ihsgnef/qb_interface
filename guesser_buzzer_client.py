@@ -84,7 +84,8 @@ class GuesserBuzzer:
         return buzz_scores
 
 if __name__ == '__main__':
-    factory = WebSocketClientFactory(u"ws://qbinterface.club:9000")
+    # factory = WebSocketClientFactory(u"ws://play.qanta.org:9000")
+    factory = WebSocketClientFactory("ws://34.209.31.242:9000")
     factory.protocol = GuesserBuzzerProtocol
     connectWS(factory)
     reactor.run()
