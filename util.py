@@ -1,9 +1,8 @@
 import json
 import pickle
 from tqdm import tqdm
-from qanta.util.constants import GUESSER_DEV_FOLD
-from qanta.datasets.quiz_bowl import QuestionDatabase, Question
-from qanta.preprocess import tokenize_question
+from nltk import word_tokenize
+
 
 MSG_TYPE_NEW = 0 # beginning of a new question
 MSG_TYPE_RESUME = 1 # continue
@@ -28,8 +27,24 @@ highlight_suffix = '</span>'
 highlight_template = highlight_prefix + '{}' + highlight_suffix
 # highlight_template = '<mark data-entity=\"norp\">{}</mark>'
 
+
 def bodify(text):
     return '<b>{}</b>'.format(text) 
+
+
+def clean_question(question: str):
+    """
+    Remove pronunciation guides and other formatting extras
+    :param question:
+    :return:
+    """
+
+    return re.sub(regex_pattern, '', question.strip().lower())
+
+
+def tokenize_question(text):
+    return word_tokenize(clean_question(text))
+
 
 class QBQuestion:
 
@@ -86,6 +101,7 @@ class QantaCacheEntry:
         self.matches_highlight = matches_highlight
 
 def preprocess_pace():
+    from qanta.datasets.quiz_bowl import QuestionDatabase
     questions = QuestionDatabase(location='data/naqt.db').all_questions()
     questions = list(questions.values())
     questions = [x for x in questions if 'PACE' in x.tournaments]
