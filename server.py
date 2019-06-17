@@ -30,6 +30,7 @@ from util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
 from util import QBQuestion, null_question
 from alternative import alternative_answers
 from db import QBDB
+from bandit import BANDIT_SOLVER
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
@@ -44,7 +45,8 @@ THRESHOLD = 5
 
 # enable all tools when user finishes all questions
 FREE_MODE = False
-GOD_MODE = True
+GOD_MODE = False
+BANDIT_MODE = True
 TOOLS = ['guesses', 'highlight', 'matches']
 TOOL_COMBOS = list(range(7)) # 000 -> 111
 
@@ -145,6 +147,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # to get new user started in the middle of a round
         self.latest_resume_msg = None 
         self.latest_buzzing_msg = None
+        #bandit
+        self.bandit_solver = BANDIT_SOLVER()
 
 
     def register(self, client):
@@ -302,12 +306,29 @@ class BroadcastServerFactory(WebSocketServerFactory):
         enabled[TOOLS[2]] = (combo /4) != 0
         return enabled
 
+    def tools_to_combo(self, enabled_tools):
+        combo = 0
+        if enabled_tools[TOOLS[0]]:
+            combo += 1
+        if enabled_tools[TOOLS[1]]:
+            combo += 2
+        if enabled_tools[TOOLS[2]]:
+            combo += 4
+        return combo
+    
     def update_enabled_tools(self):
         # for each active player return a dictionry of 
         # tools -> boolean indicating if each tool is enabled for this round
         if GOD_MODE:
             for uid, player in self.players.items():
                 player.enabled_tools = {x: True for x in TOOLS}
+            return
+        
+        if BANDIT_MODE:
+            qid = self.question.qid
+            for uid, player in self.players.items():
+                combo = self.bandit_solver.get_action(uid, qid) 
+                player.enabled_tools = self.combo_to_tools(combo)
             return
 
         expected_each = len(self.questions) / len(TOOL_COMBOS)
@@ -321,6 +342,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             combo = np.argmax(np.random.dirichlet(params)).tolist()
             player.enabled_tools = self.combo_to_tools(combo)
             player.combo_count[combo] += 1
+
         
     def new_question(self):
         try:
@@ -572,11 +594,14 @@ class BroadcastServerFactory(WebSocketServerFactory):
             answer = 'TIME_OUT' if timed_out else green_player.response['text']
             result = self.judge(answer) and not timed_out
             score = 0
+            combo = self.tools_to_combo(green_player.enabled_tools)
             if result:
                 score = 10
+                self.bandit_solver.update(combo, 1)
             else:
                 if not end_of_question:
                     score = -5
+                    self.bandit_solver.update(combo, 0)
             green_player.buzz_info = {
                     'position': self.position,
                     'guess': answer,
