@@ -77,15 +77,17 @@ class BANDIT_SOLVER:
 
         self.policy = policy
 
-    def get_action(self, uid, qid):
+    def get_action(self, context_vector):
         # full_context = {}
         # for action_id in actions_id:
         #     full_context[action_id] = uid
         full_context = None
-        history_id, action = self.policy.get_action(None, None)
+        history_id, action_list = self.policy.get_action(None, 8)
+        for action in action_list:
+            print("action id: ", action.action.id, "\testimate reward: ", action.estimated_reward)
         if history_id > self.history_id:
             self.history_id = history_id
-        return action.action.id
+        return action_list[0].action.id
 
     def update(self, action_id, reward):
         '''

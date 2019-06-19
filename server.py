@@ -48,7 +48,7 @@ FREE_MODE = False
 GOD_MODE = False
 BANDIT_MODE = True
 TOOLS = ['guesses', 'highlight', 'matches']
-TOOL_COMBOS = list(range(7)) # 000 -> 111
+TOOL_COMBOS = list(range(8)) # 000 -> 111
 
 def get_time():
     ts = time.time()
@@ -302,8 +302,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # tools
         enabled = {}
         enabled[TOOLS[0]] = (combo % 2) != 0
-        enabled[TOOLS[1]] = ((combo /2) % 2) != 0
-        enabled[TOOLS[2]] = (combo /4) != 0
+        enabled[TOOLS[1]] = ((combo // 2) % 2) != 0
+        enabled[TOOLS[2]] = (combo // 4) != 0
         return enabled
 
     def tools_to_combo(self, enabled_tools):
@@ -315,6 +315,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
         if enabled_tools[TOOLS[2]]:
             combo += 4
         return combo
+    def get_context_vector(self, uid):
+        context_vector = []
+        qid = self.question.qid
+        context_vector.append(uid)
+        context_vector.append(qid)
+        return context_vector
     
     def update_enabled_tools(self):
         # for each active player return a dictionry of 
@@ -325,9 +331,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
             return
         
         if BANDIT_MODE:
-            qid = self.question.qid
             for uid, player in self.players.items():
-                combo = self.bandit_solver.get_action(uid, qid) 
+                context_vector = self.get_context_vector(uid)
+                combo = self.bandit_solver.get_action(context_vector) 
                 player.enabled_tools = self.combo_to_tools(combo)
             return
 
@@ -594,14 +600,20 @@ class BroadcastServerFactory(WebSocketServerFactory):
             answer = 'TIME_OUT' if timed_out else green_player.response['text']
             result = self.judge(answer) and not timed_out
             score = 0
-            combo = self.tools_to_combo(green_player.enabled_tools)
+
+            if BANDIT_MODE:
+                combo = self.tools_to_combo(green_player.enabled_tools)
             if result:
-                score = 10
                 self.bandit_solver.update(combo, 1)
             else:
                 if not end_of_question:
-                    score = -5
                     self.bandit_solver.update(combo, 0)
+
+            if result:
+                score = 10
+            else:
+                if not end_of_question:
+                    score = -5
             green_player.buzz_info = {
                     'position': self.position,
                     'guess': answer,
