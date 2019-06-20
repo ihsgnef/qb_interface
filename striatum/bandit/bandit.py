@@ -3,7 +3,7 @@ Bandit interfaces
 """
 from abc import abstractmethod
 
-from striatum import rewardplot as rplt
+from .. import rewardplot as rplt
 from ..storage import Recommendation
 
 
@@ -148,3 +148,23 @@ class BaseBandit(object):
         """Plot average regret with respect to time.
         """
         rplt.plot_avg_regret(self)
+
+    @abstractmethod
+    def save_policy(self, policy_path):
+        """Save the policy
+
+        Parameters
+        ----------
+        path : str
+            The path of the policy to store
+        """
+
+    @abstractmethod
+    def load_policy(self, policy_path):
+        """Load the policy
+
+        Parameters
+        ----------
+        path : str
+            The path of the policy to load
+        """

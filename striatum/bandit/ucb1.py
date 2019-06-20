@@ -5,6 +5,7 @@ multi-armed bandit algorithm without context.
 from __future__ import division
 import numpy as np
 import six
+import pickle
 
 from striatum.bandit.bandit import BaseBandit
 
@@ -187,3 +188,34 @@ class UCB1(BaseBandit):
         del model['action_times'][action_id]
         self._model_storage.save_model(model)
         self._action_storage.remove(action_id)
+
+    def save_policy(self, policy_path):
+        """Save the policy
+
+        Parameters
+        ----------
+        path : str
+            The path of the policy to store
+        """
+        # with open(policy_path, 'wb') as f:
+        #     pickle.dump({
+        #         'history_storage': self.history_storage,
+        #         'model_storage': self.model_storage,
+        #         'action_storage': self.action_storage,
+        #         'recommendation_cls': self.recommendation_cls
+        #     }, f)
+
+    def load_policy(self, policy_path):
+        """Load the policy
+
+        Parameters
+        ----------
+        path : str
+            The path of the policy to load
+        """
+        # with open(policy_path, 'rb') as f:
+        #     params = pickle.load(f)
+        #     self.history_storage = params['history_storage']
+        #     self.model_storage = params['model_storage']
+        #     self.action_storage = params['action_storage']
+        #     self.recommendation_cls = params['recommendation_cls']
