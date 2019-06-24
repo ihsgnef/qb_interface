@@ -16,6 +16,8 @@ from striatum.bandit import exp4p
 from striatum.bandit import exp3
 
 EXPERIMENT_BANDIT = ['LinUCB', 'LinThompSamp', 'UCB1', 'Exp3', 'random']
+MODEL_PATH = "bandit_model"
+
 class BANDIT_SOLVER:
 
     def __init__(self):
@@ -77,15 +79,16 @@ class BANDIT_SOLVER:
 
         self.policy = policy
 
-    def get_action(self, uid, qid):
+    def get_action(self, context_vector = None):
         # full_context = {}
         # for action_id in actions_id:
         #     full_context[action_id] = uid
-        full_context = None
-        history_id, action = self.policy.get_action(None, None)
+        history_id, action_list = self.policy.get_action(context_vector, 8)
+        for action in action_list:
+            print("action id: ", action.action.id, "\testimate reward: ", action.estimated_reward)
         if history_id > self.history_id:
             self.history_id = history_id
-        return action.action.id
+        return action_list[0].action.id
 
     def update(self, action_id, reward):
         '''
@@ -96,3 +99,11 @@ class BANDIT_SOLVER:
         '''
         self.policy.reward(self.history_id, {action_id: reward})
         self.history_id += 1
+
+    def save_model(self, model_path = None):
+        self.policy.save_policy(model_path or MODEL_PATH)
+        print("Save model succefully at: ", model_path or MODEL_PATH)
+
+    def load_model(self, model_path = None):
+        self.policy.load_policy(model_path or MODEL_PATH)
+        print("Load model succefully from: ", model_path or MODEL_PATH)
