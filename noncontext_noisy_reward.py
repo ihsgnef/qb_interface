@@ -15,16 +15,25 @@ bandit = 'UCB1'
 i = 2
 
 def get_reward(action_id, uid = None, qid = None):
-    if action_id % 2 == 0:
-        return 0
-    else:
-        return 1
+    mean = 0.1 * (action_id + 1)
+    reward = np.random.normal(mean, 0.1)
+    # if reward <= 0.5:
+    #     reward = 0
+    # else:
+    #     reward = 1
+    
+    return reward
+
 
 def regret_calculation(seq_error):
     t = len(seq_error)
     regret = [x / y for x, y in zip(seq_error, range(1, t + 1))]
     return regret
 
+def reward_calculation(seq_reward):
+    t = len(seq_reward)
+    reward = [x / y for x, y in zip(seq_error, range(1, t + 1))]
+    return reward
 
 bandit_solver = BANDIT_SOLVER()
 regret = {}
@@ -39,16 +48,12 @@ for t in range(times):
     action_id = bandit_solver.get_action()
     reward = get_reward(action_id)
     bandit_solver.update(action_id, reward)
-    if not reward:
-        if t == 0:
-            seq_error[t] = 1.0
-        else:
-            seq_error[t] = seq_error[t - 1] + 1.0
+    if t == 0:
+        seq_error[t] = 1 - reward
     else:
-        if t > 0:
-            seq_error[t] = seq_error[t - 1]
+        seq_error[t] = seq_error[t - 1] + (1 - reward)
+regret[bandit] = regret_calculation(seq_error)
 bandit_solver.policy.plot_avg_reward()
-# regret[bandit] = regret_calculation(seq_error)
 # plt.plot(
 #         range(times),
 #         regret[bandit],
