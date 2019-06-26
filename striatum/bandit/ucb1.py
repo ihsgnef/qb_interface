@@ -197,13 +197,18 @@ class UCB1(BaseBandit):
         path : str
             The path of the policy to store
         """
-        # with open(policy_path, 'wb') as f:
-        #     pickle.dump({
-        #         'history_storage': self.history_storage,
-        #         'model_storage': self.model_storage,
-        #         'action_storage': self.action_storage,
-        #         'recommendation_cls': self.recommendation_cls
-        #     }, f)
+        with open(policy_path, 'wb') as f:
+            pickle.dump({
+                'history_storage': self._history_storage,
+                'model_storage': self._model_storage,
+                'action_storage': self._action_storage,
+                'recommendation_cls': self._recommendation_cls
+            }, f)
+        # self._action_storage = None
+        # self._history_storage = None
+        # self._model_storage = None
+        # self._recommendation_cls = None
+
 
     def load_policy(self, policy_path):
         """Load the policy
@@ -213,9 +218,9 @@ class UCB1(BaseBandit):
         path : str
             The path of the policy to load
         """
-        # with open(policy_path, 'rb') as f:
-        #     params = pickle.load(f)
-        #     self.history_storage = params['history_storage']
-        #     self.model_storage = params['model_storage']
-        #     self.action_storage = params['action_storage']
-        #     self.recommendation_cls = params['recommendation_cls']
+        with open(policy_path, 'rb') as f:
+            params = pickle.load(f)
+            self._history_storage = params['history_storage']
+            self._model_storage = params['model_storage']
+            self._action_storage = params['action_storage']
+            self._recommendation_cls = params['recommendation_cls']
