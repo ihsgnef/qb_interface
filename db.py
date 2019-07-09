@@ -30,7 +30,8 @@ class QBDB:
                 result INTEGER, \
                 score INTEGER, \
                 enabled_tools TEXT, \
-                free_mode INTEGER)')
+                free_mode INTEGER, \
+                latest_policy TEXT)')
 
         c.execute('CREATE TABLE players (\
                 player_id PRIMARY KEY, \
@@ -85,13 +86,13 @@ class QBDB:
     def add_record(self, game_id, player_id, player_name, question_id,
             position_start=0, position_buzz=-1,
             guess='', result=None, score=0,
-            enabled_tools=dict(), free_mode=False):
+            enabled_tools=dict(), latest_policy='', free_mode=False):
         record_id = 'record_' + str(uuid.uuid4()).replace('-', '')
         c = self.conn.cursor()
-        c.execute('INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+        c.execute('INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
                 (record_id, game_id, player_id, player_name, question_id,
                 position_start, position_buzz, guess, result, score,
-                json.dumps(enabled_tools), int(free_mode)))
+                json.dumps(enabled_tools), int(free_mode), latest_policy))
         self.conn.commit()
 
     def add_cache(self, question_id, records):
@@ -180,9 +181,10 @@ class QBDB:
                  'guess': row[7],
                  'result': row[8],
                  'score': row[9],
-                 'enabled_tools': json.loads(row[10])}
-            if len(row) == 10:
-                 rs['free_mode'] = bool(row[11])
+                 'enabled_tools': json.loads(row[10]),
+                 'latest_policy': row[11]}
+            if len(row) == 11:
+                 rs['free_mode'] = bool(row[12])
             return rs
         c = self.conn.cursor()
         if player_id is not None:
@@ -214,4 +216,10 @@ if __name__ == '__main__':
             position_start=0, position_buzz=-1,
             guess='China', result=True, score=10,
             enabled_tools=dict(),
-            free_mode=False)
+            free_mode=False, latest_policy = '')
+
+    # #add a new column for recording which policy the action is from
+    # conn = sqlite3.connect(DB_FILENAME)
+    # c = conn.cursor()
+    # c.execute('ALTER TABLE records ADD COLUMN latest_policy TEXT;')
+    # print("done")

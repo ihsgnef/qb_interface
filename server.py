@@ -52,7 +52,6 @@ BANDIT_MODE = True
 TOOLS = ['guesses', 'highlight', 'matches']
 TOOL_COMBOS = list(range(8)) # 000 -> 111
 
-LATEST_BANDIT_POLICY = None
 
 def get_time():
     ts = time.time()
@@ -153,6 +152,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.latest_buzzing_msg = None
         #bandit
         self.bandit_solver = BANDIT_SOLVER()
+        self.latest_policy = None
 
 
     def register(self, client):
@@ -339,6 +339,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 context_vector = self.get_context_vector(uid)
                 combo = self.bandit_solver.get_action(context_vector) 
                 player.enabled_tools = self.combo_to_tools(combo)
+                player.latest_policy = self.latest_policy
             return
 
         expected_each = len(self.questions) / len(TOOL_COMBOS)
@@ -356,8 +357,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         
     def new_question(self):
         #load the newest bandit policy
-        if LATEST_BANDIT_POLICY:
-            self.bandit_solver.load_model(LATEST_BANDIT_POLICY)
+        if self.latest_policy:
+            self.bandit_solver.load_model(self.latest_policy)
+            # print("load model", self.latest_policy)
         try:
             self.question = self.next_question()
             self.question.answer = self.question.answer.replace('_', ' ')
@@ -710,8 +712,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         #save the current bandit policy
         current_time = strftime("_%Y-%m-%d_%H-%M-%S", gmtime())
         policy_file_name = 'policy' + current_time +'.pkl'
-        LATEST_BANDIT_POLICY = os.path.join('./data', policy_file_name)
-        self.bandit_solver.save_model(LATEST_BANDIT_POLICY)
+        BANDIT_POLICY_PATH = os.path.join('./data', policy_file_name)
+        self.latest_policy = BANDIT_POLICY_PATH
+        self.bandit_solver.save_model(BANDIT_POLICY_PATH)
 
         try:
             # remove inactive player
@@ -729,6 +732,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         player.buzz_info.get('result', None),
                         player.buzz_info.get('score', 0),
                         player.enabled_tools,
+                        player.latest_policy,
                         free_mode=player.complete and FREE_MODE)
                 player.response = None
                 player.buzzed = False
