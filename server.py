@@ -30,7 +30,9 @@ from util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
 from util import QBQuestion, null_question
 from alternative import alternative_answers
 from db import QBDB
-from bandit import BANDIT_SOLVER
+from bandit_solver import BANDIT_SOLVER
+from time import gmtime, strftime
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
@@ -49,6 +51,8 @@ GOD_MODE = False
 BANDIT_MODE = True
 TOOLS = ['guesses', 'highlight', 'matches']
 TOOL_COMBOS = list(range(8)) # 000 -> 111
+
+LATEST_BANDIT_POLICY = None
 
 def get_time():
     ts = time.time()
@@ -351,6 +355,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         
     def new_question(self):
+        #load the newest bandit policy
+        if LATEST_BANDIT_POLICY:
+            self.bandit_solver.load_model(LATEST_BANDIT_POLICY)
         try:
             self.question = self.next_question()
             self.question.answer = self.question.answer.replace('_', ' ')
@@ -603,10 +610,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
             if BANDIT_MODE:
                 combo = self.tools_to_combo(green_player.enabled_tools)
-            if result:
-                self.bandit_solver.update(combo, 1)
-            else:
-                if not end_of_question:
+                if result:
+                    self.bandit_solver.update(combo, 1)
+                else:
                     self.bandit_solver.update(combo, 0)
 
             if result:
@@ -700,6 +706,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     self.info_text)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
+        
+        #save the current bandit policy
+        current_time = strftime("_%Y-%m-%d_%H-%M-%S", gmtime())
+        policy_file_name = 'policy' + current_time +'.pkl'
+        LATEST_BANDIT_POLICY = os.path.join('./data', policy_file_name)
+        self.bandit_solver.save_model(LATEST_BANDIT_POLICY)
 
         try:
             # remove inactive player

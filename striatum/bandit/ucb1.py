@@ -197,7 +197,7 @@ class UCB1(BaseBandit):
         path : str
             The path of the policy to store
         """
-        with open(policy_path, 'wb') as f:
+        with open(policy_path, 'wb+') as f:
             pickle.dump({
                 'history_storage': self._history_storage,
                 'model_storage': self._model_storage,
