@@ -102,7 +102,6 @@ class Player:
 class BroadcastServerProtocol(WebSocketServerProtocol):
 
     def onOpen(self):
-        print('alakjwdhlkjahwldkjhaw')
         self.factory.register(self)
 
     def onMessage(self, payload, isBinary):
