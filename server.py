@@ -27,9 +27,12 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
         MSG_TYPE_COMPLETE
 from util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
         NEW_LINE, BELL, bodify, highlight_template
-from util import QBQuestion, QantaCacheEntry, null_question
+from util import QBQuestion, null_question
 from alternative import alternative_answers
 from db import QBDB
+from bandit_solver import BANDIT_SOLVER
+from time import gmtime, strftime
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
@@ -44,9 +47,11 @@ THRESHOLD = 5
 
 # enable all tools when user finishes all questions
 FREE_MODE = False
-GOD_MODE = True
+GOD_MODE = False
+BANDIT_MODE = True
 TOOLS = ['guesses', 'highlight', 'matches']
-TOOL_COMBOS = list(range(7)) # 000 -> 111
+TOOL_COMBOS = list(range(8)) # 000 -> 111
+
 
 def get_time():
     ts = time.time()
@@ -144,6 +149,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # to get new user started in the middle of a round
         self.latest_resume_msg = None 
         self.latest_buzzing_msg = None
+        #bandit
+        self.bandit_solver = BANDIT_SOLVER()
+        self.latest_policy = None
 
 
     def register(self, client):
@@ -297,16 +305,40 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # tools
         enabled = {}
         enabled[TOOLS[0]] = (combo % 2) != 0
-        enabled[TOOLS[1]] = ((combo /2) % 2) != 0
-        enabled[TOOLS[2]] = (combo /4) != 0
+        enabled[TOOLS[1]] = ((combo // 2) % 2) != 0
+        enabled[TOOLS[2]] = (combo // 4) != 0
         return enabled
 
+    def tools_to_combo(self, enabled_tools):
+        combo = 0
+        if enabled_tools[TOOLS[0]]:
+            combo += 1
+        if enabled_tools[TOOLS[1]]:
+            combo += 2
+        if enabled_tools[TOOLS[2]]:
+            combo += 4
+        return combo
+    def get_context_vector(self, uid):
+        context_vector = []
+        qid = self.question.qid
+        context_vector.append(uid)
+        context_vector.append(qid)
+        return context_vector
+    
     def update_enabled_tools(self):
         # for each active player return a dictionry of 
         # tools -> boolean indicating if each tool is enabled for this round
         if GOD_MODE:
             for uid, player in self.players.items():
                 player.enabled_tools = {x: True for x in TOOLS}
+            return
+        
+        if BANDIT_MODE:
+            for uid, player in self.players.items():
+                context_vector = self.get_context_vector(uid)
+                combo = self.bandit_solver.get_action(context_vector) 
+                player.enabled_tools = self.combo_to_tools(combo)
+                player.latest_policy = self.latest_policy
             return
 
         expected_each = len(self.questions) / len(TOOL_COMBOS)
@@ -320,8 +352,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
             combo = np.argmax(np.random.dirichlet(params)).tolist()
             player.enabled_tools = self.combo_to_tools(combo)
             player.combo_count[combo] += 1
+
         
     def new_question(self):
+        #load the newest bandit policy
+        if self.latest_policy:
+            self.bandit_solver.load_model(self.latest_policy)
+            # print("load model", self.latest_policy)
         try:
             self.question = self.next_question()
             self.question.answer = self.question.answer.replace('_', ' ')
@@ -571,6 +608,14 @@ class BroadcastServerFactory(WebSocketServerFactory):
             answer = 'TIME_OUT' if timed_out else green_player.response['text']
             result = self.judge(answer) and not timed_out
             score = 0
+
+            if BANDIT_MODE:
+                combo = self.tools_to_combo(green_player.enabled_tools)
+                if result:
+                    self.bandit_solver.update(combo, 1)
+                else:
+                    self.bandit_solver.update(combo, 0)
+
             if result:
                 score = 10
             else:
@@ -662,6 +707,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     self.info_text)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
+        
+        #save the current bandit policy
+        current_time = strftime("_%Y-%m-%d_%H-%M-%S", gmtime())
+        policy_file_name = 'policy' + current_time +'.pkl'
+        BANDIT_POLICY_PATH = os.path.join('./data', policy_file_name)
+        self.latest_policy = BANDIT_POLICY_PATH
+        self.bandit_solver.save_model(BANDIT_POLICY_PATH)
 
         try:
             # remove inactive player
@@ -679,6 +731,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         player.buzz_info.get('result', None),
                         player.buzz_info.get('score', 0),
                         player.enabled_tools,
+                        player.latest_policy,
                         free_mode=player.complete and FREE_MODE)
                 player.response = None
                 player.buzzed = False
