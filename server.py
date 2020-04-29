@@ -40,7 +40,7 @@ SECOND_PER_WORD = 0.5
 PLAYER_RESPONSE_TIME_OUT = 3
 HISTORY_LENGTH = 30
 NUM_QUESTIONS = 10
-THRESHOLD = 5
+THRESHOLD = 40
 
 # enable all tools when user finishes all questions
 FREE_MODE = False
@@ -102,7 +102,6 @@ class Player:
 class BroadcastServerProtocol(WebSocketServerProtocol):
 
     def onOpen(self):
-        print('alakjwdhlkjahwldkjhaw')
         self.factory.register(self)
 
     def onMessage(self, payload, isBinary):
