@@ -1,25 +1,18 @@
-import re
-import json
-import pickle
 import logging
 import numpy as np
-from bs4 import BeautifulSoup
 import chainer
 from twisted.internet import reactor
-from autobahn.twisted.websocket import WebSocketClientFactory, \
-    WebSocketClientProtocol, \
-    connectWS
+from autobahn.twisted.websocket import WebSocketClientFactory, connectWS
 
 from qanta.config import conf
 from qanta.guesser.abstract import AbstractGuesser
 from qanta.guesser.experimental.elasticsearch_instance_of import ElasticSearchWikidataGuesser
 from qanta.new_expo.agent import RNNBuzzer
 from qanta.experimental.get_highlights import get_highlights
-from client import PlayerProtocol
 from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
-        MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
-        MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
-        MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
+    MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
+    MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
+    MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger('elasticsearch').setLevel(logging.WARNING)
@@ -41,15 +34,15 @@ class StupidBuzzer:
             return [0, 1]
 
 class GuesserBuzzer:
-    
+
     def __init__(self, buzzer_model_dir='data/neo_0.npz'):
-        gspec = AbstractGuesser.list_enabled_guessers()[0]
+        # gspec = AbstractGuesser.list_enabled_guessers()[0]
         guesser_dir = 'data/guesser'
         self.guesser = ElasticSearchWikidataGuesser.load(guesser_dir)
 
         if chainer.cuda.available:
             self.buzzer = RNNBuzzer(model_dir=buzzer_model_dir,
-                word_skip=conf['buzzer_word_skip'])
+                                    word_skip=conf['buzzer_word_skip'])
         else:
             self.buzzer = StupidBuzzer()
 
@@ -70,7 +63,7 @@ class GuesserBuzzer:
         if not isinstance(guesses, dict):
             guesses = {x[0]: x[1] for x in guesses}
 
-        buzz_scores = [0, 1] # [wait, buzz]
+        buzz_scores = [0, 1]  # [wait, buzz]
         if self.ok_to_buzz:
             buzz_scores = self.buzzer.buzz(guesses)
             if isinstance(buzz_scores, np.ndarray):
@@ -82,6 +75,7 @@ class GuesserBuzzer:
             self.answer = guesses[0][0]
         self.matches = get_highlights(text)
         return buzz_scores
+
 
 if __name__ == '__main__':
     # factory = WebSocketClientFactory(u"ws://play.qanta.org:9000")
