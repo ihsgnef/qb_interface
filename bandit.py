@@ -1,29 +1,49 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from contextualbandits.online import AdaptiveGreedy, BootstrappedUCB
+from contextualbandits.linreg import LinearRegression
+from contextualbandits.online import AdaptiveGreedy, BootstrappedUCB, LinUCB
 
 
 class BanditControl:
 
-    def __init__(self, nchoices: int):
+    def __init__(self, nchoices, streaming=False):
         self.nchoices = nchoices
-        base_algorithm = LogisticRegression(solver='lbfgs', warm_start=True)
-        # use beta_prior until at least 2 observations of each class
-        # beta_prior = ((3. / nchoices, 4), 2)
-        # UCB gives higher numbers, thus the higher positive prior
-        beta_prior_ucb = ((5. / nchoices, 4), 2)
+        self.streaming = streaming
 
-        self.model = BootstrappedUCB(base_algorithm, nchoices=nchoices,
-                                     beta_prior=beta_prior_ucb, percentile=80,
-                                     random_state=1111)
-        # self.model = AdaptiveGreedy(base_algorithm,
-        #                             nchoices=nchoices,
-        #                             decay_type='threshold',
-        #                             beta_prior=beta_prior,
-        #                             random_state=6666)
+        if streaming:
+            self.model = LinUCB(
+                nchoices=nchoices,
+                beta_prior=None,
+                alpha=0.1,
+                ucb_from_empty=False,
+                random_state=1111)
+            # self.model = AdaptiveGreedy(
+            #     LinearRegression(lambda_=10, fit_intercept=True, method="sm"),
+            #     nchoices=nchoices,
+            #     smoothing=None,
+            #     beta_prior=((3 / nchoices, 4.), 2),
+            #     active_choice='weighted',
+            #     decay_type='percentile',
+            #     decay=0.9997,
+            #     batch_train=True,
+            #     random_state=2222)
+        else:
+            self.model = BootstrappedUCB(LogisticRegression(solver='lbfgs', warm_start=True),
+                                         nchoices=nchoices,
+                                         beta_prior=((5. / nchoices, 4), 2),
+                                         percentile=80,
+                                         random_state=1111)
+            # self.model = AdaptiveGreedy(LogisticRegression(solver='lbfgs', warm_start=True),
+            #                             nchoices=nchoices,
+            #                             decay_type='threshold',
+            #                             beta_prior=((3. / nchoices, 4), 2),
+            #                             random_state=6666)
 
-    def fit(self, x_batch, actions, y_batch, warm_start=False):
-        self.model.fit(x_batch, actions, y_batch, warm_start=warm_start)
+    def fit(self, x_batch, actions, y_batch):
+        if self.streaming:
+            self.model.partial_fit(x_batch, actions, y_batch)
+        else:
+            self.model.fit(x_batch, actions, y_batch, warm_start=True)
 
     def predict(self, x_batch):
         return self.model.predict(x_batch).astype('int')
@@ -53,7 +73,8 @@ if __name__ == '__main__':
     batch_size = 50
     nchoices = y.shape[1]
 
-    model = BanditControl(nchoices=nchoices)
+    streaming = True
+    model = BanditControl(nchoices, streaming=streaming)
 
     rewards_average = []
     rewards = np.array([])
@@ -64,11 +85,20 @@ if __name__ == '__main__':
         y_batch = y[batch_start: batch_end, :]
 
         if batch_start == 0:
-            batch_actions = np.random.randint(nchoices, size=batch_size)
+            actions_batch = np.random.randint(nchoices, size=batch_size)
         else:
-            batch_actions = model.predict(x_batch)
-        batch_rewards = y[np.arange(batch_start, batch_end), batch_actions]
-        actions = np.concatenate((actions, batch_actions))
-        rewards = np.concatenate((rewards, batch_rewards))
-        rewards_average.append(np.mean(batch_rewards).item())
-        model.fit(X[:batch_end], actions, rewards, warm_start=True)
+            actions_batch = model.predict(x_batch)
+        rewards_batch = y[np.arange(batch_start, batch_end), actions_batch]
+        actions = np.concatenate((actions, actions_batch))
+        rewards = np.concatenate((rewards, rewards_batch))
+        rewards_average.append(np.mean(rewards_batch).item())
+
+        if streaming:
+            model.fit(x_batch, actions_batch, rewards_batch)
+        else:
+            model.fit(X[:batch_end], actions, rewards)
+
+    import matplotlib.pyplot as plt
+    ax = plt.subplot(111)
+    plt.plot(np.convolve(rewards_average, np.ones((50,)) / 50, mode='valid'), label="LinUCB (OLS)")
+    plt.savefig('a.pdf')
