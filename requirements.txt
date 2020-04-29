@@ -4,3 +4,4 @@ service_identity
 haikunator
 gspread
 oauth2client
+contextualbandits
