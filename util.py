@@ -1,5 +1,7 @@
+import re
 import json
 import pickle
+import string
 from tqdm import tqdm
 from nltk import word_tokenize
 
@@ -26,6 +28,25 @@ highlight_prefix = '<span style="background-color: ' + highlight_color + '">'
 highlight_suffix = '</span>'
 highlight_template = highlight_prefix + '{}' + highlight_suffix
 # highlight_template = '<mark data-entity=\"norp\">{}</mark>'
+
+ftp_patterns = {
+    '\n',
+    ', for 10 points,',
+    ', for ten points,',
+    '--for 10 points--',
+    'for 10 points, ',
+    'for 10 points--',
+    'for ten points, ',
+    'for 10 points ',
+    'for ten points ',
+    ', ftp,'
+    'ftp,',
+    'ftp'
+}
+
+patterns = ftp_patterns | set(string.punctuation)
+regex_pattern = '|'.join([re.escape(p) for p in patterns])
+regex_pattern += r'|\[.*?\]|\(.*?\)'
 
 
 def bodify(text):

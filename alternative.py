@@ -88,6 +88,23 @@ alternative_answers.update({
 'tulip': ['tulipa gesneriana'],
 'horse racing': ['horse race'],
 'c. s. lewis': ['c.s lews', 'clive staples lewis'],
+'esmeralda': ['agnes'],
+'artemio cruz': ['the death of artemio cruz'],
+'oxford': ['1860 oxford evolution debate', 'provisions of oxford'],
+'gustavus adolphus': ['gustav adolf', 'gustavus ii adolf'],
+'eta': ['euskadi ta askatasuna'],
+'haile selassie': ['tafari makonnen'],
+'rubisco': ['ribulose-1,5-bisphosphate carboxylase oxygenase'],
+'last glacial period': ['the last ice age'],
+'cello': ['violincello'],
+'snakes': ['serpents'],
+'art museums': ['guggenheim bilbao', 'prado'],
+'hammers': ['ukonvasara', 'mjolnir'],
+'southern baptist convention': ['sbc'],
+'avicenna': ['ibn sina'],
+'four causes': ['aitia'],
+'education': ['schooling'],
+'myers-briggs type indicator': ['mbti'],
 })
 
 def create_alternatives():
