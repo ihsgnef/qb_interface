@@ -141,6 +141,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.latest_resume_msg = None
         self.latest_buzzing_msg = None
 
+        self.tools_control = BanditControl(nchoices=len(TOOLS))
+
     def register(self, client):
         if client.peer not in self.socket_to_player:
             new_player = Player(client)

@@ -8,7 +8,14 @@ class BanditControl:
     def __init__(self, nchoices: int):
         self.nchoices = nchoices
         base_algorithm = LogisticRegression(solver='lbfgs', warm_start=True)
-        beta_prior = ((3. / nchoices, 4), 2)  # until there are at least 2 observations of each class, will use this prior
+        # use beta_prior until at least 2 observations of each class
+        beta_prior = ((3. / nchoices, 4), 2)
+        # UCB gives higher numbers, thus the higher positive prior
+        beta_prior_ucb = ((5./nchoices, 4), 2)
+
+        self.model = BootstrappedUCB(base_algorithm, nchoices=nchoices,
+                                     beta_prior = beta_prior_ucb, percentile=80,
+                                     random_state = 1111)
         self.model = AdaptiveGreedy(base_algorithm,
                                     nchoices=nchoices,
                                     decay_type='threshold',
