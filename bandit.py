@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from contextualbandits.online import AdaptiveGreedy
+from contextualbandits.online import AdaptiveGreedy, BootstrappedUCB
 
 
 class BanditControl:
@@ -9,18 +9,18 @@ class BanditControl:
         self.nchoices = nchoices
         base_algorithm = LogisticRegression(solver='lbfgs', warm_start=True)
         # use beta_prior until at least 2 observations of each class
-        beta_prior = ((3. / nchoices, 4), 2)
+        # beta_prior = ((3. / nchoices, 4), 2)
         # UCB gives higher numbers, thus the higher positive prior
-        beta_prior_ucb = ((5./nchoices, 4), 2)
+        beta_prior_ucb = ((5. / nchoices, 4), 2)
 
         self.model = BootstrappedUCB(base_algorithm, nchoices=nchoices,
-                                     beta_prior = beta_prior_ucb, percentile=80,
-                                     random_state = 1111)
-        self.model = AdaptiveGreedy(base_algorithm,
-                                    nchoices=nchoices,
-                                    decay_type='threshold',
-                                    beta_prior=beta_prior,
-                                    random_state=6666)
+                                     beta_prior=beta_prior_ucb, percentile=80,
+                                     random_state=1111)
+        # self.model = AdaptiveGreedy(base_algorithm,
+        #                             nchoices=nchoices,
+        #                             decay_type='threshold',
+        #                             beta_prior=beta_prior,
+        #                             random_state=6666)
 
     def fit(self, x_batch, actions, y_batch, warm_start=False):
         self.model.fit(x_batch, actions, y_batch, warm_start=warm_start)

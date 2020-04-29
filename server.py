@@ -30,6 +30,7 @@ from util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
 from util import QBQuestion, null_question
 from alternative import alternative_answers
 from db import QBDB
+from bandit import BanditControl
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
@@ -46,9 +47,11 @@ THRESHOLD = 40
 TOOLS = ['guesses', 'highlight', 'matches']
 TOOL_COMBOS = list(range(7))  # 000 -> 111
 
+
 def get_time():
     ts = time.time()
     return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+
 
 class Player:
 
@@ -141,7 +144,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.latest_resume_msg = None
         self.latest_buzzing_msg = None
 
-        self.tools_control = BanditControl(nchoices=len(TOOLS))
+        self.bandit_control = BanditControl(nchoices=len(TOOLS))
 
     def register(self, client):
         if client.peer not in self.socket_to_player:
@@ -302,14 +305,23 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def update_enabled_tools(self):
         # for each active player return a dictionry of
         # tools -> boolean indicating if each tool is enabled for this round
-        expected_each = len(self.questions) / len(TOOL_COMBOS)
-        for uid, player in self.players.items():
-            if not player.active:
-                continue
-            params = [max(expected_each - player.combo_count[x], 0) for x in TOOL_COMBOS]
-            combo = np.argmax(np.random.dirichlet(params)).tolist()
-            player.enabled_tools = self.combo_to_tools(combo)
-            player.combo_count[combo] += 1
+
+        if True:
+            # TODO if bandit mode
+            for uid, player in self.players.items():
+                context_vector = self.get_context_vector(uid)
+                combo = self.bandit_solver.get_action(context_vector)
+                player.enabled_tools = self.combo_to_tools(combo)
+                player.combo_count[combo] += 1
+        else:
+            expected_each = len(self.questions) / len(TOOL_COMBOS)
+            for uid, player in self.players.items():
+                if not player.active:
+                    continue
+                params = [max(expected_each - player.combo_count[x], 0) for x in TOOL_COMBOS]
+                combo = np.argmax(np.random.dirichlet(params)).tolist()
+                player.enabled_tools = self.combo_to_tools(combo)
+                player.combo_count[combo] += 1
 
     def new_question(self):
         try:
@@ -576,6 +588,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'result': result,
                 'score': score
             }
+
+            if True:
+                # TODO
+                combo = self.tools_to_combo(green_player.enabled_tools)
+                self.bandit_control.update(combo, result)
 
             green_player.score += score
             if result:
