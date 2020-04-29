@@ -1,3 +1,4 @@
+import dill
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from contextualbandits.linreg import LinearRegression
@@ -48,6 +49,14 @@ class BanditControl:
     def predict(self, x_batch):
         return self.model.predict(x_batch).astype('int')
 
+    def save(self, save_dir):
+        with open(save_dir, 'wb') as f:
+            dill.dump(self.model, f)
+
+    def load(self, save_dir):
+        with open(save_dir, 'rb') as f:
+            self.model = dill.load(f)
+
 
 def parse_bibtex_data(filename):
     import re
@@ -67,7 +76,7 @@ def parse_bibtex_data(filename):
     return features, labels
 
 
-if __name__ == '__main__':
+def bibtext():
     X, y = parse_bibtex_data("Bibtex_data.txt")
 
     batch_size = 50
@@ -82,7 +91,6 @@ if __name__ == '__main__':
     for batch_start in range(0, X.shape[0], batch_size):
         batch_end = min(X.shape[0], batch_start + batch_size)
         x_batch = X[batch_start: batch_end, :]
-        y_batch = y[batch_start: batch_end, :]
 
         if batch_start == 0:
             actions_batch = np.random.randint(nchoices, size=batch_size)
@@ -100,5 +108,16 @@ if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
     ax = plt.subplot(111)
-    plt.plot(np.convolve(rewards_average, np.ones((50,)) / 50, mode='valid'), label="LinUCB (OLS)")
+    ax.plot(np.convolve(rewards_average, np.ones((50,)) / 50, mode='valid'), label="LinUCB (OLS)")
     plt.savefig('a.pdf')
+
+
+if __name__ == '__main__':
+    model = BanditControl(nchoices=8, streaming=True)
+    context_vector = np.array([1])[:, np.newaxis]
+    actions = model.predict(context_vector)
+    print(actions)
+    rewards = np.array([0])[:, np.newaxis]
+    model.fit(context_vector, actions, rewards)
+    actions = model.predict(context_vector)
+    print(actions)

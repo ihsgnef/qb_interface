@@ -144,7 +144,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.latest_resume_msg = None
         self.latest_buzzing_msg = None
 
-        self.bandit_control = BanditControl(nchoices=len(TOOLS))
+        self.bandit_control = BanditControl(nchoices=len(TOOLS), streaming=True)
 
     def register(self, client):
         if client.peer not in self.socket_to_player:
@@ -302,6 +302,20 @@ class BroadcastServerFactory(WebSocketServerFactory):
         enabled[TOOLS[2]] = (combo / 4) != 0
         return enabled
 
+    def tools_to_combo(self, enabled_tools):
+        combo = 0
+        if enabled_tools[TOOLS[0]]:
+            combo += 1
+        if enabled_tools[TOOLS[1]]:
+            combo += 2
+        if enabled_tools[TOOLS[2]]:
+            combo += 4
+        return combo
+
+    def get_context_vector(self, player):
+        # TODO
+        return np.array([1])[:, np.newaxis]
+
     def update_enabled_tools(self):
         # for each active player return a dictionry of
         # tools -> boolean indicating if each tool is enabled for this round
@@ -309,8 +323,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         if True:
             # TODO if bandit mode
             for uid, player in self.players.items():
-                context_vector = self.get_context_vector(uid)
-                combo = self.bandit_solver.get_action(context_vector)
+                context_vector = self.get_context_vector(player)
+                combo = self.bandit_control.predict(context_vector)[0].item()
                 player.enabled_tools = self.combo_to_tools(combo)
                 player.combo_count[combo] += 1
         else:
@@ -590,9 +604,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
             }
 
             if True:
-                # TODO
+                # TODO if bandit mode
                 combo = self.tools_to_combo(green_player.enabled_tools)
-                self.bandit_control.update(combo, result)
+                # TODO do not recompute
+                context_vector = self.get_context_vector(green_player)
+                self.bandit_control.fit(
+                    context_vector,
+                    np.array([[combo]]),
+                    np.array([[result]]),
+                )
 
             green_player.score += score
             if result:
