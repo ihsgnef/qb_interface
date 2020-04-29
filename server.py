@@ -27,7 +27,7 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
     MSG_TYPE_COMPLETE
 from util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
     NEW_LINE, BELL, bodify, highlight_template
-from util import null_question
+from util import QBQuestion, null_question
 from alternative import alternative_answers
 from db import QBDB
 
