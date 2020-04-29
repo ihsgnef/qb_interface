@@ -43,8 +43,6 @@ NUM_QUESTIONS = 10
 THRESHOLD = 40
 
 # enable all tools when user finishes all questions
-FREE_MODE = False
-GOD_MODE = True
 TOOLS = ['guesses', 'highlight', 'matches']
 TOOL_COMBOS = list(range(7))  # 000 -> 111
 
@@ -183,9 +181,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             new_player.questions_answered = dbp['questions_answered']
                             new_player.questions_correct = dbp['questions_correct']
                             new_player.complete = len(set(dbp['questions_answered'])) >= THRESHOLD
-                            if new_player.complete:
-                                if FREE_MODE:
-                                    new_player.enabled_tools = {x: True for x in TOOLS}
                         else:
                             logger.info('add player {} to db'.format(new_player.uid))
                             self.db.add_player(new_player)
@@ -305,18 +300,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def update_enabled_tools(self):
         # for each active player return a dictionry of
         # tools -> boolean indicating if each tool is enabled for this round
-        if GOD_MODE:
-            for uid, player in self.players.items():
-                player.enabled_tools = {x: True for x in TOOLS}
-            return
-
         expected_each = len(self.questions) / len(TOOL_COMBOS)
         for uid, player in self.players.items():
             if not player.active:
                 continue
-            if player.complete:
-                if FREE_MODE:
-                    player.enabled_tools = {x: True for x in TOOLS}
             params = [max(expected_each - player.combo_count[x], 0) for x in TOOL_COMBOS]
             combo = np.argmax(np.random.dirichlet(params)).tolist()
             player.enabled_tools = self.combo_to_tools(combo)
@@ -366,9 +353,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
             for player in self.players.values():
                 # allow all tools when player has finished all questions
                 msg['enabled_tools'] = player.enabled_tools
-                if player.complete:
-                    if FREE_MODE:
-                        msg['free_mode'] = True
                 player.sendMessage(msg)
                 condition = partial(self.check_player_response,
                                     player=player, key='qid', value=self.question.qid)
@@ -694,8 +678,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     player.buzz_info.get('guess', ''),
                     player.buzz_info.get('result', None),
                     player.buzz_info.get('score', 0),
-                    player.enabled_tools,
-                    free_mode=player.complete and FREE_MODE
+                    player.enabled_tools
                 )
                 player.response = None
                 player.buzzed = False
