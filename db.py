@@ -6,7 +6,7 @@ import logging
 from util import QantaCacheEntry
 
 logger = logging.getLogger('db')
-DB_FILENAME = 'db.sqlite'
+DB_FILENAME = 'data/db.sqlite'
 
 class QBDB:
 
