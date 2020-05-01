@@ -26,6 +26,7 @@ class PlayerProtocol(WebSocketClientProtocol):
         self.text = ''
         self.position = 0
         self.answer = ''
+        self.buzzed = False
         self.enabled_tools = {t: False for t in TOOLS}
         with open('data/pace_questions.pkl', 'rb') as f:
             self.questions = pickle.load(f)
@@ -40,18 +41,21 @@ class PlayerProtocol(WebSocketClientProtocol):
         self.qid = msg['qid']
         self.text = ''
         self.position = 0
+        self.buzzed = False
         self.enabled_tools = msg['enabled_tools']
         msg = {
             'type': MSG_TYPE_NEW,
             'qid': self.qid,
-            'is_machine': True,
             'player_name': 'QANTA',
-            'player_uid': 'QANTA',
+            'player_id': 'QANTA',
         }
         self.sendMessage(json.dumps(msg).encode('utf-8'))
 
     def buzz(self):
         self.answer = 'Chubakka'
+        if self.buzzed:
+            return False
+
         if self.position > 10:
             if sum(self.enabled_tools.values()) > 1:
                 self.answer = self.questions[self.qid].answer.replace('_', ' ')
@@ -60,6 +64,8 @@ class PlayerProtocol(WebSocketClientProtocol):
             return False
 
     def update_question(self, msg):
+        if 'text' not in msg:
+            return
         print(msg['text'].split()[-1], end=' ', flush=True)
         self.text += ' ' + msg['text']
         if self.buzz():
@@ -71,6 +77,7 @@ class PlayerProtocol(WebSocketClientProtocol):
                 'position': self.position
             }
             self.sendMessage(json.dumps(msg).encode('utf-8'))
+            self.buzzed = True
         else:
             msg = {
                 'type': MSG_TYPE_RESUME,
