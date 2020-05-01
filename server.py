@@ -80,6 +80,7 @@ class Player:
         self.questions_correct = []
         self.complete = False  # answered all questions
         self.before_half_correct = 0
+        self.mode = 'bandit'
 
     def can_buzz(self, qid):
         if not self.active:
@@ -319,23 +320,18 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def update_enabled_tools(self):
         # for each active player return a dictionry of
         # tools -> boolean indicating if each tool is enabled for this round
-
-        if False:
-            # TODO if bandit mode
-            for uid, player in self.players.items():
+        for uid, player in self.player.items():
+            if not player.active:
+                continue
+            if player.mode == 'bandit':
                 context_vector = self.get_context_vector(player)
                 combo = self.bandit_control.predict(context_vector)[0].item()
-                player.enabled_tools = self.combo_to_tools(combo)
-                player.combo_count[combo] += 1
-        else:
-            expected_each = len(self.questions) / len(TOOL_COMBOS)
-            for uid, player in self.players.items():
-                if not player.active:
-                    continue
+            elif player.mode == 'random':
+                expected_each = len(self.questions) / len(TOOL_COMBOS)
                 params = [max(expected_each - player.combo_count[x], 0) for x in TOOL_COMBOS]
                 combo = np.argmax(np.random.dirichlet(params)).tolist()
-                player.enabled_tools = self.combo_to_tools(combo)
-                player.combo_count[combo] += 1
+            player.enabled_tools = self.combo_to_tools(combo)
+            player.combo_count[combo] += 1
 
     def new_question(self):
         try:
@@ -717,7 +713,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     player.buzz_info.get('guess', ''),
                     player.buzz_info.get('result', None),
                     player.buzz_info.get('score', 0),
-                    player.enabled_tools
+                    player.enabled_tools,
+                    player.mode,
                 )
                 player.response = None
                 player.buzzed = False
@@ -750,8 +747,8 @@ if __name__ == '__main__':
     factory.protocol = BroadcastServerProtocol
     listenWS(factory)
 
-    webdir = File("web/index.html")
-    web = Site(webdir)
-    reactor.listenTCP(8080, web)
+    # webdir = File("web/index.html")
+    # web = Site(webdir)
+    # reactor.listenTCP(8080, web)
 
     reactor.run()
