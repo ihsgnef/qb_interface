@@ -35,7 +35,7 @@ class QBDB:
         c.execute('CREATE TABLE players (\
                 player_id PRIMARY KEY, \
                 ip TEXT, \
-                name TEXT, \
+                player_name TEXT, \
                 score INT, \
                 questions_seen TEXT, \
                 questions_answered TEXT, \
@@ -63,9 +63,9 @@ class QBDB:
         questions_correct = json.dumps(player.questions_correct)
         try:
             c.execute('INSERT INTO players VALUES (?,?,?,?,?,?,?,?)', (
-                player.uid,
+                player.player_id,
                 player.client.peer,
-                player.name,
+                player.player_name,
                 player.score,
                 questions_seen,
                 questions_answered,
@@ -73,14 +73,14 @@ class QBDB:
                 player.mode,
             ))
         except sqlite3.IntegrityError:
-            logger.info("player {} exists".format(player.uid))
+            logger.info("player {} exists".format(player.player_id))
         self.conn.commit()
 
     def add_game(self, qid, players, question_text, info_text):
         game_id = 'game_' + str(uuid.uuid4()).replace('-', '')
         if isinstance(players, dict):
             players = players.values()
-        player_ids = [x.uid for x in players]
+        player_ids = [x.player_id for x in players]
         # include players that are not active
         c = self.conn.cursor()
         c.execute('INSERT INTO games VALUES (?,?,?,?,?)',
@@ -144,7 +144,7 @@ class QBDB:
             return {
                 'player_id': r[0],
                 'ip': r[1],
-                'name': r[2],
+                'player_name': r[2],
                 'score': r[3],
                 'questions_seen': json.loads(r[4]),
                 'questions_answered': json.loads(r[5]),
@@ -164,7 +164,7 @@ class QBDB:
                 return row_to_dict(r[0])
         else:
             assert player_name is not None
-            c.execute("SELECT * FROM players WHERE name=?", (player_name,))
+            c.execute("SELECT * FROM players WHERE player_name=?", (player_name,))
             rs = c.fetchall()
             if len(rs) == 0:
                 return None
@@ -183,7 +183,7 @@ class QBDB:
             json.dumps(player.questions_seen),
             json.dumps(player.questions_answered),
             json.dumps(player.questions_correct),
-            player.uid))
+            player.player_id))
         self.conn.commit()
 
     def get_records(self, player_id=None, question_id=None):
@@ -224,13 +224,13 @@ if __name__ == '__main__':
     db = QBDB()
     client = Namespace(peer="dummy_peer")
     player_id = 'player_' + str(uuid.uuid4()).replace('-', '')
-    name = "dummy_name"
-    player = Player(client, player_id, name)
+    player_name = "dummy_name"
+    player = Player(client, player_id, player_name)
     db.add_player(player)
     qid = 20
     game_id = db.add_game(qid, [player], "question text awd", "info text awd")
     db.add_record(
-        game_id, player.uid, name, qid,
+        game_id, player.player_id, player_name, qid,
         position_start=0, position_buzz=-1,
         guess='China', result=True, score=10,
         enabled_tools=dict(),

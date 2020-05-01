@@ -46,21 +46,38 @@ TOOLS = ['guesses', 'highlight', 'matches']
 TOOL_COMBOS = list(range(7))  # 000 -> 111
 
 
+class BroadcastServerProtocol(WebSocketServerProtocol):
+
+    def onOpen(self):
+        self.factory.register(self)
+
+    def onMessage(self, payload, isBinary):
+        self.factory.receive(payload, self)
+
+    def connectionLost(self, reason):
+        WebSocketServerProtocol.connectionLost(self, reason)
+        self.factory.unregister(self)
+
+
 class Player:
 
-    def __init__(self, client, uid=None, name=None, is_machine=False, score=0, active=True):
+    def __init__(
+        self,
+        client: BroadcastServerProtocol,
+        player_id: str = None,
+        player_name: str = None,
+    ):
         self.client = client
-        if uid is not None:
-            self.uid = uid
+        if player_id is not None:
+            self.player_id = player_id
         else:
-            self.uid = 'player_' + str(uuid.uuid4()).replace('-', '')
-        if name is not None:
-            self.name = name
+            self.player_id = 'player_' + str(uuid.uuid4()).replace('-', '')
+        if player_name is not None:
+            self.player_name = player_name
         else:
-            self.name = haikunator.haikunate(token_length=0, delimiter=' ').title()
-        self.is_machine = is_machine
-        self.active = active
-        self.score = score
+            self.player_name = haikunator.haikunate(token_length=0, delimiter=' ').title()
+        self.active = True
+        self.score = 0
         self.buzzed = False
         self.response = None
         self.position_start = 0
@@ -92,19 +109,6 @@ class Player:
             self.client.sendMessage(json.dumps(msg).encode('utf-8'))
 
 
-class BroadcastServerProtocol(WebSocketServerProtocol):
-
-    def onOpen(self):
-        self.factory.register(self)
-
-    def onMessage(self, payload, isBinary):
-        self.factory.receive(payload, self)
-
-    def connectionLost(self, reason):
-        WebSocketServerProtocol.connectionLost(self, reason)
-        self.factory.unregister(self)
-
-
 class BroadcastServerFactory(WebSocketServerFactory):
 
     def __init__(self, url, loop=False):
@@ -123,7 +127,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.loop = loop
 
         self.socket_to_player = dict()  # client.peer -> Player
-        self.players = dict()  # uid -> Player
+        self.players = dict()  # player_id -> Player
         self.deferreds = []
 
         self.question = null_question
@@ -147,33 +151,33 @@ class BroadcastServerFactory(WebSocketServerFactory):
             msg = {
                 'type': MSG_TYPE_NEW,
                 'qid': self.question.qid,
-                'player_uid': new_player.uid,
-                'player_name': new_player.name
+                'player_id': new_player.player_id,
+                'player_name': new_player.player_name,
             }
             new_player.sendMessage(msg)
 
             def callback(x):
                 try:
-                    uid = new_player.response['player_uid']
-                    name = new_player.response['player_name']
-                    if uid in self.players:
-                        # same uid exists
-                        old_peer = self.players[uid].client.peer
-                        self.socket_to_player[client.peer] = self.players[uid]
-                        self.players[uid].client = client
-                        self.players[uid].name = name
+                    player_id = new_player.response['player_id']
+                    player_name = new_player.response['player_name']
+                    if player_id in self.players:
+                        # same player_id exists
+                        old_peer = self.players[player_id].client.peer
+                        self.socket_to_player[client.peer] = self.players[player_id]
+                        self.players[player_id].client = client
+                        self.players[player_id].player_name = player_name
                         self.socket_to_player.pop(old_peer, None)
-                        self.players[uid].active = True
+                        self.players[player_id].active = True
                         logger.info("[register] old player {} ({} -> {})".format(
-                            name, old_peer, client.peer))
-                        logger.info(self.players[uid].complete)
+                            player_name, old_peer, client.peer))
+                        logger.info(self.players[player_id].complete)
                     else:
-                        new_player.uid = uid
-                        new_player.name = name
+                        new_player.player_id = player_id
+                        new_player.player_name = player_name
                         new_player.position_start = self.position
-                        self.players[uid] = new_player
+                        self.players[player_id] = new_player
 
-                        dbp = self.db.get_player(uid)
+                        dbp = self.db.get_player(player_id)
                         if dbp is not None:
                             new_player.score = dbp['score']
                             new_player.questions_seen = dbp['questions_seen']
@@ -181,10 +185,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             new_player.questions_correct = dbp['questions_correct']
                             new_player.complete = len(set(dbp['questions_answered'])) >= THRESHOLD
                         else:
-                            logger.info('add player {} to db'.format(new_player.uid))
+                            logger.info('add player {} to db'.format(new_player.player_id))
                             self.db.add_player(new_player)
                         logger.info("[register] new player {} ({})".format(
-                            name, client.peer))
+                            player_name, client.peer))
 
                     self.player_list = self.get_player_list()
                     msg = {'type': MSG_TYPE_NEW, 'qid': self.question.qid,
@@ -193,15 +197,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
                            'history_entries': self.history_entries,
                            'length': self.question.length,
                            'position': self.position,
-                           'completed': self.players[uid].complete,
+                           'completed': self.players[player_id].complete,
                            'speech_text': ' '.join(self.question.raw_text[self.position:])}
-                    self.players[uid].sendMessage(msg)
+                    self.players[player_id].sendMessage(msg)
 
                     # keep player up to date
                     if self.latest_resume_msg is not None:
-                        self.players[uid].sendMessage(self.latest_resume_msg)
+                        self.players[player_id].sendMessage(self.latest_resume_msg)
                     if self.latest_buzzing_msg is not None:
-                        self.players[uid].sendMessage(self.latest_buzzing_msg)
+                        self.players[player_id].sendMessage(self.latest_buzzing_msg)
 
                     if len(self.players) == 1 and not self.started:
                         self.started = True
@@ -228,7 +232,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             player = self.socket_to_player.pop(client.peer, None)
         if player is not None:
             player.active = False
-            logger.info("[unregister] player {} inactive".format(player.name))
+            logger.info("[unregister] player {} inactive".format(player.player_name))
 
     def check_player_response(self, player, key, value):
         return (
@@ -313,7 +317,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def update_enabled_tools(self):
         # for each active player return a dictionry of
         # tools -> boolean indicating if each tool is enabled for this round
-        for uid, player in self.players.items():
+        for player_id, player in self.players.items():
             if not player.active:
                 continue
             if player.mode == 'bandit':
@@ -345,13 +349,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
             def make_callback(player):
                 def f(x):
                     logger.info('[new question] player {} ready'.format(
-                        player.name))
+                        player.player_name))
                 return f
 
             def make_errback(player):
                 def f(x):
                     logger.info('[new question] player {} timed out'.format(
-                        player.name))
+                        player.player_name))
                     self.unregister(player=player)
                 return f
 
@@ -389,7 +393,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         def calllater():
             for player in self.players.values():
                 logger.info("player {} score {}".format(
-                    player.name, player.score))
+                    player.player_name, player.score))
                 player.questions_seen.append(self.question.qid)
             self.pbar = tqdm(total=self.question.length, leave=False)
             self.stream_next()
@@ -435,12 +439,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
     def last_chance(self, countdown):
         buzzing_ids = []
-        for uid, player in self.players.items():
+        for player_id, player in self.players.items():
             if not player.can_buzz(self.question.qid):
                 continue
             if self.check_player_response(
                     player, 'type', MSG_TYPE_BUZZING_REQUEST):
-                buzzing_ids.append(uid)
+                buzzing_ids.append(player_id)
         if len(buzzing_ids) > 0:
             self._buzzing(buzzing_ids, end_of_question=True)
         else:
@@ -462,12 +466,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         self.latest_buzzing_msg = None
         buzzing_ids = []
-        for uid, player in self.players.items():
+        for player_id, player in self.players.items():
             if not player.can_buzz(self.question.qid):
                 continue
             if self.check_player_response(
                     player, 'type', MSG_TYPE_BUZZING_REQUEST):
-                buzzing_ids.append(uid)
+                buzzing_ids.append(player_id)
 
         if len(buzzing_ids) > 0:
             self._buzzing(buzzing_ids, end_of_question)
@@ -500,15 +504,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # active players first then sort by score
         db_players = self.db.get_player()
         for i, x in enumerate(db_players):
-            uid = x['player_id']
-            active = (uid in self.players) and (self.players[uid].active)
+            player_id = x['player_id']
+            active = (player_id in self.players) and (self.players[player_id].active)
             db_players[i]['active'] = active
         db_players = sorted(db_players, key=lambda x: (x['active'], x['score']))[::-1]
         player_list = []
         for x in db_players:
             player_list.append({
-                'uid': x['player_id'],
-                'name': x['name'],
+                'player_id': x['player_id'],
+                'player_name': x['player_name'],
                 'score': x['score'],
                 'questions_seen': len(set(x['questions_seen'])),
                 'questions_answered': len(set(x['questions_answered'])),
@@ -520,10 +524,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
         random.shuffle(buzzing_ids)
         buzzing_id = buzzing_ids[0]
         green_player = self.players[buzzing_id]
-        logger.info('[buzzing] player {} answering'.format(green_player.name))
+        logger.info('[buzzing] player {} answering'.format(green_player.player_name))
 
         self.info_text += NEW_LINE + BADGE_BUZZ
-        self.info_text += ' {}: '.format(bodify(green_player.name))
+        self.info_text += ' {}: '.format(bodify(green_player.player_name))
         self.bell_positions.append(self.position)
 
         msg = {
@@ -540,7 +544,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         msg['type'] = MSG_TYPE_BUZZING_RED
         for player in self.players.values():
-            if player.uid != buzzing_id:
+            if player.player_id != buzzing_id:
                 player.sendMessage(msg)
 
         self.latest_buzzing_msg = msg
@@ -553,7 +557,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         def errback(x):
             logger.info('[buzzing] player {} answer time out'.format(
-                green_player.name))
+                green_player.player_name))
             self._buzzing_after(buzzing_id, end_of_question, timed_out=True)
 
         if condition():
@@ -621,7 +625,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'qid': self.question.qid,
                 'result': result,
                 'score': score,
-                'uid': buzzing_id,
+                'player_id': buzzing_id,
                 'guess': answer,
                 'info_text': self.info_text
             }
@@ -632,7 +636,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             msg['type'] = MSG_TYPE_RESULT_OTHER
             can_buzz_players = 0
             for player in self.players.values():
-                if player.uid != green_player.uid:
+                if player.player_id != green_player.player_id:
                     player.sendMessage(msg)
                     if player.can_buzz(self.question.qid):
                         can_buzz_players += 1
@@ -695,13 +699,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
             # clear player response
             # set buzzed to false
             to_remove = []
-            for uid, player in self.players.items():
+            for player_id, player in self.players.items():
                 self.db.update_player(player)
                 if not player.active:
-                    to_remove.append(uid)
+                    to_remove.append(player_id)
                     self.socket_to_player.pop(player.client.peer, None)
                 self.db.add_record(
-                    game_id, uid, player.name, self.question.qid,
+                    game_id, player_id, player.player_name, self.question.qid,
                     player.position_start, player.position_buzz,
                     player.buzz_info.get('guess', ''),
                     player.buzz_info.get('result', None),
@@ -715,14 +719,14 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 player.position_buzz = -1
                 player.buzz_info = dict()
                 n_answered = len(set(player.questions_answered))
-                # print(player.name, player.complete, n_answered, NUM_QUESTIONS)
+                # print(player.player_name, player.complete, n_answered, NUM_QUESTIONS)
                 if not player.complete and n_answered >= THRESHOLD and player.score > 0:
                     if player.before_half_correct >= 10:
-                        logger.info("player {} complete".format(player.name))
+                        logger.info("player {} complete".format(player.player_name))
                         player.complete = True
                         player.sendMessage({'type': MSG_TYPE_COMPLETE})
-            for uid in to_remove:
-                self.players.pop(uid, None)
+            for player_id in to_remove:
+                self.players.pop(player_id, None)
         except Exception:
             traceback.print_exc(file=sys.stdout)
 

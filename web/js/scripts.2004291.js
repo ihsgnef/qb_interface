@@ -112,13 +112,13 @@ logout_button.onclick = function(event) {
     deleteAllCookies();
     window.location.reload(false);
     console.log(getCookie("player_name"));
-    console.log(getCookie("player_uid"));
+    console.log(getCookie("player_id"));
 };
 
 pause_button.onclick = function(event) {
     $('#pause_modal').modal('show');
     if (completed) {
-        $('#pause_modal_content').text('Congrats! You have finished 40 questions. Your code is: ' + player_uid);
+        $('#pause_modal_content').text('Congrats! You have finished 40 questions. Your code is: ' + player_id);
     }
     clearTimeout(timer_timeout);
     timer_set = false;
@@ -136,7 +136,7 @@ resume_button.onclick = function(event) {
 //////// Starting process ////////
 
 var player_name = getCookie("player_name");
-var player_uid = getCookie("player_uid");
+var player_id = getCookie("player_id");
 var consent_accepted = getCookie("consent_accepted");
 
 introJs.fn.oncomplete(function() {start();});
@@ -154,7 +154,7 @@ if (consent_accepted == "N_O_T_S_E_T") {
         } else {
             setCookie("player_name", "N_O_T_S_E_T");
         }
-        setCookie("player_uid", "N_O_T_S_E_T");
+        setCookie("player_id", "N_O_T_S_E_T");
         setCookie("consent_accepted", "True");
         $('#consent_modal').modal('hide');
         introJs().start();
@@ -308,7 +308,7 @@ function new_question(msg) {
         type: MSG_TYPE_NEW,
         qid: msg.qid,
         player_name: player_name,
-        player_uid: player_uid,
+        player_id: player_id,
     };
     sockt.send(JSON.stringify(m));
 }
@@ -548,11 +548,11 @@ function start() {
                 setCookie("player_name", player_name);
             }
         }
-        if (typeof msg.player_uid != 'undefined') {
-            if (player_uid == "N_O_T_S_E_T") {
-                player_uid = msg.player_uid;
-                console.log('set player uid', player_uid);
-                setCookie("player_uid", player_uid);
+        if (typeof msg.player_id != 'undefined') {
+            if (player_id == "N_O_T_S_E_T") {
+                player_id = msg.player_id;
+                console.log('set player id', player_id);
+                setCookie("player_id", player_id);
             }
         }
         if (msg.type === MSG_TYPE_NEW) {
@@ -604,7 +604,7 @@ function start() {
                 tr.appendChild(td);
 
                 var td = document.createElement('td');
-                td.appendChild(document.createTextNode(ply.name));
+                td.appendChild(document.createTextNode(ply.player_name));
                 tr.appendChild(td);
 
                 var neg = ply.questions_answered - ply.questions_correct;
@@ -616,7 +616,7 @@ function start() {
 
                 new_tbody.appendChild(tr);
 
-                if (ply.uid == player_uid) {
+                if (ply.player_id == player_id) {
                     tr.className = "table-success";
                 }
                 if (!ply.active) {
