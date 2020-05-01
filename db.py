@@ -39,7 +39,8 @@ class QBDB:
                 score INT, \
                 questions_seen TEXT, \
                 questions_answered TEXT, \
-                questions_correct TEXT)')
+                questions_correct TEXT, \
+                mode TEXT)')
 
         c.execute('CREATE TABLE games (\
                 game_id PRIMARY KEY, \
