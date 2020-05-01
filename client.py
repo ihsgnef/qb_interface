@@ -1,4 +1,5 @@
 import json
+import pickle
 import logging
 
 from twisted.internet import reactor
@@ -11,9 +12,12 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, \
     MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
     MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
     MSG_TYPE_RESULT_MINE
+from util import QBQuestion
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('client')
+
+TOOLS = ['guesses', 'highlight', 'matches']
 
 class PlayerProtocol(WebSocketClientProtocol):
 
@@ -22,6 +26,10 @@ class PlayerProtocol(WebSocketClientProtocol):
         self.text = ''
         self.position = 0
         self.answer = ''
+        self.enabled_tools = {t: False for t in TOOLS}
+        with open('data/pace_questions.pkl', 'rb') as f:
+            self.questions = pickle.load(f)
+            self.questions = {x.qid: x for x in self.questions}
 
     def onClose(self, wasClean, code, reason):
         logger.warning('Connection closed')
@@ -32,20 +40,27 @@ class PlayerProtocol(WebSocketClientProtocol):
         self.qid = msg['qid']
         self.text = ''
         self.position = 0
+        self.enabled_tools = msg['enabled_tools']
         msg = {
             'type': MSG_TYPE_NEW,
             'qid': self.qid,
             'is_machine': True,
-            'player_name': 'QANTA'
+            'player_name': 'QANTA',
+            'player_uid': 'QANTA',
         }
         self.sendMessage(json.dumps(msg).encode('utf-8'))
 
     def buzz(self):
         self.answer = 'Chubakka'
-        return self.position > 5
+        if self.position > 10:
+            if sum(self.enabled_tools.values()) > 1:
+                self.answer = self.questions[self.qid].answer.replace('_', ' ')
+            return True
+        else:
+            return False
 
     def update_question(self, msg):
-        print(msg['text'], end=' ', flush=True)
+        print(msg['text'].split()[-1], end=' ', flush=True)
         self.text += ' ' + msg['text']
         if self.buzz():
             logger.info("\nBuzzing on answer: {}".format(self.answer))
@@ -93,7 +108,8 @@ class PlayerProtocol(WebSocketClientProtocol):
 
 
 if __name__ == '__main__':
-    factory = WebSocketClientFactory(u"ws://127.0.0.1:9000")
+    # factory = WebSocketClientFactory(u"ws://127.0.0.1:9000")
+    factory = WebSocketClientFactory(u"ws://play.qanta.org:9000")
     factory.protocol = PlayerProtocol
     connectWS(factory)
     reactor.run()

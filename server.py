@@ -1,13 +1,11 @@
 import sys
 import json
-import time
 import uuid
 import random
 import numpy as np
 import pickle
 import logging
 import traceback
-import datetime
 from tqdm import tqdm
 from collections import Counter
 from functools import partial
@@ -37,7 +35,7 @@ logger = logging.getLogger('server')
 haikunator = Haikunator()
 
 ANSWER_TIME_OUT = 14
-SECOND_PER_WORD = 0.5
+SECOND_PER_WORD = 0.2
 PLAYER_RESPONSE_TIME_OUT = 3
 HISTORY_LENGTH = 30
 NUM_QUESTIONS = 10
@@ -46,11 +44,6 @@ THRESHOLD = 40
 # enable all tools when user finishes all questions
 TOOLS = ['guesses', 'highlight', 'matches']
 TOOL_COMBOS = list(range(7))  # 000 -> 111
-
-
-def get_time():
-    ts = time.time()
-    return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 
 class Player:
@@ -320,7 +313,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
     def update_enabled_tools(self):
         # for each active player return a dictionry of
         # tools -> boolean indicating if each tool is enabled for this round
-        for uid, player in self.player.items():
+        for uid, player in self.players.items():
             if not player.active:
                 continue
             if player.mode == 'bandit':
@@ -747,8 +740,8 @@ if __name__ == '__main__':
     factory.protocol = BroadcastServerProtocol
     listenWS(factory)
 
-    # webdir = File("web/index.html")
-    # web = Site(webdir)
-    # reactor.listenTCP(8080, web)
+    webdir = File("web/index.html")
+    web = Site(webdir)
+    reactor.listenTCP(8080, web)
 
     reactor.run()

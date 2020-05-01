@@ -149,7 +149,7 @@ class QBDB:
                 'questions_seen': json.loads(r[4]),
                 'questions_answered': json.loads(r[5]),
                 'questions_correct': json.loads(r[6]),
-                'mode': r[8],
+                'mode': r[7],
             }
         c = self.conn.cursor()
         if player_id is None and player_name is None:
