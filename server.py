@@ -16,23 +16,21 @@ from haikunator import Haikunator
 from twisted.internet import reactor
 from twisted.web.server import Site
 from twisted.web.static import File
-from twisted.internet.defer import Deferred, inlineCallbacks
+from twisted.internet.defer import Deferred
 from autobahn.twisted.websocket import WebSocketServerFactory, \
     WebSocketServerProtocol, listenWS
 
 from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
-        MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
-        MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
-        MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER, \
-        MSG_TYPE_COMPLETE
+    MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
+    MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
+    MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER, \
+    MSG_TYPE_COMPLETE
 from util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
-        NEW_LINE, BELL, bodify, highlight_template
+    NEW_LINE, BELL, bodify, highlight_template
 from util import QBQuestion, null_question
 from alternative import alternative_answers
 from db import QBDB
-from bandit_solver import BANDIT_SOLVER
-from time import gmtime, strftime
-import os
+from bandit import BanditControl
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
@@ -43,24 +41,21 @@ SECOND_PER_WORD = 0.5
 PLAYER_RESPONSE_TIME_OUT = 3
 HISTORY_LENGTH = 30
 NUM_QUESTIONS = 10
-THRESHOLD = 5
+THRESHOLD = 40
 
 # enable all tools when user finishes all questions
-FREE_MODE = False
-GOD_MODE = False
-BANDIT_MODE = True
 TOOLS = ['guesses', 'highlight', 'matches']
-TOOL_COMBOS = list(range(8)) # 000 -> 111
+TOOL_COMBOS = list(range(7))  # 000 -> 111
 
 
 def get_time():
     ts = time.time()
     return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
+
 class Player:
 
-    def __init__(self, client, uid=None, name=None, is_machine=False, score=0,
-            active=True):
+    def __init__(self, client, uid=None, name=None, is_machine=False, score=0, active=True):
         self.client = client
         if uid is not None:
             self.uid = uid
@@ -69,8 +64,7 @@ class Player:
         if name is not None:
             self.name = name
         else:
-            self.name = haikunator.haikunate(token_length=0, 
-                    delimiter=' ').title()
+            self.name = haikunator.haikunate(token_length=0, delimiter=' ').title()
         self.is_machine = is_machine
         self.active = active
         self.score = score
@@ -84,12 +78,12 @@ class Player:
         self.questions_seen = []
         self.questions_answered = []
         self.questions_correct = []
-        self.complete = False # answered all questions
+        self.complete = False  # answered all questions
         self.before_half_correct = 0
 
     def can_buzz(self, qid):
         if not self.active:
-            return False 
+            return False
         if self.buzzed:
             return False
         if qid in self.questions_answered:
@@ -125,7 +119,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # with open('data/expo_questions.pkl', 'rb') as f:
         with open('data/pace_questions.pkl', 'rb') as f:
             self.questions = pickle.load(f)
-            self.questions = {x.qid : x for x in self.questions}
+            self.questions = {x.qid: x for x in self.questions}
             global NUM_QUESTIONS
             NUM_QUESTIONS = len(self.questions)
             # random.shuffle(self.questions)
@@ -134,8 +128,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.db = QBDB()
         self.loop = loop
 
-        self.socket_to_player = dict() # client.peer -> Player
-        self.players = dict() # uid -> Player
+        self.socket_to_player = dict()  # client.peer -> Player
+        self.players = dict()  # uid -> Player
         self.deferreds = []
 
         self.question = null_question
@@ -147,21 +141,21 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.bell_positions = []
 
         # to get new user started in the middle of a round
-        self.latest_resume_msg = None 
+        self.latest_resume_msg = None
         self.latest_buzzing_msg = None
-        #bandit
-        self.bandit_solver = BANDIT_SOLVER()
-        self.latest_policy = None
 
+        self.bandit_control = BanditControl(nchoices=len(TOOLS), streaming=True)
 
     def register(self, client):
         if client.peer not in self.socket_to_player:
             new_player = Player(client)
             self.socket_to_player[client.peer] = new_player
-            msg = {'type': MSG_TYPE_NEW,
-                    'qid': self.question.qid,
-                    'player_uid': new_player.uid,
-                    'player_name': new_player.name}
+            msg = {
+                'type': MSG_TYPE_NEW,
+                'qid': self.question.qid,
+                'player_uid': new_player.uid,
+                'player_name': new_player.name
+            }
             new_player.sendMessage(msg)
 
             def callback(x):
@@ -191,10 +185,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             new_player.questions_seen = dbp['questions_seen']
                             new_player.questions_answered = dbp['questions_answered']
                             new_player.questions_correct = dbp['questions_correct']
-                            new_player.complete = len(set(dbp['questions_answered'])) >= THRESHOLD 
-                            if new_player.complete:
-                                if FREE_MODE:
-                                    new_player.enabled_tools = {x: True for x in TOOLS}
+                            new_player.complete = len(set(dbp['questions_answered'])) >= THRESHOLD
                         else:
                             logger.info('add player {} to db'.format(new_player.uid))
                             self.db.add_player(new_player)
@@ -221,7 +212,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     if len(self.players) == 1 and not self.started:
                         self.started = True
                         self.new_question()
-                except:
+                except Exception:
                     traceback.print_exc(file=sys.stdout)
 
             def errback(x):
@@ -237,7 +228,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 deferred.addTimeout(PLAYER_RESPONSE_TIME_OUT, reactor)
                 deferred.addCallbacks(callback, errback)
                 self.deferreds.append((deferred, condition))
-    
+
     def unregister(self, client=None, player=None):
         if player is None:
             player = self.socket_to_player.pop(client.peer, None)
@@ -246,10 +237,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
             logger.info("[unregister] player {} inactive".format(player.name))
 
     def check_player_response(self, player, key, value):
-        return player.active and \
-                player.response is not None and \
-                key in player.response and \
-                player.response.get(key, None) == value
+        return (
+            player.active
+            and player.response is not None
+            and key in player.response
+            and player.response.get(key, None) == value
+        )
 
     def check_deferreds(self):
         ids = []
@@ -305,8 +298,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # tools
         enabled = {}
         enabled[TOOLS[0]] = (combo % 2) != 0
-        enabled[TOOLS[1]] = ((combo // 2) % 2) != 0
-        enabled[TOOLS[2]] = (combo // 4) != 0
+        enabled[TOOLS[1]] = ((combo / 2) % 2) != 0
+        enabled[TOOLS[2]] = (combo / 4) != 0
         return enabled
 
     def tools_to_combo(self, enabled_tools):
@@ -318,47 +311,33 @@ class BroadcastServerFactory(WebSocketServerFactory):
         if enabled_tools[TOOLS[2]]:
             combo += 4
         return combo
-    def get_context_vector(self, uid):
-        context_vector = []
-        qid = self.question.qid
-        context_vector.append(uid)
-        context_vector.append(qid)
-        return context_vector
-    
+
+    def get_context_vector(self, player):
+        # TODO
+        return np.array([1])[:, np.newaxis]
+
     def update_enabled_tools(self):
-        # for each active player return a dictionry of 
+        # for each active player return a dictionry of
         # tools -> boolean indicating if each tool is enabled for this round
-        if GOD_MODE:
+
+        if True:
+            # TODO if bandit mode
             for uid, player in self.players.items():
-                player.enabled_tools = {x: True for x in TOOLS}
-            return
-        
-        if BANDIT_MODE:
-            for uid, player in self.players.items():
-                context_vector = self.get_context_vector(uid)
-                combo = self.bandit_solver.get_action(context_vector) 
+                context_vector = self.get_context_vector(player)
+                combo = self.bandit_control.predict(context_vector)[0].item()
                 player.enabled_tools = self.combo_to_tools(combo)
-                player.latest_policy = self.latest_policy
-            return
+                player.combo_count[combo] += 1
+        else:
+            expected_each = len(self.questions) / len(TOOL_COMBOS)
+            for uid, player in self.players.items():
+                if not player.active:
+                    continue
+                params = [max(expected_each - player.combo_count[x], 0) for x in TOOL_COMBOS]
+                combo = np.argmax(np.random.dirichlet(params)).tolist()
+                player.enabled_tools = self.combo_to_tools(combo)
+                player.combo_count[combo] += 1
 
-        expected_each = len(self.questions) / len(TOOL_COMBOS)
-        for uid, player in self.players.items():
-            if not player.active:
-                continue
-            if player.complete:
-                if FREE_MODE:
-                    player.enabled_tools = {x: True for x in TOOLS}
-            params = [max(expected_each - player.combo_count[x], 0) for x in TOOL_COMBOS]
-            combo = np.argmax(np.random.dirichlet(params)).tolist()
-            player.enabled_tools = self.combo_to_tools(combo)
-            player.combo_count[combo] += 1
-
-        
     def new_question(self):
-        #load the newest bandit policy
-        if self.latest_policy:
-            self.bandit_solver.load_model(self.latest_policy)
-            # print("load model", self.latest_policy)
         try:
             self.question = self.next_question()
             self.question.answer = self.question.answer.replace('_', ' ')
@@ -388,25 +367,26 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 return f
 
             self.player_list = self.get_player_list()
-            msg = {'type': MSG_TYPE_NEW, 'qid': self.question.qid, 
-                    'info_text': '',
-                    'length': self.question.length, 'position': 0,
-                    'player_list': self.player_list,
-                    'speech_text': ' '.join(self.question.raw_text)}
+            msg = {
+                'type': MSG_TYPE_NEW,
+                'qid': self.question.qid,
+                'info_text': '',
+                'length': self.question.length,
+                'position': 0,
+                'player_list': self.player_list,
+                'speech_text': ' '.join(self.question.raw_text)
+            }
 
             self.update_enabled_tools()
             for player in self.players.values():
                 # allow all tools when player has finished all questions
                 msg['enabled_tools'] = player.enabled_tools
-                if player.complete:
-                    if FREE_MODE:
-                        msg['free_mode'] = True
                 player.sendMessage(msg)
                 condition = partial(self.check_player_response,
-                        player=player, key='qid', value=self.question.qid)
+                                    player=player, key='qid', value=self.question.qid)
                 callback = make_callback(player)
                 errback = make_errback(player)
-                
+
                 if condition():
                     callback(None)
                 else:
@@ -414,7 +394,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     deferred.addTimeout(PLAYER_RESPONSE_TIME_OUT, reactor)
                     deferred.addCallbacks(callback, errback)
                     self.deferreds.append((deferred, condition))
-        except:
+        except Exception:
             traceback.print_exc(file=sys.stdout)
 
         def calllater():
@@ -446,7 +426,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 text_plain += BELL
                 text_highlighted += BELL
         return text_plain, text_highlighted
-        
+
     def get_display_matches(self):
         '''
         Get the current matches for display, both plain and highlighted.
@@ -463,7 +443,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 x = highlight_template.format(x) if y else x
                 matches_highlighted[i] += x + ' '
         return matches_plain, matches_highlighted
-    
+
     def last_chance(self, countdown):
         buzzing_ids = []
         for uid, player in self.players.items():
@@ -478,16 +458,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
             if countdown == 0:
                 self._end_of_question()
             else:
-                msg = {'type': MSG_TYPE_RESUME,
-                        'qid': self.question.qid,
-                        'position': self.position,
-                        'length': self.question.length,
-                        }
+                msg = {
+                    'type': MSG_TYPE_RESUME,
+                    'qid': self.question.qid,
+                    'position': self.position,
+                    'length': self.question.length,
+                }
                 for player in self.players.values():
                     player.sendMessage(msg)
-                reactor.callLater(SECOND_PER_WORD, 
-                        self.last_chance, countdown - 1)
-
+                reactor.callLater(SECOND_PER_WORD, self.last_chance, countdown - 1)
 
     def stream_next(self):
         end_of_question = self.position == self.question.length
@@ -511,15 +490,17 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 text_plain, text_highlighted = self.get_display_question()
                 matches_plain, matches_highlighted = self.get_display_matches()
 
-                msg = {'type': MSG_TYPE_RESUME,  'qid': self.question.qid,
-                        'text': text_plain,
-                        'text_highlighted': text_highlighted,
-                        'position': self.position,
-                        'length': self.question.length,
-                        'guesses': self.cache_entry[self.position].guesses,
-                        'matches': matches_plain,
-                        'matches_highlighted': matches_highlighted
-                        }
+                msg = {
+                    'type': MSG_TYPE_RESUME,
+                    'qid': self.question.qid,
+                    'text': text_plain,
+                    'text_highlighted': text_highlighted,
+                    'position': self.position,
+                    'length': self.question.length,
+                    'guesses': self.cache_entry[self.position].guesses,
+                    'matches': matches_plain,
+                    'matches_highlighted': matches_highlighted
+                }
                 self.latest_resume_msg = msg
                 self.pbar.update(1)
                 for player in self.players.values():
@@ -544,7 +525,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'questions_answered': len(set(x['questions_answered'])),
                 'questions_correct': len(set(x['questions_correct'])),
                 'active': x['active']})
-        return player_list 
+        return player_list
 
     def _buzzing(self, buzzing_ids, end_of_question):
         random.shuffle(buzzing_ids)
@@ -556,9 +537,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.info_text += ' {}: '.format(bodify(green_player.name))
         self.bell_positions.append(self.position)
 
-        msg = {'qid': self.question.qid, 
-                'length': ANSWER_TIME_OUT,
-                'info_text': self.info_text}
+        msg = {
+            'qid': self.question.qid,
+            'length': ANSWER_TIME_OUT,
+            'info_text': self.info_text
+        }
 
         msg['type'] = MSG_TYPE_BUZZING_GREEN
         green_player.sendMessage(msg)
@@ -573,8 +556,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         self.latest_buzzing_msg = msg
 
-        condition = partial(self.check_player_response, 
-                green_player, 'type', MSG_TYPE_BUZZING_ANSWER)
+        condition = partial(self.check_player_response,
+                            green_player, 'type', MSG_TYPE_BUZZING_ANSWER)
 
         def callback(x):
             self._buzzing_after(buzzing_id, end_of_question, timed_out=False)
@@ -608,25 +591,29 @@ class BroadcastServerFactory(WebSocketServerFactory):
             answer = 'TIME_OUT' if timed_out else green_player.response['text']
             result = self.judge(answer) and not timed_out
             score = 0
-
-            if BANDIT_MODE:
-                combo = self.tools_to_combo(green_player.enabled_tools)
-                if result:
-                    self.bandit_solver.update(combo, 1)
-                else:
-                    self.bandit_solver.update(combo, 0)
-
             if result:
                 score = 10
             else:
                 if not end_of_question:
                     score = -5
             green_player.buzz_info = {
-                    'position': self.position,
-                    'guess': answer,
-                    'result': result,
-                    'score': score}
-            
+                'position': self.position,
+                'guess': answer,
+                'result': result,
+                'score': score
+            }
+
+            if True:
+                # TODO if bandit mode
+                combo = self.tools_to_combo(green_player.enabled_tools)
+                # TODO do not recompute
+                context_vector = self.get_context_vector(green_player)
+                self.bandit_control.fit(
+                    context_vector,
+                    np.array([[combo]]),
+                    np.array([[result]]),
+                )
+
             green_player.score += score
             if result:
                 green_player.questions_correct.append(self.question.qid)
@@ -641,9 +628,14 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.info_text += ' ({})'.format(score)
             self.info_text += NEW_LINE
 
-            msg = {'qid': self.question.qid, 'result': result,
-                    'score': score,'uid': buzzing_id, 'guess': answer,
-                    'info_text': self.info_text}
+            msg = {
+                'qid': self.question.qid,
+                'result': result,
+                'score': score,
+                'uid': buzzing_id,
+                'guess': answer,
+                'info_text': self.info_text
+            }
 
             msg['type'] = MSG_TYPE_RESULT_MINE
             green_player.sendMessage(msg)
@@ -658,7 +650,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
             if can_buzz_players == 0:
                 end_of_question = True
-        except:
+        except Exception:
             traceback.print_exc(file=sys.stdout)
 
         if end_of_question or result:
@@ -668,8 +660,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
     def _end_of_question(self):
         # notify players of end of game and send correct answer
-        self.info_text += NEW_LINE + bodify('Answer') \
-                + ': ' + self.question.answer
+        self.info_text += (
+            NEW_LINE
+            + bodify('Answer')
+            + ': ' + self.question.answer
+        )
 
         # show the whole question
         # but show guesses & matches where the question ended
@@ -686,34 +681,25 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.history_entries.append(history)
         self.history_entries = self.history_entries[-HISTORY_LENGTH:]
 
-        msg = { 'type': MSG_TYPE_END, 
-                'qid': self.question.qid,
-                'text': text_plain,
-                'text_highlighted': text_highlighted,
-                'position': self.position,
-                'length': self.question.length,
-                'answer': self.question.answer,
-                'info_text': self.info_text,
-                'history_entries': self.history_entries
-                }
+        msg = {
+            'type': MSG_TYPE_END,
+            'qid': self.question.qid,
+            'text': text_plain,
+            'text_highlighted': text_highlighted,
+            'position': self.position,
+            'length': self.question.length,
+            'answer': self.question.answer,
+            'info_text': self.info_text,
+            'history_entries': self.history_entries
+        }
 
         for player in self.players.values():
             player.sendMessage(msg)
 
         try:
-            game_id = self.db.add_game(
-                    self.question.qid, self.players,
-                    text_highlighted,
-                    self.info_text)
-        except Exception as e:
+            game_id = self.db.add_game(self.question.qid, self.players, text_highlighted, self.info_text)
+        except Exception:
             traceback.print_exc(file=sys.stdout)
-        
-        #save the current bandit policy
-        current_time = strftime("_%Y-%m-%d_%H-%M-%S", gmtime())
-        policy_file_name = 'policy' + current_time +'.pkl'
-        BANDIT_POLICY_PATH = os.path.join('./data', policy_file_name)
-        self.latest_policy = BANDIT_POLICY_PATH
-        self.bandit_solver.save_model(BANDIT_POLICY_PATH)
 
         try:
             # remove inactive player
@@ -725,14 +711,14 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 if not player.active:
                     to_remove.append(uid)
                     self.socket_to_player.pop(player.client.peer, None)
-                self.db.add_record(game_id, uid, player.name, self.question.qid,
-                        player.position_start, player.position_buzz,
-                        player.buzz_info.get('guess', ''),
-                        player.buzz_info.get('result', None),
-                        player.buzz_info.get('score', 0),
-                        player.enabled_tools,
-                        player.latest_policy,
-                        free_mode=player.complete and FREE_MODE)
+                self.db.add_record(
+                    game_id, uid, player.name, self.question.qid,
+                    player.position_start, player.position_buzz,
+                    player.buzz_info.get('guess', ''),
+                    player.buzz_info.get('result', None),
+                    player.buzz_info.get('score', 0),
+                    player.enabled_tools
+                )
                 player.response = None
                 player.buzzed = False
                 player.position_start = 0
@@ -747,12 +733,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         player.sendMessage({'type': MSG_TYPE_COMPLETE})
             for uid in to_remove:
                 self.players.pop(uid, None)
-        except Exception as e:
+        except Exception:
             traceback.print_exc(file=sys.stdout)
 
         logger.info('-' * 60)
         self.pbar.close()
-
 
         if len(self.players) > 0:
             reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self.new_question)

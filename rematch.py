@@ -1,10 +1,8 @@
 import json
 import pickle
-from bs4 import BeautifulSoup
 from nltk.corpus import stopwords as sw
 import spacy
 from tqdm import tqdm
-from multiprocessing import Pool
 
 nlp = spacy.load('en')
 stopwords = set(sw.words('english'))
@@ -34,10 +32,10 @@ def get_matched(words, matches):
             if x in stopwords:
                 continue
             match_words.add(x)
-    
+
     text_highlight = []
     matched_words = set()
-    _words = [] # 
+    _words = []
     for word in words:
         _words.append(word.text)
         if word.lower_ in match_words:
@@ -70,7 +68,7 @@ def main():
         text = questions[qid]['text']
         words = nlp(text)
         text = [nlp(x) for x in text.split()]
-        pos_map = dict() # map from text.split() to word
+        pos_map = dict()  # map from text.split() to word
 
         curr = 0
         for i, seg in enumerate(text):
@@ -82,14 +80,14 @@ def main():
         for pos in record:
             guesses = record[pos]['evidence']['guesses']
             for i, (g, s) in enumerate(guesses):
-                    guesses[i] = (g.replace('_', ' '), s)
+                guesses[i] = (g.replace('_', ' '), s)
             _records[qid][pos] = {
-                    'answer': record[pos]['answer'],
-                    'buzz_scores': record[pos]['buzz_scores'],
-                    'guesses': guesses
-                    }
+                'answer': record[pos]['answer'],
+                'buzz_scores': record[pos]['buzz_scores'],
+                'guesses': guesses
+            }
             ws, ws_hi, ms, ms_hi = get_matched(
-                    words[:pos_map[pos]], record[pos]['evidence']['matches'])
+                words[:pos_map[pos]], record[pos]['evidence']['matches'])
             _records[qid][pos]['text'] = ws
             _records[qid][pos]['text_highlight'] = ws_hi
             _records[qid][pos]['matches'] = ms
@@ -99,7 +97,7 @@ def main():
 
     with open('data/pos_maps.pkl', 'wb') as f:
         pickle.dump(pos_maps, f)
-        
+
 
 if __name__ == '__main__':
     main()

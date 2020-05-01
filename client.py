@@ -7,10 +7,10 @@ from autobahn.twisted.websocket import WebSocketClientFactory, \
     WebSocketClientProtocol, \
     connectWS
 
-from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
-        MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
-        MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
-        MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
+from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, \
+    MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
+    MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
+    MSG_TYPE_RESULT_MINE
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('client')
@@ -32,8 +32,12 @@ class PlayerProtocol(WebSocketClientProtocol):
         self.qid = msg['qid']
         self.text = ''
         self.position = 0
-        msg = {'type': MSG_TYPE_NEW, 'qid': self.qid, 'is_machine': True,
-                'player_name': 'QANTA'}
+        msg = {
+            'type': MSG_TYPE_NEW,
+            'qid': self.qid,
+            'is_machine': True,
+            'player_name': 'QANTA'
+        }
         self.sendMessage(json.dumps(msg).encode('utf-8'))
 
     def buzz(self):
@@ -45,19 +49,31 @@ class PlayerProtocol(WebSocketClientProtocol):
         self.text += ' ' + msg['text']
         if self.buzz():
             logger.info("\nBuzzing on answer: {}".format(self.answer))
-            msg = {'type': MSG_TYPE_BUZZING_REQUEST, 'text': 'buzzing',
-                    'qid': self.qid, 'position': self.position}
+            msg = {
+                'type': MSG_TYPE_BUZZING_REQUEST,
+                'text': 'buzzing',
+                'qid': self.qid,
+                'position': self.position
+            }
             self.sendMessage(json.dumps(msg).encode('utf-8'))
         else:
-            msg = {'type': MSG_TYPE_RESUME, 'text': 'not buzzing',
-                    'qid': self.qid, 'position': self.position}
+            msg = {
+                'type': MSG_TYPE_RESUME,
+                'text': 'not buzzing',
+                'qid': self.qid,
+                'position': self.position
+            }
             self.sendMessage(json.dumps(msg).encode('utf-8'))
         self.position += 1
 
     def send_answer(self, msg):
         logger.info('Answering: {}'.format(self.answer))
-        msg = {'type': MSG_TYPE_BUZZING_ANSWER, 'text': self.answer,
-                'qid': self.qid, 'position': self.position}
+        msg = {
+            'type': MSG_TYPE_BUZZING_ANSWER,
+            'text': self.answer,
+            'qid': self.qid,
+            'position': self.position
+        }
         self.sendMessage(json.dumps(msg).encode('utf-8'))
 
     def onMessage(self, payload, isBinary):

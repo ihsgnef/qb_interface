@@ -5,7 +5,6 @@ from bs4 import BeautifulSoup
 
 from qanta.preprocess import tokenize_question
 from guesser_buzzer_client import GuesserBuzzer
-from util import highlight_prefix, highlight_suffix
 from util import QBQuestion, QantaCacheEntry
 from db import QBDB
 
@@ -24,16 +23,16 @@ def get_matched(q: QBQuestion, position, matches):
     # matches = matches['qb'][:2] + matches['wiki'][:2]
 
     # find words highligted in the matches
-    highlighted_words = set() # words highlighted in the matches
+    highlighted_words = set()  # words highlighted in the matches
     for match in matches:
         soup = BeautifulSoup(match)
-        match = [x.text.lower() for x in soup.find_all('em') 
-                if x.text.lower() not in stopwords and len(x.text) > 2]
+        match = [x.text.lower() for x in soup.find_all('em')
+                 if x.text.lower() not in stopwords and len(x.text) > 2]
         highlighted_words.update(match)
 
     # find the highlighted words in the question
-    matched_words = set() # words matched in the question
-    text_highlight = [] # mark highlight or not in the displayed text
+    matched_words = set()  # words matched in the question
+    text_highlight = []  # mark highlight or not in the displayed text
     for ts in q.tokens[:position]:
         matched = [t in highlighted_words for t in ts]
         text_highlight.append(any(matched))
@@ -45,24 +44,24 @@ def get_matched(q: QBQuestion, position, matches):
     for m in matches:
         tokenized_matches.append([])
         matches_highlight.append([])
-        m = m.replace('<em>', '__').replace('</em>', ' ') 
+        m = m.replace('<em>', '__').replace('</em>', ' ')
         for word in m.split():
             if not word.startswith('__'):
                 tokenized_matches[-1].append(word)
                 matches_highlight[-1].append(False)
             else:
-                word = word[2:] # remove __ prefix
+                word = word[2:]  # remove __ prefix
                 ts = tokenize_question(word)
                 matched = [t in matched_words for t in ts]
                 matches_highlight[-1].append(any(matched))
                 tokenized_matches[-1].append(word)
     return text_highlight, tokenized_matches, matches_highlight
-        
+
 def get_cache(gb, q):
     gb.new_question(q.qid)
-    entries = dict() # position -> QantaCacheEntry
+    entries = dict()  # position -> QantaCacheEntry
     entry = None
-    for i in range(1, q.length + 1): # +1 because we take [:i]
+    for i in range(1, q.length + 1):  # +1 because we take [:i]
         if i % 5 == 1:
             sentence = ' '.join(q.raw_text[:i])
             buzz_scores = gb.buzz(sentence, i)
@@ -70,9 +69,9 @@ def get_cache(gb, q):
                 get_matched(q, i, gb.matches)
             # text_highlight, tokenized_matches, matches_highlight = None, None, None
             guesses = [(x.replace('_', ' '), s) for x, s in gb.guesses]
-            entry = QantaCacheEntry(q.qid, i, gb.answer, guesses,
-                    buzz_scores, tokenized_matches, text_highlight,
-                    matches_highlight)
+            entry = QantaCacheEntry(
+                q.qid, i, gb.answer, guesses, buzz_scores,
+                tokenized_matches, text_highlight, matches_highlight)
         else:
             entry.text_highlight.append(False)
         assert entry is not None
@@ -98,8 +97,11 @@ def move_cache_to_db(cache_path):
     for qid, records in tqdm(all_records.items()):
         db.add_cache(qid, records)
 
+
 if __name__ == '__main__':
     # generate_cache('data/questions.pkl', 'data/cache.pkl')
-    move_cache_to_db('data/cache.pkl')
+    # move_cache_to_db('data/cache.pkl')
     # generate_cache('data/expo_questions.pkl', 'data/cache_expo.pkl')
     # move_cache_to_db('data/cache_expo.pkl')
+    generate_cache('data/kurtis_2019_10_08.pkl', 'data/kurtis_2019_10_08.cache.pkl')
+    # move_cache_to_db('data/cache.pkl')

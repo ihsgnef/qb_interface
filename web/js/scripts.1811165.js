@@ -303,7 +303,7 @@ function new_question(msg) {
 
     if (typeof msg.completed != 'undefined') {
         completed = msg.completed;
-        console.log('setting completed' + completed);
+        console.log('setting completed ' + completed);
     }
 
     var m = {
