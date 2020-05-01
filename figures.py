@@ -102,7 +102,7 @@ def get_group_features(g):
     )
 
 
-fig_name = 'ew_player_growth.pdf'
+fig_dir = 'figures/ew_player_growth.pdf'
 feature_names = [
     'question_number',
     'accumulated_reward',
@@ -126,7 +126,7 @@ p = (
         )
     )
 )
-p.save(fig_name)
+p.save(fig_dir)
 
 
 """
