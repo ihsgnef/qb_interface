@@ -30,16 +30,17 @@ class QBDB:
                 result INTEGER, \
                 score INTEGER, \
                 enabled_tools TEXT, \
-                free_mode INTEGER)')
+                mode TEXT)')
 
         c.execute('CREATE TABLE players (\
                 player_id PRIMARY KEY, \
                 ip TEXT, \
-                name TEXT, \
+                player_name TEXT, \
                 score INT, \
                 questions_seen TEXT, \
                 questions_answered TEXT, \
-                questions_correct TEXT)')
+                questions_correct TEXT, \
+                mode TEXT)')
 
         c.execute('CREATE TABLE games (\
                 game_id PRIMARY KEY, \
@@ -61,18 +62,25 @@ class QBDB:
         questions_answered = json.dumps(player.questions_answered)
         questions_correct = json.dumps(player.questions_correct)
         try:
-            c.execute('INSERT INTO players VALUES (?,?,?,?,?,?,?)',
-                      (player.uid, player.client.peer, player.name, player.score,
-                       questions_seen, questions_answered, questions_correct))
+            c.execute('INSERT INTO players VALUES (?,?,?,?,?,?,?,?)', (
+                player.player_id,
+                player.client.peer,
+                player.player_name,
+                player.score,
+                questions_seen,
+                questions_answered,
+                questions_correct,
+                player.mode,
+            ))
         except sqlite3.IntegrityError:
-            logger.info("player {} exists".format(player.uid))
+            logger.info("player {} exists".format(player.player_id))
         self.conn.commit()
 
     def add_game(self, qid, players, question_text, info_text):
         game_id = 'game_' + str(uuid.uuid4()).replace('-', '')
         if isinstance(players, dict):
             players = players.values()
-        player_ids = [x.uid for x in players]
+        player_ids = [x.player_id for x in players]
         # include players that are not active
         c = self.conn.cursor()
         c.execute('INSERT INTO games VALUES (?,?,?,?,?)',
@@ -83,13 +91,13 @@ class QBDB:
     def add_record(self, game_id, player_id, player_name, question_id,
                    position_start=0, position_buzz=-1,
                    guess='', result=None, score=0,
-                   enabled_tools=dict(), free_mode=False):
+                   enabled_tools=dict(), mode=''):
         record_id = 'record_' + str(uuid.uuid4()).replace('-', '')
         c = self.conn.cursor()
         c.execute('INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
                   (record_id, game_id, player_id, player_name, question_id,
                    position_start, position_buzz, guess, result, score,
-                   json.dumps(enabled_tools), int(free_mode)))
+                   json.dumps(enabled_tools), mode))
         self.conn.commit()
 
     def add_cache(self, question_id, records):
@@ -136,11 +144,12 @@ class QBDB:
             return {
                 'player_id': r[0],
                 'ip': r[1],
-                'name': r[2],
+                'player_name': r[2],
                 'score': r[3],
                 'questions_seen': json.loads(r[4]),
                 'questions_answered': json.loads(r[5]),
-                'questions_correct': json.loads(r[6])
+                'questions_correct': json.loads(r[6]),
+                'mode': r[7],
             }
         c = self.conn.cursor()
         if player_id is None and player_name is None:
@@ -155,7 +164,7 @@ class QBDB:
                 return row_to_dict(r[0])
         else:
             assert player_name is not None
-            c.execute("SELECT * FROM players WHERE name=?", (player_name,))
+            c.execute("SELECT * FROM players WHERE player_name=?", (player_name,))
             rs = c.fetchall()
             if len(rs) == 0:
                 return None
@@ -164,19 +173,22 @@ class QBDB:
 
     def update_player(self, player):
         c = self.conn.cursor()
-        c.execute("UPDATE players SET score=?,\
-                questions_seen=?,questions_answered=?,questions_correct=? \
+        c.execute("UPDATE players SET \
+                score=?,\
+                questions_seen=?,\
+                questions_answered=?,\
+                questions_correct=?\
                 WHERE player_id=?", (
             player.score,
             json.dumps(player.questions_seen),
             json.dumps(player.questions_answered),
             json.dumps(player.questions_correct),
-            player.uid))
+            player.player_id))
         self.conn.commit()
 
     def get_records(self, player_id=None, question_id=None):
         def row_to_dict(row):
-            rs = {
+            return {
                 'record_id': row[0],
                 'game_id': row[1],
                 'player_id': row[2],
@@ -187,11 +199,9 @@ class QBDB:
                 'guess': row[7],
                 'result': row[8],
                 'score': row[9],
-                'enabled_tools': json.loads(row[10])
+                'enabled_tools': json.loads(row[10]),
+                'mode': row[11],
             }
-            if len(row) == 10:
-                rs['free_mode'] = bool(row[11])
-            return rs
         c = self.conn.cursor()
         if player_id is not None:
             c.execute("SELECT * FROM records WHERE player_id=?", (player_id,))
@@ -214,15 +224,15 @@ if __name__ == '__main__':
     db = QBDB()
     client = Namespace(peer="dummy_peer")
     player_id = 'player_' + str(uuid.uuid4()).replace('-', '')
-    name = "dummy_name"
-    player = Player(client, player_id, name)
+    player_name = "dummy_name"
+    player = Player(client, player_id, player_name)
     db.add_player(player)
     qid = 20
     game_id = db.add_game(qid, [player], "question text awd", "info text awd")
     db.add_record(
-        game_id, player.uid, name, qid,
+        game_id, player.player_id, player_name, qid,
         position_start=0, position_buzz=-1,
         guess='China', result=True, score=10,
         enabled_tools=dict(),
-        free_mode=False
+        mode='random',
     )

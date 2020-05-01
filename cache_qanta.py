@@ -3,9 +3,8 @@ from tqdm import tqdm
 from nltk.corpus import stopwords as sw
 from bs4 import BeautifulSoup
 
-from qanta.preprocess import tokenize_question
-from guesser_buzzer_client import GuesserBuzzer
-from util import QBQuestion, QantaCacheEntry
+# from guesser_buzzer_client import GuesserBuzzer
+from util import QBQuestion, QantaCacheEntry, tokenize_question
 from db import QBDB
 
 stopwords = set(sw.words('english'))
@@ -103,5 +102,5 @@ if __name__ == '__main__':
     # move_cache_to_db('data/cache.pkl')
     # generate_cache('data/expo_questions.pkl', 'data/cache_expo.pkl')
     # move_cache_to_db('data/cache_expo.pkl')
-    generate_cache('data/kurtis_2019_10_08.pkl', 'data/kurtis_2019_10_08.cache.pkl')
-    # move_cache_to_db('data/cache.pkl')
+    # generate_cache('data/kurtis_2019_10_08.pkl', 'data/kurtis_2019_10_08.cache.pkl')
+    move_cache_to_db('data/cache.pkl')
