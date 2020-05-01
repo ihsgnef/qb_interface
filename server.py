@@ -320,7 +320,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # for each active player return a dictionry of
         # tools -> boolean indicating if each tool is enabled for this round
 
-        if True:
+        if False:
             # TODO if bandit mode
             for uid, player in self.players.items():
                 context_vector = self.get_context_vector(player)
@@ -603,7 +603,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'score': score
             }
 
-            if True:
+            if False:
                 # TODO if bandit mode
                 combo = self.tools_to_combo(green_player.enabled_tools)
                 # TODO do not recompute
