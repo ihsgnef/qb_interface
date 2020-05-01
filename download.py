@@ -19,6 +19,7 @@ files = [
     'pace_questions.pkl',
     'policy_2019-11-07_22-05-43.pkl',
     'policy_2019-11-07_22-06-38.pkl',
+    'data/cache.pkl',
 ]
 
 for f in files:
