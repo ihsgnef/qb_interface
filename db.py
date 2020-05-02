@@ -6,17 +6,17 @@ import logging
 from util import QantaCacheEntry
 
 logger = logging.getLogger('db')
-DB_FILENAME = 'data/db.sqlite'
 
 class QBDB:
 
-    def __init__(self):
-        if not os.path.exists(DB_FILENAME):
+    def __init__(self, db_filename='data/db.sqlite'):
+        self.db_filename = db_filename
+        if not os.path.exists(db_filename):
             self.create()
-        self.conn = sqlite3.connect(DB_FILENAME)
+        self.conn = sqlite3.connect(db_filename)
 
     def create(self):
-        conn = sqlite3.connect(DB_FILENAME)
+        conn = sqlite3.connect(self.db_filename)
         c = conn.cursor()
         c.execute('CREATE TABLE records (\
                 record_id PRIMARY KEY, \
