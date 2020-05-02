@@ -10,7 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 from joblib import Parallel, delayed
 from plotnine import ggplot, aes, geom_density, geom_line, \
-    facet_grid, theme, theme_light, \
+    facet_grid, theme, theme_light, xlim, \
     element_text, element_blank, element_rect, element_line
 
 from db import QBDB
@@ -97,6 +97,8 @@ df['ew'] = df.apply(get_ew, axis=1)
 """
 4. plot accumulated EW against number of questions answered for each user
 """
+fig_name = 'ew_player_growth.pdf'
+
 def get_group_features(g):
 
     return (
@@ -107,7 +109,6 @@ def get_group_features(g):
     )
 
 
-fig_name = 'ew_player_growth.pdf'
 feature_names = [
     'question_number',
     'accumulated_reward',
@@ -143,6 +144,7 @@ p.save(os.path.join(FIG_DIR, fig_name))
 5. density plot of EW w/wo each tool
 """
 fig_name = 'ew_density_on_off.pdf'
+
 plot_df = {
     'EW': [],
     'Tool': [],
@@ -152,7 +154,7 @@ for row in df.itertuples():
     for tool, enabled in row.enabled_tools.items():
         plot_df['EW'].append(row.ew)
         plot_df['Tool'].append(tool)
-        plot_df['Enabled'].append(' on' if enabled else ' off')
+        plot_df['Enabled'].append('On' if enabled else 'Off')
 plot_df = pd.DataFrame(plot_df)
 
 p = (
@@ -172,6 +174,56 @@ p = (
         axis_text_y=element_text(size=16),
         axis_title_x=element_text(size=16),
         axis_title_y=element_blank(),
+        legend_text=element_text(size=16),
+        legend_title=element_blank(),
+        strip_text=element_text(size=16),
+    )
+)
+p.save(os.path.join(FIG_DIR, fig_name))
+
+
+"""
+6. density plot of buzzing position by result w/wo each tool
+"""
+fig_name = 'buzz_density_on_off.pdf'
+
+def get_relative_position(row):
+    text = questions[row.question_id].raw_text
+    return row.position_buzz / len(text)
+
+
+df['relative_position'] = df.apply(get_relative_position, axis=1)
+
+plot_df = {
+    'Tool': [],
+    'Enabled': [],
+    'Position': [],
+    'Result': [],
+}
+for row in df.itertuples():
+    for tool, enabled in row.enabled_tools.items():
+        plot_df['Tool'].append(tool)
+        plot_df['Enabled'].append('on' if enabled else 'off')
+        plot_df['Position'].append(row.relative_position)
+        plot_df['Result'].append('Correct' if row.result else 'Wrong')
+plot_df = pd.DataFrame(plot_df)
+
+p = (
+    ggplot(plot_df)
+    + geom_density(
+        aes(
+            x='Position',
+            fill='Enabled'
+        ),
+        alpha=0.7
+    )
+    + facet_grid('Tool ~ Result')
+    + xlim(0, 1)
+    + theme_fs()
+    + theme(
+        aspect_ratio=0.6,
+        axis_title_x=element_text(size=16),
+        axis_title_y=element_text(size=16),
         legend_text=element_text(size=16),
         legend_title=element_blank(),
         strip_text=element_text(size=16),
