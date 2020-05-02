@@ -9,16 +9,17 @@ pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
 
 files = [
     # 'guesser',
-    'cache_expo.pkl',
     'cache.pkl',
+    'cache_expo.pkl',
     'db.sqlite',
+    'pace_questions.pkl',
     'expo_questions.pkl',
     'kurtis_2019_10_08.answers.txt',
-    'kurtis_2019_10_08.pkl',
     'kurtis_2019_10_08.questions.txt',
-    'pace_questions.pkl',
-    'policy_2019-11-07_22-05-43.pkl',
-    'policy_2019-11-07_22-06-38.pkl',
+    'kurtis_2019_10_08.pkl',
+    'db.sqlite.20181116',
+    'db.sqlite.20180517',
+    'curve_pipeline.pkl',
 ]
 
 for f in files:
