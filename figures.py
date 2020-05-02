@@ -60,7 +60,7 @@ with open('data/pace_questions.pkl', 'rb') as f:
     questions = pickle.load(f)
     questions = {q.qid: q for q in questions}
 
-db = QBDB()
+db = QBDB('data/db.sqlite.20181116')
 df = pd.DataFrame(db.get_records())
 EW = ExpectedWins()
 TOOLS = ['guesses', 'highlight', 'matches']
