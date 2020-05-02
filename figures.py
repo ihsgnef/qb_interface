@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
+import os
 import pickle
+import pathlib
 import itertools
 import multiprocessing
 import numpy as np
@@ -8,12 +10,15 @@ import pandas as pd
 from tqdm import tqdm
 from joblib import Parallel, delayed
 from plotnine import ggplot, aes, geom_density, geom_line, \
-    theme, theme_light, \
+    facet_grid, theme, theme_light, \
     element_text, element_blank, element_rect, element_line
 
 from db import QBDB
 from util import QBQuestion
 from expected_wins import ExpectedWins
+
+FIG_DIR = 'auto_fig'
+pathlib.Path(FIG_DIR).mkdir(exist_ok=True)
 
 
 class theme_fs(theme_light):
@@ -102,7 +107,7 @@ def get_group_features(g):
     )
 
 
-fig_dir = 'figures/ew_player_growth.pdf'
+fig_name = 'ew_player_growth.pdf'
 feature_names = [
     'question_number',
     'accumulated_reward',
@@ -125,44 +130,51 @@ p = (
             fill='player_id'
         )
     )
+    + theme_fs()
+    + theme(
+        legend_position="none"
+    )
+
 )
-p.save(fig_dir)
+p.save(os.path.join(FIG_DIR, fig_name))
 
 
 """
 5. density plot of EW w/wo each tool
 """
-for tool_name in TOOLS:
-    fig_dir = 'figures/{}_ew_density.pdf'.format(tool_name)
-    plot_df = {
-        'EW': [],
-        'Enabled': [],
-    }
-    for row in df.itertuples():
-        enabled = row.enabled_tools[tool_name]
+fig_name = 'ew_density_on_off.pdf'
+plot_df = {
+    'EW': [],
+    'Tool': [],
+    'Enabled': [],
+}
+for row in df.itertuples():
+    for tool, enabled in row.enabled_tools.items():
         plot_df['EW'].append(row.ew)
-        plot_df['Enabled'].append(tool_name + (' on' if enabled else ' off'))
-    plot_df = pd.DataFrame(plot_df)
+        plot_df['Tool'].append(tool)
+        plot_df['Enabled'].append(' on' if enabled else ' off')
+plot_df = pd.DataFrame(plot_df)
 
-    p = (
-        ggplot(plot_df)
-        + geom_density(
-            aes(
-                x='EW',
-                fill='Enabled',
-            ),
-            alpha=0.5,
-        )
-        + theme_fs()
-        + theme(
-            aspect_ratio=0.5,
-            axis_text_x=element_text(size=16),
-            axis_text_y=element_text(size=16),
-            axis_title_x=element_text(size=16),
-            axis_title_y=element_blank(),
-            legend_text=element_text(size=16),
-            legend_title=element_blank(),
-            strip_text=element_text(size=16),
-        )
+p = (
+    ggplot(plot_df)
+    + geom_density(
+        aes(
+            x='EW',
+            fill='Enabled',
+        ),
+        alpha=0.5,
     )
-    p.save(fig_dir)
+    + facet_grid('Tool ~ .')
+    + theme_fs()
+    + theme(
+        aspect_ratio=0.5,
+        axis_text_x=element_text(size=16),
+        axis_text_y=element_text(size=16),
+        axis_title_x=element_text(size=16),
+        axis_title_y=element_blank(),
+        legend_text=element_text(size=16),
+        legend_title=element_blank(),
+        strip_text=element_text(size=16),
+    )
+)
+p.save(os.path.join(FIG_DIR, fig_name))
