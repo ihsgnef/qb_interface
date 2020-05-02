@@ -9,9 +9,10 @@ matplotlib
 nltk
 numpy
 oauth2client
-scikit_learn
+scikit-learn
 spacy
 tqdm
 dill
 wget
 plotnine
+joblib
