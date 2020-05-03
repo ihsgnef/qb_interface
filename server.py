@@ -41,7 +41,6 @@ HISTORY_LENGTH = 30
 NUM_QUESTIONS = 10
 THRESHOLD = 40
 
-# enable all tools when user finishes all questions
 TOOLS = ['guesses', 'highlight', 'matches']
 TOOL_COMBOS = list(range(7))  # 000 -> 111
 

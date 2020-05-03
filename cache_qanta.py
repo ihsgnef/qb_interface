@@ -3,7 +3,7 @@ from tqdm import tqdm
 from nltk.corpus import stopwords as sw
 from bs4 import BeautifulSoup
 
-# from guesser_buzzer_client import GuesserBuzzer
+# from machine_client import GuesserBuzzer
 from util import QBQuestion, QantaCacheEntry, tokenize_question
 from db import QBDB
 

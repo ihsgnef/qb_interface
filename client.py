@@ -5,8 +5,7 @@ import logging
 from twisted.internet import reactor
 
 from autobahn.twisted.websocket import WebSocketClientFactory, \
-    WebSocketClientProtocol, \
-    connectWS
+    WebSocketClientProtocol, connectWS
 
 from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, \
     MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
@@ -115,7 +114,6 @@ class PlayerProtocol(WebSocketClientProtocol):
 
 
 if __name__ == '__main__':
-    # factory = WebSocketClientFactory(u"ws://127.0.0.1:9000")
     factory = WebSocketClientFactory(u"ws://play.qanta.org:9000")
     factory.protocol = PlayerProtocol
     connectWS(factory)
