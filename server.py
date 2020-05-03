@@ -140,7 +140,12 @@ class Player:
             self.client.sendMessage(json.dumps(msg).encode('utf-8'))
     
     def featurize(self) -> np.ndarray:
-        return np.array([1])[:, np.newaxis]
+        return np.array([
+            1,  # bias
+            self.enabled_viz['Guesses'],
+            self.enabled_viz['Highlight'],
+            self.enabled_viz['Evidence'],
+        ])[:, np.newaxis]
 
 
 class BroadcastServerFactory(WebSocketServerFactory):
