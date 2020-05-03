@@ -143,7 +143,8 @@ introJs.fn.oncomplete(function() {start();});
 introJs.fn.onexit(function() {start();});
 
 // var consent_accepted = "";
-if (consent_accepted == "N_O_T_S_E_T") {
+// if (consent_accepted == "N_O_T_S_E_T") {
+if (false) {
     ///////// Consent Form ///////// 
     $('#consent_modal').modal('show');
     accept_button.onclick = function(event) {
@@ -646,8 +647,8 @@ function start() {
                 window.speechSynthesis.speak(utter);
             }
         }
-        if (typeof msg.enabled_tools != 'undefined') {
-            var tools = msg.enabled_tools;
+        if (typeof msg.enabled_viz != 'undefined') {
+            var viz = msg.enabled_viz;
             if (typeof msg.free_mode != 'undefined') {
                 guesses_checkbox.disabled = false;
                 matches_checkbox.disabled = false;
@@ -657,21 +658,21 @@ function start() {
             guesses_checkbox.disabled = false;
             matches_checkbox.disabled = false;
             highlight_checkbox.disabled = false;
-            if (tools.guesses) {
+            if (viz.Guesses) {
                 guesses_card.style.display = "block";
                 guesses_checkbox.checked = true;
             } else {
                 guesses_card.style.display = "none";
                 guesses_checkbox.checked = false;
             }
-            if (tools.matches) {
+            if (viz.Evidence) {
                 matches_card.style.display = "block";
                 matches_checkbox.checked = true;
             } else {
                 matches_card.style.display = "none";
                 matches_checkbox.checked = false;
             }
-            highlight_checkbox.checked = tools.highlight;
+            highlight_checkbox.checked = viz.Highlight;
 
         }
     };

@@ -29,8 +29,8 @@ class QBDB:
                 guess TEXT, \
                 result INTEGER, \
                 score INTEGER, \
-                enabled_tools TEXT, \
-                mode TEXT)')
+                enabled_viz TEXT, \
+                viz_control TEXT)')
 
         c.execute('CREATE TABLE players (\
                 player_id PRIMARY KEY, \
@@ -40,7 +40,7 @@ class QBDB:
                 questions_seen TEXT, \
                 questions_answered TEXT, \
                 questions_correct TEXT, \
-                mode TEXT)')
+                viz_control TEXT)')
 
         c.execute('CREATE TABLE games (\
                 game_id PRIMARY KEY, \
@@ -70,7 +70,7 @@ class QBDB:
                 questions_seen,
                 questions_answered,
                 questions_correct,
-                player.mode,
+                player.viz_control.__class__.__name__,
             ))
         except sqlite3.IntegrityError:
             logger.info("player {} exists".format(player.player_id))
@@ -91,13 +91,13 @@ class QBDB:
     def add_record(self, game_id, player_id, player_name, question_id,
                    position_start=0, position_buzz=-1,
                    guess='', result=None, score=0,
-                   enabled_tools=dict(), mode=''):
+                   enabled_viz=dict(), viz_control=''):
         record_id = 'record_' + str(uuid.uuid4()).replace('-', '')
         c = self.conn.cursor()
         c.execute('INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
                   (record_id, game_id, player_id, player_name, question_id,
                    position_start, position_buzz, guess, result, score,
-                   json.dumps(enabled_tools), mode))
+                   json.dumps(enabled_viz), viz_control))
         self.conn.commit()
 
     def add_cache(self, question_id, records):
@@ -149,7 +149,7 @@ class QBDB:
                 'questions_seen': json.loads(r[4]),
                 'questions_answered': json.loads(r[5]),
                 'questions_correct': json.loads(r[6]),
-                'mode': r[7],
+                'viz_control': r[7],
             }
         c = self.conn.cursor()
         if player_id is None and player_name is None:
@@ -199,8 +199,8 @@ class QBDB:
                 'guess': row[7],
                 'result': row[8],
                 'score': row[9],
-                'enabled_tools': json.loads(row[10]),
-                'mode': row[11],
+                'enabled_viz': json.loads(row[10]),
+                'viz_control': row[11],
             }
         c = self.conn.cursor()
         if player_id is not None:
@@ -233,6 +233,6 @@ if __name__ == '__main__':
         game_id, player.player_id, player_name, qid,
         position_start=0, position_buzz=-1,
         guess='China', result=True, score=10,
-        enabled_tools=dict(),
-        mode='random',
+        enabled_viz=dict(),
+        viz_control='RandomVizControl',
     )

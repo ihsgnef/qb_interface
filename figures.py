@@ -63,7 +63,6 @@ with open('data/pace_questions.pkl', 'rb') as f:
 db = QBDB('data/db.sqlite.20181116')
 df = pd.DataFrame(db.get_records())
 EW = ExpectedWins()
-TOOLS = ['guesses', 'highlight', 'matches']
 
 
 """"
@@ -141,19 +140,19 @@ p.save(os.path.join(FIG_DIR, fig_name))
 
 
 """
-5. density plot of EW w/wo each tool
+5. density plot of EW w/wo each viz
 """
 fig_name = 'ew_density_on_off.pdf'
 
 plot_df = {
     'EW': [],
-    'Tool': [],
+    'Viz': [],
     'Enabled': [],
 }
 for row in df.itertuples():
-    for tool, enabled in row.enabled_tools.items():
+    for viz, enabled in row.enabled_viz.items():
         plot_df['EW'].append(row.ew)
-        plot_df['Tool'].append(tool)
+        plot_df['Viz'].append(viz)
         plot_df['Enabled'].append('On' if enabled else 'Off')
 plot_df = pd.DataFrame(plot_df)
 
@@ -166,7 +165,7 @@ p = (
         ),
         alpha=0.5,
     )
-    + facet_grid('Tool ~ .')
+    + facet_grid('Viz ~ .')
     + theme_fs()
     + theme(
         aspect_ratio=0.5,
@@ -183,7 +182,7 @@ p.save(os.path.join(FIG_DIR, fig_name))
 
 
 """
-6. density plot of buzzing position by result w/wo each tool
+6. density plot of buzzing position by result w/wo each viz
 """
 fig_name = 'buzz_density_on_off.pdf'
 
@@ -195,14 +194,14 @@ def get_relative_position(row):
 df['relative_position'] = df.apply(get_relative_position, axis=1)
 
 plot_df = {
-    'Tool': [],
+    'Viz': [],
     'Enabled': [],
     'Position': [],
     'Result': [],
 }
 for row in df.itertuples():
-    for tool, enabled in row.enabled_tools.items():
-        plot_df['Tool'].append(tool)
+    for viz, enabled in row.enabled_viz.items():
+        plot_df['Viz'].append(viz)
         plot_df['Enabled'].append('on' if enabled else 'off')
         plot_df['Position'].append(row.relative_position)
         plot_df['Result'].append('Correct' if row.result else 'Wrong')
@@ -217,7 +216,7 @@ p = (
         ),
         alpha=0.7
     )
-    + facet_grid('Tool ~ Result')
+    + facet_grid('Viz ~ Result')
     + xlim(0, 1)
     + theme_fs()
     + theme(

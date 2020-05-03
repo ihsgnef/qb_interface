@@ -25,24 +25,54 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
     MSG_TYPE_COMPLETE
 from util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
     NEW_LINE, BELL, bodify, highlight_template
+from util import ANSWER_TIME_OUT, SECOND_PER_WORD, \
+    PLAYER_RESPONSE_TIME_OUT, HISTORY_LENGTH, NUM_QUESTIONS, \
+    THRESHOLD, VIZ, VIZ_COMBOS
 from util import QBQuestion, null_question
 from alternative import alternative_answers
 from db import QBDB
-from bandit import BanditControl
+from bandit import BanditModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
 haikunator = Haikunator()
 
-ANSWER_TIME_OUT = 14
-SECOND_PER_WORD = 0.2
-PLAYER_RESPONSE_TIME_OUT = 3
-HISTORY_LENGTH = 30
-NUM_QUESTIONS = 10
-THRESHOLD = 40
 
-TOOLS = ['guesses', 'highlight', 'matches']
-TOOL_COMBOS = list(range(7))  # 000 -> 111
+class VizControl:
+
+    def get_enabled_combo(self, player) -> int:
+        pass
+
+    def update(self, player, action: int, reward: float) -> None:
+        pass
+
+
+class BanditVizControl(VizControl):
+
+    def __init__(self, nchoices: int, streaming: bool = False):
+        self.bandit_model = BanditModel(nchoices, streaming)
+
+    def get_enabled_combo(self, player) -> int:
+        features = player.featurize()
+        return self.bandit_model.predict(features)[0].item()
+
+    def update(self, player, action: int, reward: float):
+        features = player.featurize()
+        self.bandit_model.fit(
+            features,
+            np.array([[action]]),
+            np.array([[reward]]),
+        )
+
+
+class RandomVizControl(VizControl):
+
+    def __init__(self, n_questions):
+        self.expected_each = n_questions / len(VIZ_COMBOS)
+
+    def get_enabled_combo(self, player) -> int:
+        params = [max(self.expected_each - player.combo_count[x], 0) for x in VIZ_COMBOS]
+        return np.argmax(np.random.dirichlet(params)).tolist()
 
 
 class BroadcastServerProtocol(WebSocketServerProtocol):
@@ -82,16 +112,18 @@ class Player:
         self.position_start = 0
         self.position_buzz = -1
         self.buzz_info = dict()
-        self.enabled_tools = {x: False for x in TOOLS}
-        self.combo_count = {x: 0 for x in TOOL_COMBOS}
+        self.enabled_viz = {x: False for x in VIZ}
+        self.combo_count = {x: 0 for x in VIZ_COMBOS}
         self.questions_seen = []
         self.questions_answered = []
         self.questions_correct = []
         self.complete = False  # answered all questions
         self.before_half_correct = 0
-        self.mode = 'bandit'
 
-    def can_buzz(self, qid):
+        # self.viz_control = BanditVizControl(nchoices=len(VIZ), streaming=True)
+        self.viz_control = RandomVizControl(n_questions=NUM_QUESTIONS)
+
+    def can_buzz(self, qid: str):
         if not self.active:
             return False
         if self.buzzed:
@@ -100,12 +132,15 @@ class Player:
             return False
         return True
 
-    def sendMessage(self, msg):
+    def sendMessage(self, msg: dict):
         if self.active:
             if 'qid' in msg:
                 msg['can_buzz'] = self.can_buzz(msg['qid'])
-                msg['enabled_tools'] = self.enabled_tools
+                msg['enabled_viz'] = self.enabled_viz
             self.client.sendMessage(json.dumps(msg).encode('utf-8'))
+    
+    def featurize(self) -> np.ndarray:
+        return np.array([1])[:, np.newaxis]
 
 
 class BroadcastServerFactory(WebSocketServerFactory):
@@ -140,8 +175,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # to get new user started in the middle of a round
         self.latest_resume_msg = None
         self.latest_buzzing_msg = None
-
-        self.bandit_control = BanditControl(nchoices=len(TOOLS), streaming=True)
 
     def register(self, client):
         if client.peer not in self.socket_to_player:
@@ -190,14 +223,17 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             player_name, client.peer))
 
                     self.player_list = self.get_player_list()
-                    msg = {'type': MSG_TYPE_NEW, 'qid': self.question.qid,
-                           'player_list': self.player_list,
-                           'info_text': self.info_text,
-                           'history_entries': self.history_entries,
-                           'length': self.question.length,
-                           'position': self.position,
-                           'completed': self.players[player_id].complete,
-                           'speech_text': ' '.join(self.question.raw_text[self.position:])}
+                    msg = {
+                        'type': MSG_TYPE_NEW,
+                        'qid': self.question.qid,
+                        'player_list': self.player_list,
+                        'info_text': self.info_text,
+                        'history_entries': self.history_entries,
+                        'length': self.question.length,
+                        'position': self.position,
+                        'completed': self.players[player_id].complete,
+                        'speech_text': ' '.join(self.question.raw_text[self.position:])
+                    }
                     self.players[player_id].sendMessage(msg)
 
                     # keep player up to date
@@ -290,43 +326,29 @@ class BroadcastServerFactory(WebSocketServerFactory):
         #         return
         # return self.question_idx
 
-    def combo_to_tools(self, combo):
-        # combo is a number from 0-7 representing a combination of the three
-        # tools
+    def combo_to_viz(self, combo):
+        # combo is a number from 0-7 representing a combination of the three viz
         enabled = {}
-        enabled[TOOLS[0]] = (combo % 2) != 0
-        enabled[TOOLS[1]] = ((combo / 2) % 2) != 0
-        enabled[TOOLS[2]] = (combo / 4) != 0
+        enabled[VIZ[0]] = (combo % 2) != 0
+        enabled[VIZ[1]] = ((combo / 2) % 2) != 0
+        enabled[VIZ[2]] = (combo / 4) != 0
         return enabled
 
-    def tools_to_combo(self, enabled_tools):
-        combo = 0
-        if enabled_tools[TOOLS[0]]:
-            combo += 1
-        if enabled_tools[TOOLS[1]]:
-            combo += 2
-        if enabled_tools[TOOLS[2]]:
-            combo += 4
-        return combo
+    def viz_to_combo(self, enabled_viz):
+        return (
+            + 1 * enabled_viz[VIZ[0]]
+            + 2 * enabled_viz[VIZ[1]]
+            + 4 * enabled_viz[VIZ[2]]
+        )
 
-    def get_context_vector(self, player):
-        # TODO
-        return np.array([1])[:, np.newaxis]
-
-    def update_enabled_tools(self):
+    def update_enabled_viz(self):
         # for each active player return a dictionry of
-        # tools -> boolean indicating if each tool is enabled for this round
+        # viz -> boolean indicating if each viz is enabled for this round
         for player_id, player in self.players.items():
             if not player.active:
                 continue
-            if player.mode == 'bandit':
-                context_vector = self.get_context_vector(player)
-                combo = self.bandit_control.predict(context_vector)[0].item()
-            elif player.mode == 'random':
-                expected_each = len(self.questions) / len(TOOL_COMBOS)
-                params = [max(expected_each - player.combo_count[x], 0) for x in TOOL_COMBOS]
-                combo = np.argmax(np.random.dirichlet(params)).tolist()
-            player.enabled_tools = self.combo_to_tools(combo)
+            combo = player.viz_control.get_enabled_combo(player)
+            player.enabled_viz = self.combo_to_viz(combo)
             player.combo_count[combo] += 1
 
     def new_question(self):
@@ -369,10 +391,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'speech_text': ' '.join(self.question.raw_text)
             }
 
-            self.update_enabled_tools()
+            self.update_enabled_viz()
             for player in self.players.values():
-                # allow all tools when player has finished all questions
-                msg['enabled_tools'] = player.enabled_tools
+                msg['enabled_viz'] = player.enabled_viz
                 player.sendMessage(msg)
                 condition = partial(self.check_player_response,
                                     player=player, key='qid', value=self.question.qid)
@@ -596,15 +617,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
             }
 
             if False:
-                # TODO if bandit mode
-                combo = self.tools_to_combo(green_player.enabled_tools)
+                combo = self.viz_to_combo(green_player.enabled_viz)
                 # TODO do not recompute
-                context_vector = self.get_context_vector(green_player)
-                self.bandit_control.fit(
-                    context_vector,
-                    np.array([[combo]]),
-                    np.array([[result]]),
-                )
+                green_player.viz_control.update(green_player, combo, result)
 
             green_player.score += score
             if result:
@@ -709,8 +724,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     player.buzz_info.get('guess', ''),
                     player.buzz_info.get('result', None),
                     player.buzz_info.get('score', 0),
-                    player.enabled_tools,
-                    player.mode,
+                    player.enabled_viz,
+                    player.viz_control.__class__.__name__,
                 )
                 player.response = None
                 player.buzzed = False

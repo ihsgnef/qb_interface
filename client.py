@@ -12,11 +12,11 @@ from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, \
     MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
     MSG_TYPE_RESULT_MINE
 from util import QBQuestion
+from util import VIZ
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('client')
 
-TOOLS = ['guesses', 'highlight', 'matches']
 
 class PlayerProtocol(WebSocketClientProtocol):
 
@@ -24,9 +24,9 @@ class PlayerProtocol(WebSocketClientProtocol):
         self.qid = None
         self.text = ''
         self.position = 0
-        self.answer = ''
+        self.answer = 'Chubakka'
         self.buzzed = False
-        self.enabled_tools = {t: False for t in TOOLS}
+        self.enabled_viz = {t: False for t in VIZ}
         with open('data/pace_questions.pkl', 'rb') as f:
             self.questions = pickle.load(f)
             self.questions = {x.qid: x for x in self.questions}
@@ -41,7 +41,7 @@ class PlayerProtocol(WebSocketClientProtocol):
         self.text = ''
         self.position = 0
         self.buzzed = False
-        self.enabled_tools = msg['enabled_tools']
+        self.enabled_viz = msg['enabled_viz']
         msg = {
             'type': MSG_TYPE_NEW,
             'qid': self.qid,
@@ -51,12 +51,11 @@ class PlayerProtocol(WebSocketClientProtocol):
         self.sendMessage(json.dumps(msg).encode('utf-8'))
 
     def buzz(self):
-        self.answer = 'Chubakka'
         if self.buzzed:
             return False
 
         if self.position > 10:
-            if sum(self.enabled_tools.values()) > 1:
+            if sum(self.enabled_viz.values()) > 1:
                 self.answer = self.questions[self.qid].answer.replace('_', ' ')
             return True
         else:

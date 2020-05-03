@@ -5,7 +5,7 @@ from contextualbandits.linreg import LinearRegression
 from contextualbandits.online import AdaptiveGreedy, BootstrappedUCB, LinUCB
 
 
-class BanditControl:
+class BanditModel:
 
     def __init__(self, nchoices, streaming=False):
         self.nchoices = nchoices
@@ -83,7 +83,7 @@ def bibtext():
     nchoices = y.shape[1]
 
     streaming = True
-    model = BanditControl(nchoices, streaming=streaming)
+    model = BanditModel(nchoices, streaming=streaming)
 
     rewards_average = []
     rewards = np.array([])
@@ -113,7 +113,7 @@ def bibtext():
 
 
 if __name__ == '__main__':
-    model = BanditControl(nchoices=8, streaming=True)
+    model = BanditModel(nchoices=8, streaming=True)
     context_vector = np.array([1])[:, np.newaxis]
     actions = model.predict(context_vector)
     print(actions)

@@ -18,6 +18,7 @@ logging.basicConfig(level=logging.DEBUG)
 logging.getLogger('elasticsearch').setLevel(logging.WARNING)
 logger = logging.getLogger('guesser_buzzer_client')
 
+
 class StupidBuzzer:
 
     def __init__(self):
