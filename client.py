@@ -112,8 +112,26 @@ class PlayerProtocol(WebSocketClientProtocol):
             logger.info('Answer is {}'.format(result))
 
 
+class SimulatedPlayerProtocol(PlayerProtocol):
+
+    def onOpen(self):
+        super().onOpen()
+        self.weight = np.array([
+
+    def buzz(self):
+        if self.buzzed:
+            return False
+
+        if self.position > 10:
+            if sum(self.enabled_viz.values()) > 1:
+                self.answer = self.questions[self.qid].answer.replace('_', ' ')
+            return True
+        else:
+            return False
+
+
 if __name__ == '__main__':
     factory = WebSocketClientFactory(u"ws://play.qanta.org:9000")
-    factory.protocol = PlayerProtocol
+    factory.protocol = SimulatedPlayerProtocol
     connectWS(factory)
     reactor.run()
