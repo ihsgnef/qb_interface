@@ -35,7 +35,6 @@ from bandit import BanditModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
-haikunator = Haikunator()
 
 
 class VizControl:
@@ -104,7 +103,7 @@ class Player:
         if player_name is not None:
             self.player_name = player_name
         else:
-            self.player_name = haikunator.haikunate(token_length=0, delimiter=' ').title()
+            self.player_name = Haikunator().haikunate(token_length=0, delimiter=' ').title()
         self.active = True
         self.score = 0
         self.buzzed = False
@@ -138,7 +137,7 @@ class Player:
                 msg['can_buzz'] = self.can_buzz(msg['qid'])
                 msg['enabled_viz'] = self.enabled_viz
             self.client.sendMessage(json.dumps(msg).encode('utf-8'))
-    
+
     def featurize(self) -> np.ndarray:
         return np.array([
             1,  # bias

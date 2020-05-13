@@ -3,3 +3,4 @@ __pycache__
 *.swp
 auto_fig
 *.log
+.ipynb_checkpoints

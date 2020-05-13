@@ -153,7 +153,8 @@ class SimulatedPlayerProtocol(PlayerProtocol):
 
 
 if __name__ == '__main__':
-    factory = WebSocketClientFactory(u"ws://play.qanta.org:9000")
+    # factory = WebSocketClientFactory(u"ws://play.qanta.org:9000")
+    factory = WebSocketClientFactory(u"ws://localhost:9000")
     factory.protocol = SimulatedPlayerProtocol
     connectWS(factory)
     reactor.run()
