@@ -70,7 +70,7 @@ class RandomVizControl(VizControl):
         self.expected_each = n_questions / len(VIZ_COMBOS)
 
     def get_enabled_combo(self, player) -> int:
-        params = [max(self.expected_each - player.combo_count[x], 0) for x in VIZ_COMBOS]
+        params = [max(self.expected_each - player.combo_count[x], 1) for x in VIZ_COMBOS]
         return np.argmax(np.random.dirichlet(params)).tolist()
 
 
@@ -119,8 +119,8 @@ class Player:
         self.complete = False  # answered all questions
         self.before_half_correct = 0
 
-        # self.viz_control = BanditVizControl(nchoices=len(VIZ), streaming=True)
-        self.viz_control = RandomVizControl(n_questions=NUM_QUESTIONS)
+        self.viz_control = BanditVizControl(nchoices=len(VIZ), streaming=True)
+        # self.viz_control = RandomVizControl(n_questions=NUM_QUESTIONS)
 
     def can_buzz(self, qid: str):
         if not self.active:

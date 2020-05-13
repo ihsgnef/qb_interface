@@ -121,18 +121,31 @@ class SimulatedPlayerProtocol(PlayerProtocol):
     def onOpen(self):
         super().onOpen()
         self.weight = np.array([
-            1,  # bias
-            1,  # guesses
-            1,  # highlight
-            1,  # evidence
+            0.3,  # baseline
+            0.21,  # guess
+            0.18,  # highlight
+            0.71,  # evidence
+            0.21 + 0.18 + 0.025,  # guess + highlight
+            0.21 + 0.71 - 0.08,  # guess + evidence
+            0.18 + 0.71 - 0.02,  # highlight + evidence
+            0.21 + 0.18 + 0.71 + 0.02  # everything
         ])
 
     def featurize(self) -> np.ndarray:
+        viz = (
+            + 1 * self.enabled_viz[VIZ[0]]
+            + 2 * self.enabled_viz[VIZ[1]]
+            + 4 * self.enabled_viz[VIZ[2]]
+        )
         return np.array([
-            1,  # bias
-            self.enabled_viz['Guesses'],
-            self.enabled_viz['Highlight'],
-            self.enabled_viz['Evidence'],
+            1,  # baseline
+            viz == 1,  # guess
+            viz == 2,  # highlight
+            viz == 3,  # evidence
+            viz == 4,  # guess + highlight
+            viz == 5,  # guess + evidence
+            viz == 6,  # highlight + evidence
+            viz == 7,  # all three
         ])
 
     def buzz(self):
