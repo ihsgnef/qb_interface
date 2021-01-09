@@ -112,6 +112,14 @@
                         </table>
                     </div>
                 </div>
+                <div id="buzzer_card" class="card card-outlin-primary mt-3">
+                    <div class="card-body mx-2 my-2">
+                        <h5 class="card-title"> Buzzer says </h5>
+                        <ul>
+                            <li><code>Wait</code></li>
+                        </ul>
+                    </div>
+                </div>
                 <div id="instruction_card" class="card card-outlin-primary mt-3">
                     <div class="card-body mx-2 my-2">
                         <h5 class="card-title">
@@ -123,7 +131,6 @@
                             <li>Use autocomplete to select your answer</li>
                         </ul>
                     </div>
-
                 </div>
 
 
@@ -204,6 +211,10 @@
                         </div>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
+                                id="buzzer_checkbox" checked>Buzzer</label>
+                        </div>
+                        <div class="checkbox">
+                            <label><input type="checkbox" value=""
                                 id="highlight_checkbox" checked>Highlights</label>
                         </div>
                         <div class="checkbox">
@@ -254,7 +265,7 @@
     <script src="js/intro.js"></script>
     <script src="js/FuzzySearch.min.js"></script>
     <script data-cfasync="false" type="text/javascript" src="js/form-submission-handler.js"></script>
-    <script src="js/scripts.202005031.js"></script>
+    <script src="js/scripts.202011191.js"></script>
 </body>
 
 </html>

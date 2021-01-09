@@ -1,8 +1,10 @@
 var sockt;
 // var socket_addr = "ws://127.0.0.1:9000";
-var socket_addr = "ws://play.qanta.org:9000";
+// var socket_addr = "ws://play.qanta.org:9000";
+var socket_addr = "ws://35.167.89.95:9000";
 // var answer_json_dir = "http://localhost/answers.0212.json";
-var answer_json_dir = "http://play.qanta.org/answers.0212.json";
+// var answer_json_dir = "http://play.qanta.org/answers.0212.json";
+var answer_json_dir = "http://35.167.89.95/answers.0212.json";
 $("#consent_form").load("consent_form.html"); 
 
 
@@ -35,6 +37,7 @@ var matches_table      = document.getElementById("matches_table");
 var guess_matches_area = document.getElementById("guess_of_matches");
 var buzz_button        = document.getElementById("buzz_button");
 var guesses_checkbox   = document.getElementById("guesses_checkbox");
+var buzzer_checkbox   = document.getElementById("buzzer_checkbox");
 var highlight_checkbox = document.getElementById("highlight_checkbox");
 var matches_checkbox   = document.getElementById("matches_checkbox");
 var voice_checkbox     = document.getElementById("voice_checkbox");
@@ -194,6 +197,14 @@ guesses_checkbox.onclick = function() {
         guesses_card.style.display = "block";
     } else {
         guesses_card.style.display = "none";
+    }
+};
+// show hide buzzer panel
+buzzer_checkbox.onclick = function() {
+    if (buzzer_checkbox.checked) {
+        buzzer_card.style.display = "block";
+    } else {
+        buzzer_card.style.display = "none";
     }
 };
 // show hide matches panel
@@ -647,34 +658,34 @@ function start() {
                 window.speechSynthesis.speak(utter);
             }
         }
-        if (typeof msg.enabled_viz != 'undefined') {
-            var viz = msg.enabled_viz;
-            if (typeof msg.free_mode != 'undefined') {
-                guesses_checkbox.disabled = false;
-                matches_checkbox.disabled = false;
-                highlight_checkbox.disabled = false;
-                return
-            }
-            guesses_checkbox.disabled = false;
-            matches_checkbox.disabled = false;
-            highlight_checkbox.disabled = false;
-            if (viz.Guesses) {
-                guesses_card.style.display = "block";
-                guesses_checkbox.checked = true;
-            } else {
-                guesses_card.style.display = "none";
-                guesses_checkbox.checked = false;
-            }
-            if (viz.Evidence) {
-                matches_card.style.display = "block";
-                matches_checkbox.checked = true;
-            } else {
-                matches_card.style.display = "none";
-                matches_checkbox.checked = false;
-            }
-            highlight_checkbox.checked = viz.Highlight;
+        // if (typeof msg.enabled_viz != 'undefined') {
+        //     var viz = msg.enabled_viz;
+        //     if (typeof msg.free_mode != 'undefined') {
+        //         guesses_checkbox.disabled = false;
+        //         matches_checkbox.disabled = false;
+        //         highlight_checkbox.disabled = false;
+        //         return
+        //     }
+        //     guesses_checkbox.disabled = false;
+        //     matches_checkbox.disabled = false;
+        //     highlight_checkbox.disabled = false;
+        //     if (viz.Guesses) {
+        //         guesses_card.style.display = "block";
+        //         guesses_checkbox.checked = true;
+        //     } else {
+        //         guesses_card.style.display = "none";
+        //         guesses_checkbox.checked = false;
+        //     }
+        //     if (viz.Evidence) {
+        //         matches_card.style.display = "block";
+        //         matches_checkbox.checked = true;
+        //     } else {
+        //         matches_card.style.display = "none";
+        //         matches_checkbox.checked = false;
+        //     }
+        //     highlight_checkbox.checked = viz.Highlight;
 
-        }
+        // }
     };
 }
 
