@@ -7,9 +7,8 @@ from augment.models import Question
 
 
 class QantaCache(Base):
-    id = Column(String, primary_key=True, index=True)
-    question_id = Column(String, ForeignKey(Question.id), primary_key=True, index=True)
-    position = Column(Integer, nullable=False, index=True)
+    question_id = Column(String, ForeignKey(Question.id), primary_key=True)
+    position = Column(Integer, primary_key=True)
     answer = Column(String, nullable=False)
     guesses = Column(JSONB)
     buzz_scores = Column(JSONB)

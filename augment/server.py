@@ -28,10 +28,10 @@ from util import BADGE_CORRECT, BADGE_WRONG, BADGE_BUZZ, \
 from util import ANSWER_TIME_OUT, SECOND_PER_WORD, \
     PLAYER_RESPONSE_TIME_OUT, HISTORY_LENGTH, NUM_QUESTIONS, \
     THRESHOLD, VIZ, VIZ_COMBOS
-from util import QBQuestion, null_question
-from alternative import alternative_answers
-from db import QBDB
-from bandit import BanditModel
+# from util import QBQuestion, null_question
+# from db import QBDB
+from .alternative import alternative_answers
+from .bandit import BanditModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
@@ -160,16 +160,16 @@ class BroadcastServerFactory(WebSocketServerFactory):
             global NUM_QUESTIONS
             NUM_QUESTIONS = len(self.questions)
             # random.shuffle(self.questions)
+
         logger.info('Loaded {} questions'.format(len(self.questions)))
 
-        self.db = QBDB()
         self.loop = loop
 
         self.socket_to_player = dict()  # client.peer -> Player
         self.players = dict()  # player_id -> Player
         self.deferreds = []
 
-        self.question = null_question
+        self.question = None
         self.started = False
         self.position = 0
         self.info_text = ''

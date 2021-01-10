@@ -3,7 +3,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from collections import defaultdict
 
-from db import QBDB
+# from db import QBDB
 
 alternative_answers = defaultdict(list)
 alternative_answers.update({
@@ -106,6 +106,7 @@ alternative_answers.update({
     'myers-briggs type indicator': ['mbti'],
 })
 
+
 def create_alternatives():
     scope = ['https://spreadsheets.google.com/feeds']
     credentials = ServiceAccountCredentials.from_json_keyfile_name('API Project-21af541bdeea.json', scope)
@@ -137,6 +138,7 @@ def create_alternatives():
         for j, a in enumerate(answers):
             n_col = COLS[j + 2]
             wks.update_acell(n_col + n_row, a)
+
 
 def read_alternatives():
     scope = ['https://spreadsheets.google.com/feeds']

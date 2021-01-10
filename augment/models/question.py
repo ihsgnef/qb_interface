@@ -8,7 +8,7 @@ from augment.db.base_class import Base
 class Question(Base):
     id = Column(String, primary_key=True, index=True)
     answer = Column(String, nullable=False)
-    raw_text = Column(String, nullable=False)
+    raw_text = Column(JSONB, nullable=False)
     length = Column(Integer, nullable=False)
     tokens = Column(JSONB, nullable=False)
 

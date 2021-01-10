@@ -25,9 +25,8 @@ depends_on = None
 def schema_upgrade():
     op.create_table(
         'qantacache',
-        Column('id', String, primary_key=True, index=True),
-        Column('question_id', String, ForeignKey(Question.id)),
-        Column('position', Integer, nullable=False),
+        Column('question_id', String, ForeignKey(Question.id), primary_key=True),
+        Column('position', Integer, primary_key=True),
         Column('answer', String, nullable=False),
         Column('guesses', JSONB),
         Column('buzz_scores', JSONB),
@@ -49,7 +48,6 @@ def data_upgrade():
             qid = entry['qid']
             qid = f'pace_{qid}'
             entry = QantaCache(
-                id=f'{qid}_{position}',
                 question_id=qid,
                 position=position,
                 answer=entry['answer'],

@@ -10,12 +10,10 @@ from tqdm import tqdm
 from alembic import op
 from sqlalchemy import orm
 from sqlalchemy import Column, String, Integer
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import JSONB
 
 from augment.config import settings
-from augment.models import Player, Question
+from augment.models import Question
 
 
 # revision identifiers, used by Alembic.
@@ -32,13 +30,17 @@ def schema_upgrade():
         Column('ip_addr', String, index=True),
         Column('name', String),
         Column('viz_control', String),
+        Column('score', Integer),
+        Column('questions_seen', JSONB),
+        Column('questions_answered', JSONB),
+        Column('questions_correct', JSONB),
     )
 
     op.create_table(
         'question',
         Column('id', String, primary_key=True, index=True),
         Column('answer', String, nullable=False),
-        Column('raw_text', String, nullable=False),
+        Column('raw_text', JSONB, nullable=False),
         Column('length', Integer, nullable=False),
         Column('tokens', JSONB, nullable=False),
     )
@@ -54,7 +56,7 @@ def data_upgrade():
     for q in tqdm(qb_questions):
         new_question = Question(
             id=f'pace_{q["qid"]}',
-            answer=q['answer'],
+            answer=q['answer'].replace('_', ' '),
             raw_text=q['raw_text'],
             length=q['length'],
             tokens=q['tokens'],
