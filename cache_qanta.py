@@ -1,3 +1,4 @@
+import json
 import pickle
 from tqdm import tqdm
 from nltk.corpus import stopwords as sw
@@ -5,7 +6,7 @@ from bs4 import BeautifulSoup
 
 # from machine_client import GuesserBuzzer
 from util import QBQuestion, QantaCacheEntry, tokenize_question
-from db import QBDB
+# from db import QBDB
 
 stopwords = set(sw.words('english'))
 
@@ -97,10 +98,35 @@ def move_cache_to_db(cache_path):
         db.add_cache(qid, records)
 
 
+def qanta_cache_to_json(pkl_path, json_path):
+    # temporary function for migration to PostgreSQL
+    # convert QBQuestion into JSON
+    with open(pkl_path, 'rb') as f:
+        qanta_cache = pickle.load(f)  # qid -> postion -> QantaCacheEntry
+    
+    json_cache_entries = {}
+    for qid, question_cache in qanta_cache.items():
+        json_cache_entries[qid] = {}
+        for position, entry in question_cache.items():
+            json_cache_entries[qid][position] = {
+                'qid': f'pace_{entry.qid}',
+                'position': entry.position,
+                'answer': entry.answer,
+                'guesses': entry.guesses,
+                'buzz_scores': entry.buzz_scores,
+                'matches': entry.matches,
+                'text_highlight': entry.text_highlight,
+                'matches_highlight': entry.matches_highlight,
+            }
+    
+    with open(json_path, 'w') as f:
+        json.dump(json_cache_entries, f)
+
 if __name__ == '__main__':
     # generate_cache('data/questions.pkl', 'data/cache.pkl')
     # move_cache_to_db('data/cache.pkl')
     # generate_cache('data/expo_questions.pkl', 'data/cache_expo.pkl')
     # move_cache_to_db('data/cache_expo.pkl')
     # generate_cache('data/kurtis_2019_10_08.pkl', 'data/kurtis_2019_10_08.cache.pkl')
-    move_cache_to_db('data/cache.pkl')
+    # move_cache_to_db('data/cache.pkl')
+    qanta_cache_to_json('data/cache.pkl', 'data/pace_cache.json')

@@ -1,4 +1,5 @@
 import re
+import json
 import pickle
 import string
 from tqdm import tqdm
@@ -157,6 +158,28 @@ def preprocess_expo():
         pickle.dump(qs, f)
 
 
+def qb_question_to_json(pkl_path, json_path):
+    # temporary function for migration to PostgreSQL
+    # convert QBQuestion into JSON
+    with open(pkl_path, 'rb') as f:
+        questions = pickle.load(f)
+    
+    json_questions = []
+    for q in questions:
+        json_questions.append({
+            'qid': q.qid,
+            'answer': q.answer,
+            'raw_text': q.raw_text,
+            'length': q.length,
+            'tokens': q.tokens,
+        })
+
+    with open(json_path, 'w') as f:
+        json.dump(json_questions, f)
+
+
 if __name__ == '__main__':
-    preprocess_pace()
-    preprocess_expo()
+    # preprocess_pace()
+    # preprocess_expo()
+    qb_question_to_json('data/pace_questions.pkl', 'data/pace_questions.json')
+    qb_question_to_json('data/expo_questions.pkl', 'data/expo_questions.json')

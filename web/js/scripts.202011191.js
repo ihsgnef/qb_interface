@@ -1,10 +1,10 @@
 var sockt;
-// var socket_addr = "ws://127.0.0.1:9000";
+var socket_addr = "ws://127.0.0.1:9011";
 // var socket_addr = "ws://play.qanta.org:9000";
-var socket_addr = "ws://35.167.89.95:9000";
-// var answer_json_dir = "http://localhost/answers.0212.json";
+// var socket_addr = "ws://35.167.89.95:9000";
+var answer_json_dir = "http://localhost/answers.0212.json";
 // var answer_json_dir = "http://play.qanta.org/answers.0212.json";
-var answer_json_dir = "http://35.167.89.95/answers.0212.json";
+// var answer_json_dir = "http://35.167.89.95/answers.0212.json";
 $("#consent_form").load("consent_form.html"); 
 
 
