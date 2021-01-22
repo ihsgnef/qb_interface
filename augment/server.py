@@ -9,6 +9,7 @@ from tqdm import tqdm
 from functools import partial
 from datetime import datetime
 from haikunator import Haikunator
+from dataclasses import dataclass
 
 from twisted.internet import reactor
 from twisted.web.server import Site
@@ -40,22 +41,16 @@ from augment.utils import (
     SECOND_PER_WORD,
     PLAYER_RESPONSE_TIME_OUT,
     HISTORY_LENGTH,
-    NUM_QUESTIONS,
     THRESHOLD,
-    VIZ,
-    VIZ_COMBOS,
+    EXPLANATIONS,
     boldify,
     highlight_template,
 )
 from augment.mediator import RandomMediator
 from augment.db.session import SessionLocal
-from augment.models import (
-    Question,
-    Player,
-    Record,
-    QantaCache,
-)
+from augment.models import Question, Player, Record, QantaCache
 from augment.alternative import alternative_answers
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
@@ -85,15 +80,14 @@ class PlayerClient:
     ):
         self.client = client
 
-        if player_id is not None:
-            self.player_id = player_id
-        else:
-            self.player_id = 'player_' + str(uuid.uuid4()).replace('-', '')
+        if player_id is None:
+            player_id = 'player_' + str(uuid.uuid4()).replace('-', '')
 
-        if player_name is not None:
-            self.player_name = player_name
-        else:
-            self.player_name = haikunator.haikunate(token_length=0, delimiter=' ').title()
+        if player_name is None:
+            player_name = haikunator.haikunate(token_length=0, delimiter=' ').title()
+
+        self.player_id = player_id
+        self.player_name = player_name
 
         self.active = True
         self.buzzed = False
@@ -102,21 +96,21 @@ class PlayerClient:
         self.position_start = 0
         self.position_buzz = -1
         self.buzz_info = dict()
-        self.enabled_viz = {x: False for x in VIZ}
-        self.combo_count = {x: 0 for x in VIZ_COMBOS}
+        self.explanation_config = {x: False for x in EXPLANATIONS + ['allow_player_choice']}
         self.questions_seen = []
         self.questions_answered = []
         self.questions_correct = []
-        self.complete = False  # answered all questions
+        self.task_completed = False  # answered all questions
         self.before_half_correct = 0
 
-        self.mediator = RandomMediator(n_questions=NUM_QUESTIONS)
+        self.mediator = RandomMediator()
 
     def can_buzz(self, qid: str):
         if not self.active:
             return False
         if self.buzzed:
             return False
+        # TODO
         # prevent player from answering a question more than once
         # if qid in self.questions_answered:
         #     return False
@@ -126,36 +120,19 @@ class PlayerClient:
         if self.active:
             if 'qid' in msg:
                 msg['can_buzz'] = self.can_buzz(msg['qid'])
-                msg['enabled_viz'] = self.enabled_viz
+                msg['explanation_config'] = self.explanation_config
             self.client.sendMessage(json.dumps(msg).encode('utf-8'))
-
-    def featurize(self) -> np.ndarray:
-        return np.array([
-            1,  # bias
-            self.enabled_viz['Guesses'],
-            self.enabled_viz['Highlight'],
-            self.enabled_viz['Evidence'],
-        ])[:, np.newaxis]
 
 
 class BroadcastServerFactory(WebSocketServerFactory):
 
-    def __init__(
-        self,
-        url,
-        loop=False,  # repeat questions
-    ):
+    def __init__(self, url: str):
         WebSocketServerFactory.__init__(self, url)
         self.db = SessionLocal()
 
         self.questions = self.db.query(Question).all()
-
-        global NUM_QUESTIONS
-        NUM_QUESTIONS = len(self.questions)
-
         logger.info('Loaded {} questions'.format(len(self.questions)))
 
-        self.loop = loop  # whether to repeat this set of questions
         self.socket_to_player = dict()  # client.peer -> Player
         self.players = dict()  # player_id -> Player
         self.deferreds = []
@@ -197,7 +174,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         self.players[player_id].active = True
                         logger.info("[register] old player {} ({} -> {})".format(
                             player_name, old_peer, client.peer))
-                        logger.info(self.players[player_id].complete)
+                        logger.info(self.players[player_id].task_completed)
                     else:
                         new_player.player_id = player_id
                         new_player.player_name = player_name
@@ -210,7 +187,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             new_player.questions_seen = player_in_db.questions_seen
                             new_player.questions_answered = player_in_db.questions_answered
                             new_player.questions_correct = player_in_db.questions_correct
-                            new_player.complete = len(set(player_in_db.questions_answered)) >= THRESHOLD
+                            new_player.task_completed = len(set(player_in_db.questions_answered)) >= THRESHOLD
                         else:
                             logger.info('add player {} to db'.format(new_player.player_id))
                             player_in_db = Player(
@@ -237,7 +214,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         'history_entries': self.history_entries,
                         'length': self.question.length,
                         'position': self.position,
-                        'completed': self.players[player_id].complete,
+                        'task_completed': self.players[player_id].task_completed,
                         'speech_text': ' '.join(self.question.raw_text[self.position:])
                     }
                     self.players[player_id].sendMessage(msg)
@@ -328,30 +305,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
         # random.shuffle(qids)
         return random.choice(self.questions)
 
-    def combo_to_viz(self, combo):
-        # combo is a number from 0-7 representing a combination of the three viz
-        enabled = {}
-        enabled[VIZ[0]] = (combo % 2) != 0
-        enabled[VIZ[1]] = ((combo / 2) % 2) != 0
-        enabled[VIZ[2]] = (combo / 4) != 0
-        return enabled
-
-    def viz_to_combo(self, enabled_viz):
-        return (
-            + 1 * enabled_viz[VIZ[0]]
-            + 2 * enabled_viz[VIZ[1]]
-            + 4 * enabled_viz[VIZ[2]]
-        )
-
-    def update_enabled_viz(self):
-        # for each active player return a dictionry of
-        # viz -> boolean indicating if each viz is enabled for this round
+    def update_explanation_config(self):
         for player_id, player in self.players.items():
             if not player.active:
                 continue
-            combo = player.mediator.get_enabled_combo(player)
-            player.enabled_viz = self.combo_to_viz(combo)
-            player.combo_count[combo] += 1
+            explanation_config = player.mediator.get_explanation_config(player)
+            explanation_config['allow_player_choice'] = False  # TODO
+            player.explanation_config = explanation_config
 
     def new_question(self):
         try:
@@ -392,10 +352,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'speech_text': ' '.join(self.question.raw_text)
             }
 
-            self.update_enabled_viz()
+            self.update_explanation_config()
 
             for player in self.players.values():
-                msg['enabled_viz'] = player.enabled_viz
+                msg['explanation_config'] = player.explanation_config
                 player.sendMessage(msg)
                 condition = partial(
                     self.check_player_response,
@@ -422,6 +382,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     player.player_name, player.score))
                 player.questions_seen.append(self.question.id)
             self.pbar = tqdm(total=self.question.length, leave=False)
+
             # start streaming question
             self.stream_next()
 
@@ -622,9 +583,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             }
 
             if False:
-                combo = self.viz_to_combo(green_player.enabled_viz)
-                # TODO do not recompute
-                green_player.mediator.update(green_player, combo, result)
+                green_player.mediator.update(green_player, result)
 
             green_player.score += score
             if result:
@@ -739,7 +698,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     guess=player.buzz_info.get('guess', None),
                     result=player.buzz_info.get('result', None),
                     score=player.buzz_info.get('score', None),
-                    enabled_viz=json.dumps(player.enabled_viz),
+                    explanation_config=json.dumps(player.explanation_config),
                     mediator_name=player.mediator.__class__.__name__,
                     date=date,
                 )
@@ -754,10 +713,16 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 player.buzz_info = dict()
                 n_answered = len(set(player.questions_answered))
 
-                if not player.complete and n_answered >= THRESHOLD and player.score > 0:
+                if (
+                    not player.task_completed
+                    and THRESHOLD > 0
+                    and n_answered >= THRESHOLD
+                    and player.score > 0
+                ):
+                    # first time the player answers THRESHOLD questions
                     if player.before_half_correct >= 10:
                         logger.info("player {} complete".format(player.player_name))
-                        player.complete = True
+                        player.task_completed = True
                         player.sendMessage({'type': MSG_TYPE_COMPLETE})
 
             # remove inactive users
@@ -777,7 +742,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
 
 if __name__ == '__main__':
-    factory = BroadcastServerFactory(u"ws://127.0.0.1:9011", loop=True)
+    factory = BroadcastServerFactory(u"ws://127.0.0.1:9011")
     factory.protocol = BroadcastServerProtocol
     listenWS(factory)
 

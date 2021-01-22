@@ -37,7 +37,7 @@ var matches_table      = document.getElementById("matches_table");
 var guess_matches_area = document.getElementById("guess_of_matches");
 var buzz_button        = document.getElementById("buzz_button");
 var guesses_checkbox   = document.getElementById("guesses_checkbox");
-var buzzer_checkbox   = document.getElementById("buzzer_checkbox");
+var buzzer_checkbox    = document.getElementById("buzzer_checkbox");
 var highlight_checkbox = document.getElementById("highlight_checkbox");
 var matches_checkbox   = document.getElementById("matches_checkbox");
 var voice_checkbox     = document.getElementById("voice_checkbox");
@@ -66,7 +66,7 @@ var speech_text = '';
 var speech_starting_position = 0;
 var PAUSE_COUNTDOWN = 5;
 var pause_countdown = PAUSE_COUNTDOWN;
-var completed = false;
+var task_completed = false;
 
 
 ///////// Constants ///////// 
@@ -120,7 +120,7 @@ logout_button.onclick = function(event) {
 
 pause_button.onclick = function(event) {
     $('#pause_modal').modal('show');
-    if (completed) {
+    if (task_completed) {
         $('#pause_modal_content').text('Congrats! You have finished 40 questions. Your code is: ' + player_id);
     }
     clearTimeout(timer_timeout);
@@ -311,9 +311,9 @@ function new_question(msg) {
     clearTimeout(timer_timeout);
     timer_set = false;
 
-    if (typeof msg.completed != 'undefined') {
-        completed = msg.completed;
-        console.log('setting completed ' + completed);
+    if (typeof msg.task_completed != 'undefined') {
+        task_completed = msg.task_completed;
+        console.log('setting completed ' + task_completed);
     }
 
     var m = {
@@ -587,7 +587,7 @@ function start() {
             handle_result(msg);
         } else if (msg.type === MSG_TYPE_COMPLETE) {
             // alert("Congrats! You have answered all the questions.");
-            completed = true;
+            task_completed = true;
             pause_button.click();
         }
         if (typeof msg.length != 'undefined') {
@@ -658,34 +658,53 @@ function start() {
                 window.speechSynthesis.speak(utter);
             }
         }
-        // if (typeof msg.enabled_viz != 'undefined') {
-        //     var viz = msg.enabled_viz;
-        //     if (typeof msg.free_mode != 'undefined') {
-        //         guesses_checkbox.disabled = false;
-        //         matches_checkbox.disabled = false;
-        //         highlight_checkbox.disabled = false;
-        //         return
-        //     }
-        //     guesses_checkbox.disabled = false;
-        //     matches_checkbox.disabled = false;
-        //     highlight_checkbox.disabled = false;
-        //     if (viz.Guesses) {
-        //         guesses_card.style.display = "block";
-        //         guesses_checkbox.checked = true;
-        //     } else {
-        //         guesses_card.style.display = "none";
-        //         guesses_checkbox.checked = false;
-        //     }
-        //     if (viz.Evidence) {
-        //         matches_card.style.display = "block";
-        //         matches_checkbox.checked = true;
-        //     } else {
-        //         matches_card.style.display = "none";
-        //         matches_checkbox.checked = false;
-        //     }
-        //     highlight_checkbox.checked = viz.Highlight;
+        if (typeof msg.explanation_config != 'undefined') {
+            var cfg = msg.explanation_config;
 
-        // }
+            console.log(cfg);
+
+            if (cfg.allow_player_choice) {
+                buzzer_checkbox.disabled = false;
+                guesses_checkbox.disabled = false;
+                matches_checkbox.disabled = false;
+                highlight_checkbox.disabled = false;
+                return
+            } else {
+                buzzer_checkbox.disabled = true;
+                guesses_checkbox.disabled = true;
+                matches_checkbox.disabled = true;
+                highlight_checkbox.disabled = true;
+            }
+
+            if (cfg.Guesses) {
+                guesses_card.style.display = "block";
+                guesses_checkbox.checked = true;
+            } else {
+                guesses_card.style.display = "none";
+                guesses_checkbox.checked = false;
+            }
+
+            if (cfg.Evidence) {
+                matches_card.style.display = "block";
+                matches_checkbox.checked = true;
+            } else {
+                matches_card.style.display = "none";
+                matches_checkbox.checked = false;
+            }
+
+            if (cfg.Highlight) {
+                highlight_checkbox.checked = true;
+                highlight_checkbox.disabled = true;
+            }
+
+            if (cfg.Buzzer) {
+                buzzer_card.style.display = "block";
+                buzzer_checkbox.checked = true;
+            } else {
+                buzzer_card.style.display = "none";
+                buzzer_checkbox.checked = false;
+            }
+        }
     };
 }
 

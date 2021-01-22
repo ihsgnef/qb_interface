@@ -14,7 +14,7 @@ class Record(Base):
     guess = Column(String)
     result = Column(Integer)
     score = Column(Integer)
-    enabled_viz = Column(String)
+    explanation_config = Column(String)
     mediator_name = Column(String)
     date = Column(TIMESTAMP(timezone=True))
 

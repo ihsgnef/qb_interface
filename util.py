@@ -30,8 +30,8 @@ HISTORY_LENGTH = 30
 NUM_QUESTIONS = 10
 THRESHOLD = 40
 
-VIZ = ['Guesses', 'Highlight', 'Evidence']
-VIZ_COMBOS = list(range(7))  # 000 -> 111
+EXPLANATIONS = ['Guesses', 'Highlight', 'Evidence']
+
 
 highlight_color = '#43c6fc'
 highlight_prefix = '<span style="background-color: ' + highlight_color + '">'
