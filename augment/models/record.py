@@ -15,7 +15,7 @@ class Record(Base):
     result = Column(Integer)
     score = Column(Integer)
     enabled_viz = Column(String)
-    viz_control = Column(String)
+    mediator_name = Column(String)
     date = Column(TIMESTAMP(timezone=True))
 
     player = relationship("Player", back_populates="records")
