@@ -15,14 +15,14 @@ BADGE_BUZZ = '<span class="badge badge-danger">Buzz</span>'
 BELL = ' <span class="fa fa-bell" aria-hidden="true"></span> '
 NEW_LINE = '</br>'
 
-ANSWER_TIME_OUT = 14
-SECOND_PER_WORD = 0.2
+ANSWER_TIME_OUT = 20
+SECOND_PER_WORD = 0.4
 PLAYER_RESPONSE_TIME_OUT = 3
 HISTORY_LENGTH = 30
-NUM_QUESTIONS = 10
 THRESHOLD = 0
 
-EXPLANATIONS = ['Guesses', 'Highlight', 'Evidence']
+EXPLANATIONS = ['Guesses', 'Highlight', 'Evidence', 'Buzzer']
+ALLOW_PLAYER_CHOICE = True
 
 highlight_color = '#43c6fc'
 highlight_prefix = '<span style="background-color: ' + highlight_color + '">'

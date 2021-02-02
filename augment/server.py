@@ -4,12 +4,10 @@ import uuid
 import random
 import logging
 import traceback
-import numpy as np
 from tqdm import tqdm
 from functools import partial
 from datetime import datetime
 from haikunator import Haikunator
-from dataclasses import dataclass
 
 from twisted.internet import reactor
 from twisted.web.server import Site
@@ -43,10 +41,11 @@ from augment.utils import (
     HISTORY_LENGTH,
     THRESHOLD,
     EXPLANATIONS,
+    ALLOW_PLAYER_CHOICE,
     boldify,
     highlight_template,
 )
-from augment.mediator import RandomMediator
+from augment.mediator import RandomDynamicMediator
 from augment.db.session import SessionLocal
 from augment.models import Question, Player, Record, QantaCache
 from augment.alternative import alternative_answers
@@ -103,7 +102,7 @@ class PlayerClient:
         self.task_completed = False  # answered all questions
         self.before_half_correct = 0
 
-        self.mediator = RandomMediator()
+        self.mediator = RandomDynamicMediator()
 
     def can_buzz(self, qid: str):
         if not self.active:
@@ -309,8 +308,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         for player_id, player in self.players.items():
             if not player.active:
                 continue
+            # TODO also pass the question
             explanation_config = player.mediator.get_explanation_config(player)
-            explanation_config['allow_player_choice'] = False  # TODO
+            explanation_config['allow_player_choice'] = ALLOW_PLAYER_CHOICE
             player.explanation_config = explanation_config
 
     def new_question(self):
@@ -482,7 +482,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     'length': self.question.length,
                     'guesses': self.cache_entry.guesses,
                     'matches': matches_plain,
-                    'matches_highlighted': matches_highlighted
+                    'matches_highlighted': matches_highlighted,
+                    'buzzer_prediction': random.choice([True, False]),  # TODO
                 }
                 self.latest_resume_msg = msg
                 self.pbar.update(1)
@@ -631,11 +632,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
     def _end_of_question(self):
         # notify players of end of game and send correct answer
-        self.info_text += (
-            NEW_LINE
-            + boldify('Answer')
-            + ': ' + self.question.answer
-        )
+        self.info_text += (NEW_LINE + 'Answer: ' + boldify(self.question.answer))
 
         # show the whole question
         # but show guesses & matches where the question ended
@@ -697,7 +694,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     position_buzz=player.position_buzz,
                     guess=player.buzz_info.get('guess', None),
                     result=player.buzz_info.get('result', None),
-                    score=player.buzz_info.get('score', None),
+                    qb_score=player.buzz_info.get('score', None),
+                    ew_score=player.buzz_info.get('score', None),  # TODO
                     explanation_config=json.dumps(player.explanation_config),
                     mediator_name=player.mediator.__class__.__name__,
                     date=date,

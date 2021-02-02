@@ -6,7 +6,7 @@ from augment.utils import EXPLANATIONS
 
 class Mediator:
 
-    def get_explanation_config(self, player) -> int:
+    def get_explanation_config(self, player) -> dict:
         pass
 
     def update(self, player, reward: float) -> None:
@@ -28,7 +28,35 @@ class Mediator:
         return config_id
 
 
-class RandomMediator(Mediator):
+class NoneFixedMediator(Mediator):
+
+    def __init__(self):
+        self.config = {x: False for x in EXPLANATIONS}
+
+    def get_explanation_config(self, player) -> dict:
+        return self.config
+
+
+class EverythingFixedMediator(Mediator):
+
+    def __init__(self):
+        self.config = {x: True for x in EXPLANATIONS}
+
+    def get_explanation_config(self, player) -> dict:
+        return self.config
+
+
+class RandomFixedMediator(Mediator):
+
+    def __init__(self):
+        n_configs = 2 ** len(EXPLANATIONS)
+        self.explanation_config = self.config_id_to_config(random.choice(range(n_configs)))
+
+    def get_explanation_config(self, player) -> dict:
+        return self.explanation_config
+
+
+class RandomDynamicMediator(Mediator):
 
     def get_explanation_config(self, player) -> int:
         n_configs = 2 ** len(EXPLANATIONS)
@@ -66,3 +94,13 @@ class BanditMediator(Mediator):
             np.array([[action]]),
             np.array([[reward]]),
         )
+
+
+class SemiAutopilotMediator(Mediator):
+
+    def __init__(self):
+        self.config = {x: False for x in EXPLANATIONS}
+        self.config['Buzzer'] = True
+
+    def get_explanation_config(self, player):
+        return self.config
