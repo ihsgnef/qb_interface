@@ -49,11 +49,13 @@ from augment.mediator import RandomDynamicMediator
 from augment.db.session import SessionLocal
 from augment.models import Question, Player, Record, QantaCache
 from augment.alternative import alternative_answers
+from augment.expected_wins import ExpectedWins
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('server')
 haikunator = Haikunator()
+EW = ExpectedWins()
 
 
 class BroadcastServerProtocol(WebSocketServerProtocol):
@@ -483,7 +485,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     'guesses': self.cache_entry.guesses,
                     'matches': matches_plain,
                     'matches_highlighted': matches_highlighted,
-                    'buzzer_prediction': random.choice([True, False]),  # TODO
+                    'autopilot_prediction': random.choice([True, False]),  # TODO
                 }
                 self.latest_resume_msg = msg
                 self.pbar.update(1)
@@ -570,23 +572,26 @@ class BroadcastServerFactory(WebSocketServerFactory):
             green_player = self.players[buzzing_id]
             answer = 'TIME_OUT' if timed_out else green_player.response['text']
             result = self.judge(answer) and not timed_out
-            score = 0
+            qb_score = 0
+            ew_score = 0
             if result:
-                score = 10
+                qb_score = 10
+                ew_score = EW.score(self.position, self.question.length)
             else:
                 if not end_of_question:
-                    score = -5
+                    qb_score = -5
             green_player.buzz_info = {
                 'position': self.position,
                 'guess': answer,
                 'result': int(result),
-                'score': score,
+                'qb_score': qb_score,
+                'ew_score': ew_score,
             }
 
             if False:
                 green_player.mediator.update(green_player, result)
 
-            green_player.score += score
+            green_player.score += qb_score
             if result:
                 green_player.questions_correct.append(self.question.id)
             if not timed_out:
@@ -596,14 +601,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 green_player.before_half_correct += 1
 
             self.info_text += answer
+            self.info_text += NEW_LINE if result else ''
             self.info_text += BADGE_CORRECT if result else BADGE_WRONG
-            self.info_text += ' ({})'.format(score)
+            self.info_text += ' (+ %.2f)' % ew_score if result else ''
             self.info_text += NEW_LINE
 
             msg = {
                 'qid': self.question.id,
                 'result': result,
-                'score': score,
+                'score': qb_score,
                 'player_id': buzzing_id,
                 'guess': answer,
                 'info_text': self.info_text
@@ -694,8 +700,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     position_buzz=player.position_buzz,
                     guess=player.buzz_info.get('guess', None),
                     result=player.buzz_info.get('result', None),
-                    qb_score=player.buzz_info.get('score', None),
-                    ew_score=player.buzz_info.get('score', None),  # TODO
+                    qb_score=player.buzz_info.get('qb_score', None),
+                    ew_score=player.buzz_info.get('ew_score', None),
                     explanation_config=json.dumps(player.explanation_config),
                     mediator_name=player.mediator.__class__.__name__,
                     date=date,

@@ -18,7 +18,7 @@ depends_on = None
 
 def upgrade():
     op.alter_column('record', 'score', new_column_name='qb_score')
-    op.add_column('record', sa.Column('ew_score', sa.Integer))
+    op.add_column('record', sa.Column('ew_score', sa.Float))
 
 
 def downgrade():

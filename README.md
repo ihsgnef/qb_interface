@@ -5,3 +5,6 @@
 4. Start the server `postgres -D /fs/clip-quiz/shifeng/postgres -p 5433`
 5. Create DB `createdb -h /fs/clip-quiz/shifeng/postgres/run -p 5433 karl-prod`
 6. Creat dump `pg_dump karl-prod -h /fs/clip-quiz/shifeng/postgres/run -p 5433 | gzip > /fs/clip-quiz/shifeng/karl/backup/karl-prod_20201017.gz`
+
+## Figures
+1. Install `vega-lite` globally: `npm install -g vega-cli`

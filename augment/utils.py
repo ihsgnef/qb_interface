@@ -1,3 +1,6 @@
+import json
+import itertools
+
 MSG_TYPE_NEW = 0                # beginning of a new question
 MSG_TYPE_RESUME = 1             # continue
 MSG_TYPE_END = 2                # end of question
@@ -21,8 +24,25 @@ PLAYER_RESPONSE_TIME_OUT = 3
 HISTORY_LENGTH = 30
 THRESHOLD = 0
 
-EXPLANATIONS = ['Guesses', 'Highlight', 'Evidence', 'Buzzer']
 ALLOW_PLAYER_CHOICE = True
+EXPLANATIONS = ['Alternatives', 'Evidence', 'Highlights_Question', 'Highlights_Evidence', 'Autopilot']
+
+ID_TO_CONFIG = []
+CONFIG_TO_ID = {}
+for config in itertools.product(*[[True, False] for x in EXPLANATIONS]):
+    if (not config[1]) and config[3]:
+        # evidence=False, highlight_evidence=True
+        continue
+    if (not config[2]) and config[3]:
+        # highlight_question=False, highlight_evidence=True
+        continue
+    if config[4] and not any(config[:3]):
+        # semi-autopilot
+        continue
+    id = len(ID_TO_CONFIG)
+    config = {exp: option for exp, option in zip(EXPLANATIONS, config)}
+    ID_TO_CONFIG.append(config)
+    CONFIG_TO_ID[json.dumps(config)] = id
 
 highlight_color = '#43c6fc'
 highlight_prefix = '<span style="background-color: ' + highlight_color + '">'
