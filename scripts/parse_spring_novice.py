@@ -41,7 +41,7 @@ def load_question_to_db():
     if not os.path.exists(data_dir):
         s3_dir = 's3://pinafore-us-west-2/public/spring-novice-htmls-cleaned.zip'
         shell(f'aws s3 cp {s3_dir} {data_dir}.zip')
-        shell(f'unzip {data_dir}.zip')
+        shell(f'unzip {data_dir}.zip -d data/')
 
     db = SessionLocal()
 
@@ -90,3 +90,4 @@ if __name__ == '__main__':
 
     db = SessionLocal()
     questions = db.query(Question).filter(Question.tournament.startswith('spring_novice'))
+    print(questions.count())

@@ -5,7 +5,7 @@ from sqlalchemy import event
 from sqlalchemy import exc
 from augment.config import settings
 
-engine = create_engine(settings.SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(settings.SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
