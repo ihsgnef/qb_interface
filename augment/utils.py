@@ -1,5 +1,9 @@
+import re
 import json
+import string
 import itertools
+from nltk import word_tokenize
+
 
 MSG_TYPE_NEW = 0                # beginning of a new question
 MSG_TYPE_RESUME = 1             # continue
@@ -53,3 +57,36 @@ highlight_template = highlight_prefix + '{}' + highlight_suffix
 
 def boldify(text):
     return '<b>{}</b>'.format(text)
+
+
+ftp_patterns = {
+    '\n',
+    ', for 10 points,',
+    ', for ten points,',
+    '--for 10 points--',
+    'for 10 points, ',
+    'for 10 points--',
+    'for ten points, ',
+    'for 10 points ',
+    'for ten points ',
+    ', ftp,'
+    'ftp,',
+    'ftp'
+}
+
+patterns = ftp_patterns | set(string.punctuation)
+regex_pattern = '|'.join([re.escape(p) for p in patterns])
+regex_pattern += r'|\[.*?\]|\(.*?\)'
+
+
+def clean_question(question: str):
+    """
+    Remove pronunciation guides and other formatting extras
+    :param question:
+    :return:
+    """
+    return re.sub(regex_pattern, '', question.strip().lower())
+
+
+def tokenize_question(text):
+    return word_tokenize(clean_question(text))

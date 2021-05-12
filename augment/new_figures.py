@@ -1,4 +1,3 @@
-# %%
 import os
 import json
 import altair as alt
@@ -16,7 +15,10 @@ def save_chart_and_pdf(chart, path):
     os.system(f'vl2vg {path}.json | vg2pdf > {path}.pdf')
 
 
-def fig_cumulative_reward(path='/Users/shifeng/Downloads'):
+def fig_cumulative_reward(path: str):
+    '''
+    Cumulative reward by number of examples, break down by condition.
+    '''
     session = SessionLocal()
     players = [x for x in session.query(Player) if x.id.startswith('dummy')]
     all_records = []
@@ -39,6 +41,7 @@ def fig_cumulative_reward(path='/Users/shifeng/Downloads'):
     source['condition'] = source['mediator_name'].apply(lambda x: condition_names[x])
     source['ew_cumsum'] = source.groupby(['player_id'])['ew_score'].cumsum()
 
+    selection = alt.selection_multi(fields=['condition'], bind='legend')
     line = alt.Chart().mark_line().encode(
         alt.X('index:Q', title='Questions'),
         alt.Y('mean(ew_cumsum):Q', title='Cummulative Reward (EW)'),
@@ -47,6 +50,7 @@ def fig_cumulative_reward(path='/Users/shifeng/Downloads'):
             title='Condition',
             legend=alt.Legend(labelFont='courier'),
         ),
+        opacity=alt.condition(selection, alt.value(0.8), alt.value(0.2))
     )
     band = alt.Chart().mark_errorband(extent='ci').encode(
         alt.X('index:Q', title='Questions'),
@@ -56,13 +60,17 @@ def fig_cumulative_reward(path='/Users/shifeng/Downloads'):
             title='Condition',
             legend=alt.Legend(labelFont='courier'),
         ),
+        opacity=alt.condition(selection, alt.value(0.4), alt.value(0.1))
     )
 
-    chart = alt.layer(line, band, data=source)
+    chart = alt.layer(line, band, data=source).add_selection(selection)
     save_chart_and_pdf(chart, f'{path}/cumulative_ew')
 
 
-def fig_config_cumulative_count(path='/Users/shifeng/Downloads'):
+def fig_config_cumulative_count(path: str):
+    '''
+    Cumulative count of each config selected by the mediator.
+    '''
     source = []
     for i in range(60):
         source.append({'index': 1})
@@ -93,8 +101,10 @@ def fig_config_cumulative_count(path='/Users/shifeng/Downloads'):
     save_chart_and_pdf(chart, f'{path}/mediated_config_cumulative_count')
 
 
-# %%
-def fig_explanation_cumulative_count(path='/Users/shifeng/Downloads'):
+def fig_explanation_cumulative_count(path: str):
+    '''
+    Cumulative count of each individual explanation, break down by condition.
+    '''
     condition_names = {
         'NoneFixedMediator': 'None-fixed',
         'EverythingFixedMediator': 'Everything-fixed',
@@ -152,7 +162,7 @@ def fig_explanation_cumulative_count(path='/Users/shifeng/Downloads'):
 
 
 if __name__ == '__main__':
-    path = '/Users/shifeng/Downloads'
+    path = '/Users/shifeng/workspace/qb_interface/figures'
     fig_cumulative_reward(path)
     fig_config_cumulative_count(path)
     fig_explanation_cumulative_count(path)

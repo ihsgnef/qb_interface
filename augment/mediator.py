@@ -67,7 +67,8 @@ class RealBanditMediator(Mediator):
         return ID_TO_CONFIG(self.bandit_model.predict(features)[0].item())
 
     def get_features(self, player):
-        return []
+        return [
+        ]
 
     def update(self, player, reward: float):
         action = CONFIG_TO_ID(json.dumps(player.explanation_config))

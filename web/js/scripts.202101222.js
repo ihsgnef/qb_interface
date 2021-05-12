@@ -2,7 +2,7 @@ var sockt;
 var socket_addr = "ws://127.0.0.1:9011";
 // var socket_addr = "ws://play.qanta.org:9000";
 // var socket_addr = "ws://35.167.89.95:9000";
-var answer_json_dir = "http://localhost/answers.0212.json";
+var answer_json_dir = "http://localhost:8000/answers.0212.json";
 // var answer_json_dir = "http://play.qanta.org/answers.0212.json";
 // var answer_json_dir = "http://35.167.89.95/answers.0212.json";
 $("#consent_form").load("consent_form.html"); 
@@ -19,6 +19,10 @@ var MSG_TYPE_BUZZING_RED = 6; // tell user you cannot buzz now
 var MSG_TYPE_RESULT_MINE = 7; // result of my answer
 var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 var MSG_TYPE_COMPLETE = 9; // answered all questions
+
+
+///////// CONFIGS ///////// 
+var SECOND_PER_WORD = 0.4;
 
 
 ///////// HTML Elements ///////// 
@@ -523,7 +527,8 @@ function progress(timeleft, timetotal, is_red) {
             'background-color': '#428bca'
         });
     }
-    document.getElementById("bar").innerHTML = Math.floor(timeleft / 60) + ":" + Math.floor(timeleft % 60);
+    // document.getElementById("bar").innerHTML = Math.floor(timeleft / 60) + ":" + Math.floor(timeleft % 60);
+    document.getElementById("bar").innerHTML = Math.floor(timeleft);
     if (timeleft > 0) {
         timer_timeout = setTimeout(function() {
             progress(timeleft - 1, timetotal, is_red);
@@ -602,8 +607,8 @@ function start() {
         }
         if (typeof msg.length != 'undefined') {
             if (timer_set === false) {
-                var timetotal = msg.length / 2;
-                var timeleft = (msg.length - msg.position) / 2;
+                var timetotal = msg.length * SECOND_PER_WORD;
+                var timeleft = (msg.length - msg.position) * SECOND_PER_WORD;
                 progress(timeleft, timetotal, false);
                 timer_set = true;
             }

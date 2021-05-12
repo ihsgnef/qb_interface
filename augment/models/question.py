@@ -11,6 +11,8 @@ class Question(Base):
     raw_text = Column(JSONB, nullable=False)
     length = Column(Integer, nullable=False)
     tokens = Column(JSONB, nullable=False)
+    tournament = Column(String)
+    meta = Column(JSONB)
 
     records = relationship('Record', order_by='Record.date', back_populates='question')
     caches = relationship('QantaCache', order_by='QantaCache.position', back_populates='question')

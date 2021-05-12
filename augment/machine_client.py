@@ -1,18 +1,12 @@
 import logging
 import numpy as np
 import chainer
-from twisted.internet import reactor
-from autobahn.twisted.websocket import WebSocketClientFactory, connectWS
 
 from qanta.config import conf
 from qanta.guesser.abstract import AbstractGuesser
 from qanta.guesser.experimental.elasticsearch_instance_of import ElasticSearchWikidataGuesser
 from qanta.new_expo.agent import RNNBuzzer
 from qanta.experimental.get_highlights import get_highlights
-from util import MSG_TYPE_NEW, MSG_TYPE_RESUME, MSG_TYPE_END, \
-    MSG_TYPE_BUZZING_REQUEST, MSG_TYPE_BUZZING_ANSWER, \
-    MSG_TYPE_BUZZING_GREEN, MSG_TYPE_BUZZING_RED, \
-    MSG_TYPE_RESULT_MINE, MSG_TYPE_RESULT_OTHER
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger('elasticsearch').setLevel(logging.WARNING)
@@ -34,6 +28,7 @@ class StupidBuzzer:
         else:
             return [0, 1]
 
+
 class GuesserBuzzer:
 
     def __init__(self, buzzer_model_dir='data/neo_0.npz'):
@@ -42,8 +37,10 @@ class GuesserBuzzer:
         self.guesser = ElasticSearchWikidataGuesser.load(guesser_dir)
 
         if chainer.cuda.available:
-            self.buzzer = RNNBuzzer(model_dir=buzzer_model_dir,
-                                    word_skip=conf['buzzer_word_skip'])
+            self.buzzer = RNNBuzzer(
+                model_dir=buzzer_model_dir,
+                word_skip=conf['buzzer_word_skip'],
+            )
         else:
             self.buzzer = StupidBuzzer()
 
@@ -79,7 +76,8 @@ class GuesserBuzzer:
 
 
 if __name__ == '__main__':
-    factory = WebSocketClientFactory(u"ws://play.qanta.org:9000")
-    factory.protocol = GuesserBuzzerProtocol
-    connectWS(factory)
-    reactor.run()
+    # factory = WebSocketClientFactory(u"ws://play.qanta.org:9000")
+    # factory.protocol = GuesserBuzzerProtocol
+    # connectWS(factory)
+    # reactor.run()
+    pass

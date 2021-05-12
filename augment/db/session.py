@@ -8,6 +8,7 @@ from augment.config import settings
 engine = create_engine(settings.SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
 @event.listens_for(engine, "connect")
 def connect(dbapi_connection, connection_record):
     connection_record.info['pid'] = os.getpid()
