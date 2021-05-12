@@ -2,6 +2,7 @@ import re
 import json
 import string
 import itertools
+import subprocess
 from nltk import word_tokenize
 
 
@@ -90,3 +91,7 @@ def clean_question(question: str):
 
 def tokenize_question(text):
     return word_tokenize(clean_question(text))
+
+
+def shell(command):
+    return subprocess.run(command, check=True, shell=True)

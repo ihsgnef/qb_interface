@@ -1,8 +1,10 @@
+import os
 from bs4 import BeautifulSoup
 from sqlalchemy.exc import IntegrityError
 
 from augment.models import Question
 from augment.db.session import SessionLocal
+from augment.utils import shell
 
 
 def parse_questions_for_inspection():
@@ -36,6 +38,11 @@ def parse_questions_for_inspection():
 
 def load_question_to_db():
     data_dir = 'data/spring-novice-htmls-cleaned'
+    if not os.path.exists(data_dir):
+        s3_dir = 's3://pinafore-us-west-2/public/spring-novice-htmls-cleaned.zip'
+        shell(f'aws s3 cp {s3_dir} {data_dir}.zip')
+        shell(f'unzip {data_dir}.zip')
+
     db = SessionLocal()
 
     for round in range(1, 11):
