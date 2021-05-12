@@ -66,7 +66,7 @@ def generate_cache():
 
     questions = session.query(Question).filter(Question.tournament.startswith('spring_novice'))
     for q in tqdm(questions, total=questions.count()):
-        model.new_question(q.qid)
+        model.new_question(q.id)
         for i in range(1, q.length + 1):  # +1 because we take [:i]
             if i % 5 == 1:
                 sentence = ' '.join(q.raw_text[:i])
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     print(q.answer)
     print(q.raw_text)
 
-    model.new_question(q.qid)
+    model.new_question(q.id)
     sentence = ' '.join(q.raw_text[:10])
     buzz_scores = model.buzz(sentence, 10)
     print(model.guesses)
