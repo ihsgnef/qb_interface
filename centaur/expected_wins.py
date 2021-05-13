@@ -2,13 +2,14 @@ import os
 import pickle
 import numpy as np
 
+
 class ExpectedWins:
 
     def __init__(self):
         ckp_dir = 'data/curve_pipeline.pkl'
         if not os.path.isfile(ckp_dir):
             raise ValueError('curve_pipeline.pkl does not exist')
-        
+
         with open(ckp_dir, 'rb') as f:
             self.pipeline = pickle.load(f)
         linear_regression = self.pipeline.named_steps['linear_regression']

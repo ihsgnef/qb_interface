@@ -1,8 +1,10 @@
 var sockt;
-// var socket_addr = "ws://127.0.0.1:9000";
-var socket_addr = "ws://play.qanta.org:9000";
-// var answer_json_dir = "http://localhost/answers.0212.json";
-var answer_json_dir = "http://play.qanta.org/answers.0212.json";
+var socket_addr = "ws://127.0.0.1:9011";
+// var socket_addr = "ws://play.qanta.org:9000";
+// var socket_addr = "ws://35.167.89.95:9000";
+var answer_json_dir = "http://localhost:8000/answers.0212.json";
+// var answer_json_dir = "http://play.qanta.org/answers.0212.json";
+// var answer_json_dir = "http://35.167.89.95/answers.0212.json";
 $("#consent_form").load("consent_form.html"); 
 
 
@@ -19,30 +21,37 @@ var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 var MSG_TYPE_COMPLETE = 9; // answered all questions
 
 
+///////// CONFIGS ///////// 
+var SECOND_PER_WORD = 0.4;
+
+
 ///////// HTML Elements ///////// 
 var accept_button      = document.getElementById("accept_button");
 var username_area      = document.getElementById("choose_user_name");
 var question_area      = document.getElementById("question_area");
 var answer_area        = document.getElementById("answer_area");
-// var score_area         = document.getElementById('score_area');
-var guesses_card       = document.getElementById("guesses_card");
-var guesses_table      = document.getElementById("guesses_table");
+var alternatives_card  = document.getElementById("alternatives_card");
+var alternatives_table = document.getElementById("alternatives_table");
 var players_table      = document.getElementById("players_table");
 var players_tbody      = document.getElementById("players_tbody");
 var players_n_active   = document.getElementById("n_active");
-var matches_card       = document.getElementById("matches_card");
-var matches_table      = document.getElementById("matches_table");
-var guess_matches_area = document.getElementById("guess_of_matches");
-var buzz_button        = document.getElementById("buzz_button");
-var guesses_checkbox   = document.getElementById("guesses_checkbox");
-var highlight_checkbox = document.getElementById("highlight_checkbox");
-var matches_checkbox   = document.getElementById("matches_checkbox");
+var evidence_card      = document.getElementById("evidence_card");
+var evidence_table     = document.getElementById("evidence_table");
+var prediction_area    = document.getElementById("prediction_area");
 var voice_checkbox     = document.getElementById("voice_checkbox");
 var answer_group       = document.getElementById("answer_area_row");
 var history_div        = document.getElementById('history');
+var buzz_button        = document.getElementById("buzz_button");
 var logout_button      = document.getElementById("logout_button");
 var pause_button       = document.getElementById("pause_button");
 var resume_button      = document.getElementById("resume_button");
+var prediction_card    = document.getElementById("prediction_card");
+var evidence_checkbox  = document.getElementById("evidence_checkbox");
+var autopilot_checkbox = document.getElementById("autopilot_checkbox");
+var prediction_confidence_card  = document.getElementById("prediction_confidence_card");
+var alternatives_checkbox       = document.getElementById("alternatives_checkbox");
+var highlight_question_checkbox = document.getElementById("highlight_question_checkbox");
+var highlight_evidence_checkbox = document.getElementById("highlight_evidence_checkbox");
 
 
 ///////// State variables ///////// 
@@ -63,7 +72,7 @@ var speech_text = '';
 var speech_starting_position = 0;
 var PAUSE_COUNTDOWN = 5;
 var pause_countdown = PAUSE_COUNTDOWN;
-var completed = false;
+var task_completed = false;
 
 
 ///////// Constants ///////// 
@@ -117,7 +126,7 @@ logout_button.onclick = function(event) {
 
 pause_button.onclick = function(event) {
     $('#pause_modal').modal('show');
-    if (completed) {
+    if (task_completed) {
         $('#pause_modal_content').text('Congrats! You have finished 40 questions. Your code is: ' + player_id);
     }
     clearTimeout(timer_timeout);
@@ -188,20 +197,30 @@ buzz_button.onclick = function() {
     buzz_button.disabled = true;
     pause_countdown = PAUSE_COUNTDOWN;
 };
-// show hide guesses panel
-guesses_checkbox.onclick = function() {
-    if (guesses_checkbox.checked) {
-        guesses_card.style.display = "block";
+// show hide alternatives panel
+alternatives_checkbox.onclick = function() {
+    if (alternatives_checkbox.checked) {
+        alternatives_card.style.display = "block";
     } else {
-        guesses_card.style.display = "none";
+        alternatives_card.style.display = "none";
     }
 };
-// show hide matches panel
-matches_checkbox.onclick = function() {
-    if (matches_checkbox.checked) {
-        matches_card.style.display = "block";
+// show hide autopilot panel
+autopilot_checkbox.onclick = function() {
+    if (autopilot_checkbox.checked) {
+        prediction_confidence_card.style.display = "block";
+        prediction_card.style.display = "none";
     } else {
-        matches_card.style.display = "none";
+        prediction_confidence_card.style.display = "none";
+        prediction_card.style.display = "block";
+    }
+};
+// show hide evidence panel
+evidence_checkbox.onclick = function() {
+    if (evidence_checkbox.checked) {
+        evidence_card.style.display = "block";
+    } else {
+        evidence_card.style.display = "none";
     }
 };
 // stop speech synthesis
@@ -218,11 +237,10 @@ voice_checkbox.onclick = function() {
         window.speechSynthesis.speak(utter);
     }
 };
-// show hide guesses panel
-highlight_checkbox.onclick = function() {
+// show hide question highlights
+highlight_question_checkbox.onclick = function() {
     update_question_display()
 };
-
 
 ///////// Autocomplete ///////// 
 var fuzzyhound = new FuzzySearch();
@@ -265,7 +283,7 @@ window.addEventListener('beforeunload', function(){
     window.speechSynthesis.cancel();});
 
 function update_question_display() {
-    if (highlight_checkbox.checked) {
+    if (highlight_question_checkbox.checked) {
         question_area.innerHTML = question_text_color + '<br />' + info_text;
     } else {
         question_area.innerHTML = question_text + '<br />' + info_text;
@@ -282,17 +300,17 @@ function new_question(msg) {
     answer_area.value = "";
     buzzing_on_guess = false;
     update_question_display();
-    guess_matches_area.innerHTML = '';
+    prediction_area.innerHTML = '';
     buzz_button.disabled = false;
     answer_group.style.display = "none";
 
     for (var i = 0; i < 5; i++) {
-        guesses_table.rows[i + 1].cells[1].innerHTML = '-';
-        guesses_table.rows[i + 1].cells[2].innerHTML = '-';
+        alternatives_table.rows[i + 1].cells[1].innerHTML = '-';
+        alternatives_table.rows[i + 1].cells[2].innerHTML = '-';
     }
 
     for (var i = 0; i < 4; i++) {
-        matches_table.rows[i].cells[0].innerHTML = '-';
+        evidence_table.rows[i].cells[0].innerHTML = '-';
     }
 
     is_buzzing = false;
@@ -300,9 +318,9 @@ function new_question(msg) {
     clearTimeout(timer_timeout);
     timer_set = false;
 
-    if (typeof msg.completed != 'undefined') {
-        completed = msg.completed;
-        console.log('setting completed ' + completed);
+    if (typeof msg.task_completed != 'undefined') {
+        task_completed = msg.task_completed;
+        console.log('setting completed ' + task_completed);
     }
 
     var m = {
@@ -441,8 +459,8 @@ function update_interpretation(msg) {
             var guess = guesses[i][0];
             var guess_score = (guesses[i][1]/score_sum).toFixed(4);
             var guess_text = guess.substr(0, 20);
-            guesses_table.rows[i + 1].cells[1].innerHTML = guess_text;
-            guesses_table.rows[i + 1].cells[2].innerHTML = guess_score;
+            alternatives_table.rows[i + 1].cells[1].innerHTML = guess_text;
+            alternatives_table.rows[i + 1].cells[2].innerHTML = guess_score;
 
             var createClickHandler = function(guess) {
                 return function() { 
@@ -450,31 +468,38 @@ function update_interpretation(msg) {
                     answer_area.value = guess;
                     curr_answer = guess;
                     if (is_buzzing == false && buzz_button.disabled == false) {
+                        answer_area.focus();
                         buzz_button.click();
+                        answer_area.focus();
                     }
                 };
             };
-
-            // guesses_table.rows[i + 1].onclick = createClickHandler(guess);
+            alternatives_table.rows[i + 1].onclick = createClickHandler(guess);
         }
+
+        if (guesses.length > 0 && is_buzzing == false) {
+            // to make sure the auto-complete is pre-filled by machine prediction
+            curr_answer = guesses[0][0];
+        }
+
         if (guesses.length > 0) {
-            if (is_buzzing == false) {
-                curr_answer = guesses[0][0];
+            prediction_area.innerHTML = guesses[0][0];
+            if (msg.autopilot_prediction == true) {
+                prediction_confidence_area.innerHTML = '<span style="color:red;">' + guesses[0][0] + '</span>';
+            } else {
+                prediction_confidence_area.innerHTML = '<span style="color:gray;">' + guesses[0][0] + '</span>';
             }
-            guess_matches_area.innerHTML = guesses[0][0];
-        } else {
-            guess_matches_area.innerHTML = '-';
         }
     }
 
-    //update the matches
+    //update the evidence 
     if (typeof msg.matches !== 'undefined') {
         var matches = msg.matches;
-        if (highlight_checkbox.checked) {
+        if (highlight_evidence_checkbox.checked) {
             matches = msg.matches_highlighted;
         }
         for (var i = 0; i < Math.min(4, matches.length); i++) {
-            matches_table.rows[i].cells[0].innerHTML = matches[i];
+            evidence_table.rows[i].cells[0].innerHTML = matches[i];
         }
     }
 }
@@ -502,7 +527,8 @@ function progress(timeleft, timetotal, is_red) {
             'background-color': '#428bca'
         });
     }
-    document.getElementById("bar").innerHTML = Math.floor(timeleft / 60) + ":" + Math.floor(timeleft % 60);
+    // document.getElementById("bar").innerHTML = Math.floor(timeleft / 60) + ":" + Math.floor(timeleft % 60);
+    document.getElementById("bar").innerHTML = Math.floor(timeleft);
     if (timeleft > 0) {
         timer_timeout = setTimeout(function() {
             progress(timeleft - 1, timetotal, is_red);
@@ -517,7 +543,7 @@ function handle_buzzing(msg) {
 
     if (msg.type === MSG_TYPE_BUZZING_GREEN) {
         answer_group.style.display = "initial";
-        if (guesses_checkbox.checked) {
+        if (alternatives_checkbox.checked) {
             $('#answer_area').typeahead('val', curr_answer);
         }
         if (buzzing_on_guess == false) {
@@ -576,13 +602,13 @@ function start() {
             handle_result(msg);
         } else if (msg.type === MSG_TYPE_COMPLETE) {
             // alert("Congrats! You have answered all the questions.");
-            completed = true;
+            task_completed = true;
             pause_button.click();
         }
         if (typeof msg.length != 'undefined') {
             if (timer_set === false) {
-                var timetotal = msg.length / 2;
-                var timeleft = (msg.length - msg.position) / 2;
+                var timetotal = msg.length * SECOND_PER_WORD;
+                var timeleft = (msg.length - msg.position) * SECOND_PER_WORD;
                 progress(timeleft, timetotal, false);
                 timer_set = true;
             }
@@ -647,33 +673,43 @@ function start() {
                 window.speechSynthesis.speak(utter);
             }
         }
-        if (typeof msg.enabled_viz != 'undefined') {
-            var viz = msg.enabled_viz;
-            if (typeof msg.free_mode != 'undefined') {
-                guesses_checkbox.disabled = false;
-                matches_checkbox.disabled = false;
-                highlight_checkbox.disabled = false;
-                return
-            }
-            guesses_checkbox.disabled = false;
-            matches_checkbox.disabled = false;
-            highlight_checkbox.disabled = false;
-            if (viz.Guesses) {
-                guesses_card.style.display = "block";
-                guesses_checkbox.checked = true;
-            } else {
-                guesses_card.style.display = "none";
-                guesses_checkbox.checked = false;
-            }
-            if (viz.Evidence) {
-                matches_card.style.display = "block";
-                matches_checkbox.checked = true;
-            } else {
-                matches_card.style.display = "none";
-                matches_checkbox.checked = false;
-            }
-            highlight_checkbox.checked = viz.Highlight;
+        if (typeof msg.explanation_config != 'undefined') {
+            var cfg = msg.explanation_config;
 
+            if (cfg.allow_player_choice) {
+                autopilot_checkbox.disabled = false;
+                alternatives_checkbox.disabled = false;
+                evidence_checkbox.disabled = false;
+                highlight_question_checkbox.disabled = false;
+                highlight_evidence_checkbox.disabled = false;
+                return
+            } else {
+                autopilot_checkbox.disabled = true;
+                alternatives_checkbox.disabled = true;
+                evidence_checkbox.disabled = true;
+                highlight_question_checkbox.disabled = true;
+                highlight_evidence_checkbox.disabled = true;
+            }
+
+            if (cfg.Alternatives) {
+                alternatives_card.style.display = "block";
+                alternatives_checkbox.checked = true;
+            } else {
+                alternatives_card.style.display = "none";
+                alternatives_checkbox.checked = false;
+            }
+
+            if (cfg.Evidence) {
+                evidence_card.style.display = "block";
+                evidence_checkbox.checked = true;
+            } else {
+                evidence_card.style.display = "none";
+                evidence_checkbox.checked = false;
+            }
+
+            highlight_question_checkbox.checked = cfg.Highlights_Question;
+            highlight_evidence_checkbox.checked = cfg.Highlights_Evidence;
+            autopilot_checkbox.checked = cfg.Autopilot
         }
     };
 }

@@ -5,9 +5,9 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>Qanta Interface</title>
+    <title>Centaur Quizbowl</title>
 
-    <meta name="description" content="Play QuizBowl against machine">
+    <meta name="description" content="Centaur Quizbowl">
     <meta name="author" content="ihsgnef">
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
@@ -90,18 +90,16 @@
 
     <div class="container-fluid" data-step="1" data-intro="Welcome! Please follow this
     tutorial to get familiar with the interface." data-position='auto'>
-        <ul class="breadcrumb">QuizBowl</ul>
+        <ul class="breadcrumb">Centaur QuizBowl</ul>
         <div class="row" data-step="2" data-intro="This is what the interface might look like in the middle of a question.">
             <div class="col-md-3">
-                <div id="guesses_card" class="card card-outline-primary mt-3"
-                    data-step="5" data-intro="<b>Guesses</b> from
+                <div class="row mt-3"></br></br></div>
+                <div id="alternatives_card" class="card card-outline-primary mt-3" data-step="6" data-intro="<b>Alternatives</b> from
                     Qanta are shown here.">
                     <div class="card-body mx-2 my-2">
-                        <h4 class="card-title">Guesses</h4>
-                        <table class="table table-hover table-sm" id="guesses_table">
-                            <thead>
-                                <tr> <th> #</th> <th> Guess </th> <th> Score </th> </tr>
-                            </thead>
+                        <h4 class="card-title">Alternatives</h4>
+                        <table class="table table-hover table-sm" id="alternatives_table">
+                            <thead> <tr> <th> #</th> <th> Guess </th> <th> Score </th> </tr> </thead>
                             <tbody>
                                 <tr> <td> 1 </td> <td> Electron </td> <td> 1.76456 </td> </tr>
                                 <tr> <td> 2 </td> <td> Positron </td> <td> 1.37278 </td> </tr>
@@ -112,7 +110,7 @@
                         </table>
                     </div>
                 </div>
-                <div id="instruction_card" class="card card-outlin-primary mt-3">
+                <div id="instruction_card" style="display: None" class="card card-outlin-primary mt-3">
                     <div class="card-body mx-2 my-2">
                         <h5 class="card-title">
                             <i class="fa fa-info-circle" aria-hidden="true"></i> Instructions
@@ -123,16 +121,15 @@
                             <li>Use autocomplete to select your answer</li>
                         </ul>
                     </div>
-
                 </div>
 
 
             </div>
-            <div class="col-md-6">
+            <div class="col-md-5">
                 <div class="row mt-3">
                     <button type="submit" class="btn btn-danger"
                         style="width:10%; margin-left:17px;" id="buzz_button"
-                        data-step="4" data-intro="Click this button or press
+                        data-step="5" data-intro="Click this button or press
                         <code>space</code> to buzz, type or select answer from the
                         dropdown menu, then press <code>enter</code> to submit."> Buzz </button>
                     <div class="progress progress-striped active pull-left" style="width:84%; margin: 0px auto; height: 40px;">
@@ -162,14 +159,38 @@
                         </a>
                     </div>
                 </div>
-                <div id="matches_card" class="card card-outline-primary mt-3"
-                    data-step="6" data-intro="The <b>evidence</b> of Qanta's prediction
+
+                <div id="prediction_confidence_card" class="card card-outline-primary mt-1" data-step="4" data-intro="Machine predictions are displayed here. When it's shown in red, the machine is confident in its prediction." style="display:none">
+                    <div class="card-body my-2 mx-2">
+                        <!-- span>Machine prediction: </span> <b><span id="prediction_confidence_area" style="color:red;">Electron</mark></b -->
+                        <h5>Guess: <b><span id="prediction_confidence_area" style="color:red;">Electron</mark></b></h5>
+                    </div>
+                </div>
+
+                <div id="prediction_card" class="card card-outline-primary mt-1" style="display: block">
+                    <div class="card-body my-2 mx-2">
+                        <!-- span>Machine prediction: </span> <b><span id="prediction_area">Electron</mark></b -->
+                        <h5>Guess: <b><span id="prediction_area">Electron</mark></b></h5>
+                    </div>
+                </div>
+
+                <div id="history_card" style="display: None" class="card card-outline-primary mt-3" data-step="8" data-intro="Game history. Click to expand each question.">
+                    <div class="card-body mx-2">
+                    <h4 class="card-title">History</h4>
+                    <div id="history"> </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="col-md-4">
+                <div class="row mt-3"></br></br></div>
+                <div id="evidence_card" class="card card-outline-primary mt-3"
+                    data-step="7" data-intro="The <b>evidence</b> of Qanta's prediction
                     is shown here. Each line is a snippet from either a previous
                     quizbowl question or Wikipedia page. <b>Highlights</b> shows the most important words." >
                     <div class="card-body mx-2">
                         <h4 class="card-title">Evidence</h4>
-                        <span>for </span> <b><span id="guess_of_matches">Electron</mark></b></br></br>
-                        <table class="table table-sm" id="matches_table">
+                        <table class="table table-sm" id="evidence_table">
                             <tbody>
                                 <tr><td> <mark data-entity="person">gravitational</mark> <mark data-entity="person">forces</mark> on oil <mark data-entity="person">drops</mark> to measure the <mark data-entity="person">charge</mark> of these <mark data-entity="person">particles</mark> , an <mark data-entity="person">experiment</mark> conducted by </td></tr>
                                 <tr><td> pudding model. The <mark data-entity="person">charge</mark> on one of these <mark data-entity="person">particles</mark> is also known as the fundamental <mark data-entity="person">charge</mark> . In the Bohr </td></tr>
@@ -179,20 +200,8 @@
                         </table>
                     </div>
                 </div>
-
-                <div id="history_card" class="card card-outline-primary mt-3"
-                    data-step="7" data-intro="Game history. Click to
-                    expand each question.">
-                    <div class="card-body mx-2">
-                    <h4 class="card-title">History</h4>
-                    <div id="history"> </div>
-                    </div>
-                </div>
-
-
-            </div>
-            <div class="col-md-3">
-                <div class="card card-outline-primary mt-3" data-step="8"
+                <div class="row mt-3"></br></br></br></br></br></br></br></div>
+                <div class="card card-outline-primary mt-3" data-step="9"
                     data-intro="At each round you are randomly given access to
                     some of the information from Qanta. They are listed here.
                     Note that <b>Highlights</b> affects both the question and the evidence.">
@@ -200,15 +209,23 @@
                         <h4 class="card-title">Settings</h4>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
-                                id="guesses_checkbox" checked>Guesses</label>
+                                id="alternatives_checkbox" checked>Alternatives</label>
                         </div>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
-                                id="highlight_checkbox" checked>Highlights</label>
+                                id="autopilot_checkbox" checked>Autopilot</label>
                         </div>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
-                                id="matches_checkbox" checked>Evidence</label>
+                                id="highlight_question_checkbox" checked>Question Highlights</label>
+                        </div>
+                        <div class="checkbox">
+                            <label><input type="checkbox" value=""
+                                id="highlight_evidence_checkbox" checked>Evidence Highlights</label>
+                        </div>
+                        <div class="checkbox">
+                            <label><input type="checkbox" value=""
+                                id="evidence_checkbox" checked>Evidence</label>
                         </div>
                         <div class="checkbox" style="display: None">
                             <label><input type="checkbox" value=""
@@ -225,8 +242,8 @@
 
                     </div>
                 </div>
-                <div id="players_card" class="card card-outline-primary mt-3"
-                    data-step="9" data-intro="Players are shown here. Stat
+                <div id="players_card" style="display: None" class="card card-outline-primary mt-3"
+                    data-step="10" data-intro="Players are shown here. Stat
                     shows the number of questions answered correctly and
                     incorrectly. Inactive players are shown in grey.">
                     <div class="card-body mx-2 my-2">
@@ -254,7 +271,7 @@
     <script src="js/intro.js"></script>
     <script src="js/FuzzySearch.min.js"></script>
     <script data-cfasync="false" type="text/javascript" src="js/form-submission-handler.js"></script>
-    <script src="js/scripts.202005031.js"></script>
+    <script src="js/scripts.202101222.js"></script>
 </body>
 
 </html>

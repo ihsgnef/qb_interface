@@ -1,8 +1,8 @@
 import dill
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from contextualbandits.linreg import LinearRegression
-from contextualbandits.online import AdaptiveGreedy, BootstrappedUCB, LinUCB
+# from contextualbandits.linreg import LinearRegression
+from contextualbandits.online import BootstrappedUCB, LinUCB
 
 
 class BanditModel:
