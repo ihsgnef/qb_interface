@@ -1,8 +1,9 @@
 import json
 import random
 import numpy as np
-from augment.bandit import BanditModel
-from augment.utils import EXPLANATIONS, ID_TO_CONFIG, CONFIG_TO_ID
+
+from centaur.bandit import BanditModel
+from centaur.utils import EXPLANATIONS, ID_TO_CONFIG, CONFIG_TO_ID
 
 
 class Mediator:

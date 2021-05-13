@@ -85,6 +85,11 @@ regex_pattern = '|'.join([re.escape(p) for p in patterns])
 regex_pattern += r'|\[.*?\]|\(.*?\)'
 
 
+def remove_power(question: str):
+    regex_pattern = r'\[.*?\]|\(.*?\)'
+    return re.sub(regex_pattern, '', question.strip())
+
+
 def clean_question(question: str):
     """
     Remove pronunciation guides and other formatting extras

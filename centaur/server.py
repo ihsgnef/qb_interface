@@ -48,7 +48,6 @@ from centaur.utils import (
 from centaur.mediator import RandomDynamicMediator
 from centaur.db.session import SessionLocal
 from centaur.models import Question, Player, Record, QantaCache
-from centaur.alternative import alternative_answers
 from centaur.expected_wins import ExpectedWins
 
 
@@ -131,7 +130,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         WebSocketServerFactory.__init__(self, url)
         self.db = SessionLocal()
 
-        self.questions = self.db.query(Question).all()
+        self.questions = self.db.query(Question).filter(Question.tournament.startswith('spring_novice')).all()
         logger.info('Loaded {} questions'.format(len(self.questions)))
 
         self.socket_to_player = dict()  # client.peer -> Player
@@ -324,10 +323,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.latest_buzzing_msg = None
 
             logger.info('[new question] {}'.format(self.question.answer))
-
-            logger.info('alternatives: {}'.format(
-                alternative_answers.get(self.question.answer.lower())
-            ))
+            logger.info('alternatives: {}'.format(self.question.meta['alternative_answers']))
 
             def make_callback(player):
                 def f(x):
@@ -559,10 +555,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
         answer = self.question.answer.lower()
         if guess.lower() == answer:
             return True
-        if answer in alternative_answers:
-            alts = [x.strip().lower() for x in alternative_answers[answer]]
-            if guess.lower() in alts:
-                return True
+
+        alternatives = [x.strip().lower() for x in self.question.meta.get('alternative_answer', [])]
+        if guess.lower() in alternatives:
+            return True
+
         return False
 
     def _buzzing_after(self, buzzing_id, end_of_question, timed_out):

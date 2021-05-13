@@ -1,18 +1,14 @@
 import logging
 import numpy as np
-import chainer
 import requests
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords as sw
 
-from qanta.config import conf
-from qanta.new_expo.agent import RNNBuzzer
-from augment.utils import tokenize_question
-from augment.models import Question
+from centaur.utils import tokenize_question
 
 stopwords = set(sw.words('english'))
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logging.getLogger('elasticsearch').setLevel(logging.WARNING)
 logger = logging.getLogger('guesser_buzzer_client')
 
@@ -36,13 +32,7 @@ class StupidBuzzer:
 class GuesserBuzzer:
 
     def __init__(self, buzzer_model_dir='data/neo_0.npz'):
-        if chainer.cuda.available:
-            self.buzzer = RNNBuzzer(
-                model_dir=buzzer_model_dir,
-                word_skip=conf['buzzer_word_skip'],
-            )
-        else:
-            self.buzzer = StupidBuzzer()
+        self.buzzer = StupidBuzzer()
 
         self.ok_to_buzz = True
         self.answer = ''
@@ -56,12 +46,13 @@ class GuesserBuzzer:
         self.guesses = []
         self.matches = []
 
-    def buzz(self, text, position):
-        r = requests.post(
-            'http://0.0.0.0:6000/api/answer_question',
+    def buzz(self, tokens, position):
+        text = ' '.join(tokens)
+
+        guesses = requests.post(
+            'http://0.0.0.0:6000/api/centaur_answer_question',
             data={'text': text},
         ).json()
-        guesses = {x: s for x, s in zip(r['guess'], r['score'])}
 
         buzz_scores = [0, 1]  # [wait, buzz]
         if self.ok_to_buzz:
@@ -74,18 +65,23 @@ class GuesserBuzzer:
         if len(guesses) > 0:
             self.answer = guesses[0][0]
         self.matches = requests.post(
-            'http://0.0.0.0:6000/api/answer_question',
+            'http://0.0.0.0:6000/api/get_highlights',
             data={'text': text},
         ).json()
 
+        text_highlight, tokenized_matches, matches_highlight = self.get_matched(tokens, position, self.matches)
+        self.text_highlight = text_highlight
+        self.tokenized_matches = tokenized_matches
+        self.matches_highlight = matches_highlight
+
         return buzz_scores
 
-    def get_matched(q: Question, position, matches):
+    def get_matched(self, tokens, position, matches):
         '''
         For a (partial) question and a list of matched documents (with highlights)
         Args:
-            q: the Question.
-            position (int): so the partial question is `q.tokens[:position]`
+            tokens List[str]
+            position (int): so the partial question is `tokens[:position]`
             matches: list of matches
         '''
         matches = matches['wiki'][:4]
@@ -94,7 +90,7 @@ class GuesserBuzzer:
         # find words highligted in the matches
         highlighted_words = set()  # words highlighted in the matches
         for match in matches:
-            soup = BeautifulSoup(match)
+            soup = BeautifulSoup(match, features='html.parser')
             match = [
                 x.text.lower() for x in soup.find_all('em')
                 if x.text.lower() not in stopwords and len(x.text) > 2
@@ -104,7 +100,7 @@ class GuesserBuzzer:
         # find the highlighted words in the question
         matched_words = set()  # words matched in the question
         text_highlight = []  # mark highlight or not in the displayed text
-        for ts in q.tokens[:position]:
+        for ts in tokens[:position]:
             matched = [t in highlighted_words for t in ts]
             text_highlight.append(any(matched))
             matched_words.update(t for t, m in zip(ts, matched) if m)

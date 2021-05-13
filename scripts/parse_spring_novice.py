@@ -1,10 +1,11 @@
 import os
 from bs4 import BeautifulSoup
 from sqlalchemy.exc import IntegrityError
+from nltk import word_tokenize
 
 from centaur.models import Question
 from centaur.db.session import SessionLocal
-from centaur.utils import shell
+from centaur.utils import shell, remove_power
 
 
 def parse_questions_for_inspection():
@@ -56,17 +57,17 @@ def load_question_to_db():
         assert len(answers) == 24
 
         for i, (text, answers) in enumerate(zip(question_texts, answers)):
-            tokens = text.split()
-            print(' '.join(tokens))
-            print()
-            print()
+            text = remove_power(text)
+            raw_text = text.split()
+            tokens = word_tokenize(text)
+
             answers = answers.split(',')
             alternative_answers = [] if len(answers) == 1 else answers[1:]
             new_question = Question(
                 id=f'spring_novice_round_{round_name}_question_{i}',
                 answer=answers[0],
-                raw_text=text,
-                length=len(tokens),
+                raw_text=raw_text,  # it's actually question.split()
+                length=len(raw_text),
                 tokens=tokens,
                 tournament=f'spring_novice_round_{round_name}',
                 meta={'alternative_answers': alternative_answers}
