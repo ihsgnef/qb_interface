@@ -1,11 +1,11 @@
-from augment.db.session import SessionLocal
 from tqdm import tqdm
 from nltk.corpus import stopwords as sw
 from bs4 import BeautifulSoup
 
-from augment.machine_client import GuesserBuzzer
-from augment.models import Question, QantaCache
-from augment.utils import tokenize_question
+from centaur.machine_client import GuesserBuzzer
+from centaur.models import Question, QantaCache
+from centaur.utils import tokenize_question
+from centaur.db.session import SessionLocal
 
 stopwords = set(sw.words('english'))
 
@@ -18,7 +18,6 @@ def get_matched(q: Question, position, matches):
         position (int): so the partial question is `q.tokens[:position]`
         matches: list of matches
     '''
-    # take the top 2 mathces from both qb and wiki
     matches = matches['wiki'][:4]
     # matches = matches['qb'][:2] + matches['wiki'][:2]
 

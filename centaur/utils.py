@@ -73,6 +73,11 @@ ftp_patterns = {
     ', ftp,'
     'ftp,',
     'ftp'
+    'For 10 points, ',
+    'For 10 points--',
+    'For ten points, ',
+    'For 10 points ',
+    'For ten points ',
 }
 
 patterns = ftp_patterns | set(string.punctuation)

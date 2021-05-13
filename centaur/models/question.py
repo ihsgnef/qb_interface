@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Integer
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
-from augment.db.base_class import Base
+from centaur.db.base_class import Base
 
 
 class Question(Base):

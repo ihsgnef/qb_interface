@@ -2,8 +2,8 @@ from sqlalchemy import Column, String, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
-from augment.db.base_class import Base
-from augment.models import Question
+from centaur.db.base_class import Base
+from centaur.models import Question
 
 
 class QantaCache(Base):

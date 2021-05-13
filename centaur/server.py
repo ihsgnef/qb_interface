@@ -19,7 +19,7 @@ from autobahn.twisted.websocket import (
     listenWS
 )
 
-from augment.utils import (
+from centaur.utils import (
     MSG_TYPE_NEW,
     MSG_TYPE_RESUME,
     MSG_TYPE_END,
@@ -45,11 +45,11 @@ from augment.utils import (
     boldify,
     highlight_template,
 )
-from augment.mediator import RandomDynamicMediator
-from augment.db.session import SessionLocal
-from augment.models import Question, Player, Record, QantaCache
-from augment.alternative import alternative_answers
-from augment.expected_wins import ExpectedWins
+from centaur.mediator import RandomDynamicMediator
+from centaur.db.session import SessionLocal
+from centaur.models import Question, Player, Record, QantaCache
+from centaur.alternative import alternative_answers
+from centaur.expected_wins import ExpectedWins
 
 
 logging.basicConfig(level=logging.INFO)
@@ -216,7 +216,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         'length': self.question.length,
                         'position': self.position,
                         'task_completed': self.players[player_id].task_completed,
-                        'speech_text': ' '.join(self.question.raw_text[self.position:])
                     }
                     self.players[player_id].sendMessage(msg)
 
@@ -351,7 +350,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'length': self.question.length,
                 'position': 0,
                 'player_list': self.player_list,
-                'speech_text': ' '.join(self.question.raw_text)
             }
 
             self.update_explanation_config()
@@ -398,7 +396,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         text_plain = ''
         text_highlighted = ''
 
-        words = self.question.raw_text[:self.position]
+        words = self.question.tokens[:self.position]
         highlight = self.cache_entry.text_highlight
 
         for i, (x, y) in enumerate(zip(words, highlight)):

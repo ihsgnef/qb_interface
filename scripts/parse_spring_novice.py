@@ -2,9 +2,9 @@ import os
 from bs4 import BeautifulSoup
 from sqlalchemy.exc import IntegrityError
 
-from augment.models import Question
-from augment.db.session import SessionLocal
-from augment.utils import shell
+from centaur.models import Question
+from centaur.db.session import SessionLocal
+from centaur.utils import shell
 
 
 def parse_questions_for_inspection():
@@ -57,6 +57,9 @@ def load_question_to_db():
 
         for i, (text, answers) in enumerate(zip(question_texts, answers)):
             tokens = text.split()
+            print(' '.join(tokens))
+            print()
+            print()
             answers = answers.split(',')
             alternative_answers = [] if len(answers) == 1 else answers[1:]
             new_question = Question(
