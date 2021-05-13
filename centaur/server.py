@@ -130,13 +130,14 @@ class BroadcastServerFactory(WebSocketServerFactory):
         WebSocketServerFactory.__init__(self, url)
         self.db = SessionLocal()
 
-        self.questions = self.db.query(Question).filter(Question.tournament.startswith('spring_novice')).all()
+        self.questions = self.db.query(Question).filter(Question.tournament.startswith('spring_novice_round_01')).all()
         logger.info('Loaded {} questions'.format(len(self.questions)))
+        self.question_index = None
+        self.question = self.next_question()
 
         self.socket_to_player = dict()  # client.peer -> Player
         self.players = dict()  # player_id -> Player
         self.deferreds = []
-        self.question = random.choice(self.questions)
         self.started = False  # wait for the first player to show up
         self.position = 0
         self.info_text = ''
@@ -302,7 +303,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
         #     questions_answered = questions_answered[0]
         # qids = [x for x in self.questions.keys() if x not in questions_answered]
         # random.shuffle(qids)
-        return random.choice(self.questions)
+        if self.question_index is None:
+            self.question_index = 0
+        else:
+            self.question_index += 1
+        return self.questions[self.question_index]
 
     def update_explanation_config(self):
         for player_id, player in self.players.items():
