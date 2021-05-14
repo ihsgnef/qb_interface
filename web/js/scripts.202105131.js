@@ -3,7 +3,7 @@ var socket_addr = "ws://localhost:9000";
 // var socket_addr = "ws://play.qanta.org:9000";
 var answer_json_dir = "http://localhost:8000/answers.0515.json";
 // var answer_json_dir = "http://play.qanta.org/answers.0212.json";
-$("#consent_form").load("consent_form.html"); 
+// $("#consent_form").load("consent_form.html"); 
 
 
 ///////// Message types ///////// 
@@ -42,7 +42,7 @@ var voice_checkbox     = document.getElementById("voice_checkbox");
 var answer_group       = document.getElementById("answer_area_row");
 var history_div        = document.getElementById('history');
 var buzz_button        = document.getElementById("buzz_button");
-var logout_button      = document.getElementById("logout_button");
+// var logout_button      = document.getElementById("logout_button");
 var pause_button       = document.getElementById("pause_button");
 var resume_button      = document.getElementById("resume_button");
 var prediction_card    = document.getElementById("prediction_card");
@@ -118,12 +118,12 @@ function deleteAllCookies() {
     }
 }
 
-logout_button.onclick = function(event) {
-    deleteAllCookies();
-    window.location.reload(false);
-    console.log(getCookie("player_name"));
-    console.log(getCookie("player_id"));
-};
+// logout_button.onclick = function(event) {
+//     deleteAllCookies();
+//     window.location.reload(false);
+//     console.log(getCookie("player_name"));
+//     console.log(getCookie("player_id"));
+// };
 
 pause_button.onclick = function(event) {
     $('#pause_modal').modal('show');

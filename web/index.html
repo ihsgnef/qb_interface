@@ -29,20 +29,22 @@
       <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="consent_title">IRB Consent Form</h5>
+            <!-- h5 class="modal-title" id="consent_title">IRB Consent Form</h5 -->
+            <h5 class="modal-title" id="consent_title">Sign up</h5>
             </button>
           </div>
           <div class="modal-body">
               <div id="consent_form"></div>
+              <div>Please use the email address that you used to sign up for the tournament.</div></br>
               <form id="gform" method="POST" class="pure-form pure-form-stacked"
                     action="https://script.google.com/macros/s/AKfycbwD2r1mQgJMmMjV2R6lWuKrv9zeUM9hgGqsl5XfoVO24tJ-2rE/exec">
                   <div class="form-group">
-                    <input type="text" class="form-control" id="choose_user_name" name="name" placeholder="Username (optional)">
+                  <input id="emailAddress" type="email" class="form-control" name="email" placeholder="Email">
                   </div>
                   <div class="form-group">
-                    <input id="emailAddress" type="email" class="form-control" name="email" placeholder="Email (optional)">
+                    <input type="text" class="form-control" id="choose_user_name" name="name" placeholder="Screen name">
                   </div>
-                  <button type="submit" class="btn btn-primary" id="accept_button">Accept</button>
+                  <button type="submit" class="btn btn-primary" id="accept_button">Join</button>
               </form>
           </div>
         </div>
@@ -200,13 +202,13 @@
                         </table>
                     </div>
                 </div>
-                <div class="row mt-3"></br></br></br></br></br></br></br></div>
+                <!-- div class="row mt-3"></br></br></br></br></br></br></br></div -->
                 <div class="card card-outline-primary mt-3" data-step="9"
                     data-intro="At each round you are randomly given access to
                     some of the information from Qanta. They are listed here.
                     Note that <b>Highlights</b> affects both the question and the evidence.">
                     <div class="card-body my-2 mx-2">
-                        <h4 class="card-title">Settings</h4>
+                        <h4 class="card-title">Visualizations</h4>
                         <div class="checkbox">
                             <label><input type="checkbox" value=""
                                 id="alternatives_checkbox" checked>Alternatives</label>
@@ -235,9 +237,7 @@
                             <div class="btn-group mr-2" role="group">
                             <button class="btn btn-warning btn-sm" id="pause_button" style="display: None">Pause</button>
                             </div>
-                            <div class="btn-group mr-2" role="group">
-                            <button class="btn btn-secondary btn-sm" id="logout_button">Sign Out</button>
-                            </div>
+                            <!-- div class="btn-group mr-2" role="group"><button class="btn btn-secondary btn-sm" id="logout_button">Sign Out</button></div -->
                         </div>
 
                     </div>
