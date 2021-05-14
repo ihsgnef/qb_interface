@@ -68,7 +68,7 @@ def load_question_to_db():
                 id=f'spring_novice_round_{round_name}_question_{i + 1}',
                 answer=answer,
                 raw_text=raw_text,  # it's actually question.split()
-                length=len(raw_text),
+                length=len(tokens),
                 tokens=tokens,
                 tournament=f'spring_novice_round_{round_name}',
                 meta={'alternative_answers': alternative_answers}
