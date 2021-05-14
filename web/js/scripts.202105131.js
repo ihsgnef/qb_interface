@@ -533,7 +533,7 @@ function end_of_question(msg) {
         pause_countdown -= 1;
     }
     if (pause_countdown == 0) {
-        pause_button.click();
+        // pause_button.click();
     }
 }
 
