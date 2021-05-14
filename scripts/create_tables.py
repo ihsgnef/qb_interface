@@ -1,9 +1,9 @@
-from sqlalchemy import Column, ForeignKey, Integer, Float, Boolean, String, TIMESTAMP
+from sqlalchemy import Column, ForeignKey, Integer, Float, String, TIMESTAMP
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import Table, MetaData
 
-from augment.models import Player, Question
-from augment.db.session import engine
+from centaur.models import Player, Question
+from centaur.db.session import engine
 
 meta = MetaData()
 

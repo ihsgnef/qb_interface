@@ -148,7 +148,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.latest_resume_msg = None
         self.latest_buzzing_msg = None
 
-        self.started = False  # wait for the first player to show up
         self.all_paused = True  # everyone is stopped
 
     def register(self, client):
@@ -236,9 +235,6 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     if new_player.response.get('start_new_round', False):
                         self.new_round()
 
-                    # if len(self.players) == 1 and not self.started:
-                    #     self.started = True
-                    #     self.new_question()
                 except Exception:
                     traceback.print_exc(file=sys.stdout)
                 # end of callback
@@ -802,10 +798,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
         logger.info('-' * 60)
         self.pbar.close()
 
-        if len(self.players) > 0:
-            reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self.new_question)
-        else:
-            self.started = False
+        reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self.new_question)
+
+        # if len(self.players) > 0:
+        #     reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self.new_question)
+        # else:
+        #     # self.started = False
+        #     pass
 
 
 if __name__ == '__main__':

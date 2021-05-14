@@ -65,7 +65,7 @@ def load_question_to_db():
             answer = answers[0].title()
             alternative_answers = [] if len(answers) == 1 else [x.title() for x in answers[1:]]
             new_question = Question(
-                id=f'spring_novice_round_{round_name}_question_{i}',
+                id=f'spring_novice_round_{round_name}_question_{i + 1}',
                 answer=answer,
                 raw_text=raw_text,  # it's actually question.split()
                 length=len(raw_text),

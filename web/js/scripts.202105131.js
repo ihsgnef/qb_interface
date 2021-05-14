@@ -28,6 +28,7 @@ var SECOND_PER_WORD = 0.3;
 var accept_button      = document.getElementById("accept_button");
 var username_area      = document.getElementById("choose_user_name");
 var question_area      = document.getElementById("question_area");
+var question_title     = document.getElementById("question_title");
 var answer_area        = document.getElementById("answer_area");
 var alternatives_card  = document.getElementById("alternatives_card");
 var alternatives_table = document.getElementById("alternatives_table");
@@ -127,7 +128,7 @@ logout_button.onclick = function(event) {
 pause_button.onclick = function(event) {
     $('#pause_modal').modal('show');
     if (task_completed) {
-        $('#pause_modal_content').text('Round finished.');
+        $('#pause_modal_content').text('Round finished. Please wait for the next round to begin.');
     }
     clearTimeout(timer_timeout);
     timer_set = false;
@@ -300,6 +301,7 @@ function new_question(msg) {
     info_text = '';
     answer_area.value = "";
     buzzing_on_guess = false;
+    question_title.innerHTML = qid;
     update_question_display();
     prediction_area.innerHTML = '';
     buzz_button.disabled = false;

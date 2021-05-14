@@ -64,6 +64,7 @@ class GuesserBuzzer:
         self.guesses = guesses
         if len(guesses) > 0:
             self.answer = guesses[0][0]
+
         self.matches = requests.post(
             'http://0.0.0.0:6000/api/get_highlights',
             data={'text': text},
