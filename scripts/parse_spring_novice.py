@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy.exc import IntegrityError
 from nltk import word_tokenize
 
-from centaur.models import Question
+from centaur.models import Question, QantaCache, Record
 from centaur.db.session import SessionLocal
 from centaur.utils import shell, remove_power
 
@@ -86,6 +86,12 @@ if __name__ == '__main__':
     # parse_questions_for_inspection()
 
     db = SessionLocal()
+    db.query(QantaCache).delete()
+    db.commit()
+
+    db.query(Record).delete()
+    db.commit()
+
     questions = db.query(Question).filter(Question.tournament.startswith('spring_novice'))
     for q in questions:
         db.delete(q)
@@ -93,6 +99,5 @@ if __name__ == '__main__':
 
     load_question_to_db()
 
-    db = SessionLocal()
     questions = db.query(Question).filter(Question.tournament.startswith('spring_novice'))
     print(questions.count())
