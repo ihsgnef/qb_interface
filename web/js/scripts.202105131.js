@@ -38,6 +38,7 @@ var players_n_active   = document.getElementById("n_active");
 var evidence_card      = document.getElementById("evidence_card");
 var evidence_table     = document.getElementById("evidence_table");
 var prediction_area    = document.getElementById("prediction_area");
+var prediction_area_autopilot    = document.getElementById("prediction_area_autopilot");
 var voice_checkbox     = document.getElementById("voice_checkbox");
 var answer_group       = document.getElementById("answer_area_row");
 var history_div        = document.getElementById('history');
@@ -45,10 +46,10 @@ var buzz_button        = document.getElementById("buzz_button");
 // var logout_button      = document.getElementById("logout_button");
 var pause_button       = document.getElementById("pause_button");
 var resume_button      = document.getElementById("resume_button");
-var prediction_card    = document.getElementById("prediction_card");
 var evidence_checkbox  = document.getElementById("evidence_checkbox");
 var autopilot_checkbox = document.getElementById("autopilot_checkbox");
-var prediction_confidence_card  = document.getElementById("prediction_confidence_card");
+var prediction_card    = document.getElementById("prediction_card");
+var prediction_card_autopilot  = document.getElementById("prediction_card_autopilot");
 var alternatives_checkbox       = document.getElementById("alternatives_checkbox");
 var highlight_question_checkbox = document.getElementById("highlight_question_checkbox");
 var highlight_evidence_checkbox = document.getElementById("highlight_evidence_checkbox");
@@ -210,10 +211,10 @@ alternatives_checkbox.onclick = function() {
 // show hide autopilot panel
 autopilot_checkbox.onclick = function() {
     if (autopilot_checkbox.checked) {
-        prediction_confidence_card.style.display = "block";
+        prediction_card_autopilot.style.display = "block";
         prediction_card.style.display = "none";
     } else {
-        prediction_confidence_card.style.display = "none";
+        prediction_card_autopilot.style.display = "none";
         prediction_card.style.display = "block";
     }
 };
@@ -289,6 +290,14 @@ function update_question_display() {
         question_area.innerHTML = question_text_color + '<br />' + info_text;
     } else {
         question_area.innerHTML = question_text + '<br />' + info_text;
+    }
+
+    if (autopilot_checkbox.checked) {
+        prediction_card_autopilot.style.display = "block";
+        prediction_card.style.display = "none";
+    } else {
+        prediction_card_autopilot.style.display = "none";
+        prediction_card.style.display = "block";
     }
 }
 
@@ -507,11 +516,14 @@ function update_interpretation(msg) {
         }
 
         if (guesses.length > 0) {
-            prediction_area.innerHTML = guesses[0][0];
+            prediction_area_autopilot.innerHTML = guesses[0][0]
+            confidence_area_autopilot.innerHTML = guesses[0][1]
+            prediction_area.innerHTML = guesses[0][0]
+            confidence_area.innerHTML = guesses[0][1]
             if (msg.autopilot_prediction == true) {
-                prediction_confidence_area.innerHTML = '<span style="color:red;">' + guesses[0][0] + '</span>';
+                prediction_area_autopilot.innerHTML = '<span style="color:red;">' + guesses[0][0] + '</span>';
             } else {
-                prediction_confidence_area.innerHTML = '<span style="color:gray;">' + guesses[0][0] + '</span>';
+                prediction_area_autopilot.innerHTML = '<span style="color:gray;">' + guesses[0][0] + '</span>';
             }
         }
     }

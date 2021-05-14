@@ -356,7 +356,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
         for player_id, player in self.players.items():
             player.sendMessage({'type': MSG_TYPE_COMPLETE})
 
-        admin_player = [x for x in self.players.values() if x.player_name == 'ihsgnef'][0]
+        try:
+            admin_player = [x for x in self.players.values() if x.player_name == 'ihsgnef'][0]
+        except IndexError:
+            return
 
         condition = partial(
             self.check_player_response,
@@ -396,14 +399,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
             def make_callback(player):
                 def f(x):
-                    logger.info('[new question] player {} ready'.format(
-                        player.player_name))
+                    logger.info(f'[new question] player {player.player_name} ready')
                 return f
 
             def make_errback(player):
                 def f(x):
-                    logger.info('[new question] player {} timed out'.format(
-                        player.player_name))
+                    logger.info(f'[new question] player {player.player_name} timed out')
                     self.unregister(player=player)
                 return f
 
@@ -538,6 +539,17 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 text_plain, text_highlighted = self.get_display_question()
                 matches_plain, matches_highlighted = self.get_display_matches()
                 score_for_buzz, score_for_wait = self.cache_entry.buzz_scores
+                autopilot_prediction = score_for_buzz > score_for_wait
+
+                autopilot_prediction = False
+                guesses = self.cache_entry.guesses
+                if len(guesses) >= 5:
+                    guesses = guesses[:5]
+                    score_sum = sum([s for x, s in guesses])
+                    if score_sum > 0:
+                        guesses = [(x, s / score_sum) for x, s in guesses]
+                    if guesses[0][1] - guesses[1][1] > 0.05:
+                        autopilot_prediction = True
 
                 msg = {
                     'type': MSG_TYPE_RESUME,
@@ -546,10 +558,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     'text_highlighted': text_highlighted,
                     'position': self.position,
                     'length': self.question.length,
-                    'guesses': self.cache_entry.guesses,
+                    'guesses': guesses,
                     'matches': matches_plain,
                     'matches_highlighted': matches_highlighted,
-                    'autopilot_prediction': (score_for_buzz > score_for_wait),
+                    'autopilot_prediction': autopilot_prediction,
                 }
                 self.latest_resume_msg = msg
                 self.pbar.update(1)

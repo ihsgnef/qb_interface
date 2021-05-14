@@ -13,7 +13,7 @@ logging.getLogger('elasticsearch').setLevel(logging.WARNING)
 logger = logging.getLogger('guesser_buzzer_client')
 
 
-class StupidBuzzer:
+class ThresholdBuzzer:
 
     def __init__(self):
         self.step = 0
@@ -23,13 +23,11 @@ class StupidBuzzer:
 
     def buzz(self, guesses):
         self.step += 1
-        # if self.step > 40:
-        #     return [1, 0]
-        # else:
-        #     return [0, 1]
-        if len(guesses) < 2:
+
+        if len(guesses) < 5:
             return [0, 1]
 
+        # assuming scores normalized for top 5 guesses
         if guesses[0][1] - guesses[1][1] > 0.05:
             return [1, 0]
         else:
@@ -39,7 +37,7 @@ class StupidBuzzer:
 class GuesserBuzzer:
 
     def __init__(self, buzzer_model_dir='data/neo_0.npz'):
-        self.buzzer = StupidBuzzer()
+        self.buzzer = ThresholdBuzzer()
 
         self.ok_to_buzz = True
         self.answer = ''
@@ -62,9 +60,13 @@ class GuesserBuzzer:
         ).json()
 
         guesses = sorted(guesses.items(), key=lambda x: x[1])[::-1]
-        self.guesses = guesses
         if len(guesses) > 0:
+            guesses = guesses[:5]
+            score_sum = sum([s for x, s in guesses])
+            if score_sum > 0:
+                guesses = [(x, s / score_sum) for x, s in guesses]
             self.answer = guesses[0][0]
+        self.guesses = guesses
 
         buzz_scores = [0, 1]  # [score_for_buzz, score_for_wait]
         if self.ok_to_buzz:
