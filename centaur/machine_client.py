@@ -23,7 +23,14 @@ class StupidBuzzer:
 
     def buzz(self, guesses):
         self.step += 1
-        if self.step > 40:
+        # if self.step > 40:
+        #     return [1, 0]
+        # else:
+        #     return [0, 1]
+        if len(guesses) < 2:
+            return [0, 1]
+
+        if guesses[0][1] - guesses[1][1] > 0.05:
             return [1, 0]
         else:
             return [0, 1]

@@ -131,7 +131,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         WebSocketServerFactory.__init__(self, url)
         self.db = SessionLocal()
 
-        self.round_number = 0
+        # self.round_number_list = [3, 4, 6, 8, 9, 10]
+        self.round_number_list = [1]
+        self.round_number_index = None
         self.question_index = None
         self.question = None
 
@@ -331,8 +333,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
             player.explanation_config = explanation_config
 
     def new_round(self):
-        self.round_number += 1
-        round_str = f'0{self.round_number}' if self.round_number < 10 else str(self.round_number)
+        if self.round_number_index is None:
+            self.round_number_index = 0
+        else:
+            self.round_number_index += 1
+        if self.round_number_index >= len(self.round_number_list):
+            return
+
+        round_number = self.round_number_list[self.round_number_index]
+        round_str = f'0{round_number}' if round_number < 10 else str(round_number)
         tournament_str = f'spring_novice_round_{round_str}'
         self.questions = self.db.query(Question).filter(Question.tournament.startswith(tournament_str)).all()[:3]
         logger.info('*********** new round *************')
@@ -528,6 +537,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
                 text_plain, text_highlighted = self.get_display_question()
                 matches_plain, matches_highlighted = self.get_display_matches()
+                score_for_buzz, score_for_wait = self.cache_entry.buzz_scores
 
                 msg = {
                     'type': MSG_TYPE_RESUME,
@@ -539,7 +549,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     'guesses': self.cache_entry.guesses,
                     'matches': matches_plain,
                     'matches_highlighted': matches_highlighted,
-                    'autopilot_prediction': random.choice([True, False]),  # TODO
+                    'autopilot_prediction': (score_for_buzz > score_for_wait),
                 }
                 self.latest_resume_msg = msg
                 self.pbar.update(1)
