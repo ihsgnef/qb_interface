@@ -39,6 +39,7 @@ from centaur.utils import (
     ANSWER_TIME_OUT,
     SECOND_PER_WORD,
     PLAYER_RESPONSE_TIME_OUT,
+    SECONDS_TILL_NEW_QUESTION,
     HISTORY_LENGTH,
     THRESHOLD,
     EXPLANATIONS,
@@ -823,7 +824,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         logger.info('-' * 60)
         self.pbar.close()
 
-        reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self.new_question)
+        reactor.callLater(SECONDS_TILL_NEW_QUESTION, self.new_question)
 
         # if len(self.players) > 0:
         #     reactor.callLater(PLAYER_RESPONSE_TIME_OUT, self.new_question)

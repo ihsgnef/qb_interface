@@ -24,9 +24,10 @@ BADGE_BUZZ = '<span class="badge badge-danger">Buzz</span>'
 BELL = ' <span class="fa fa-bell" aria-hidden="true"></span> '
 NEW_LINE = '</br>'
 
-ANSWER_TIME_OUT = 20
-SECOND_PER_WORD = 0.4
+ANSWER_TIME_OUT = 10
+SECOND_PER_WORD = 0.35
 PLAYER_RESPONSE_TIME_OUT = 3
+SECONDS_TILL_NEW_QUESTION = 2
 HISTORY_LENGTH = 30
 THRESHOLD = 0
 

@@ -325,6 +325,11 @@ function new_question(msg) {
         evidence_table.rows[i].cells[0].innerHTML = '-';
     }
 
+    prediction_area_autopilot.innerHTML = '';
+    confidence_area_autopilot.innerHTML = '';
+    prediction_area.innerHTML = '-';
+    confidence_area.innerHTML = '-';
+
     is_buzzing = false;
     buzzed = false;
     clearTimeout(timer_timeout);
@@ -591,7 +596,7 @@ function handle_buzzing(msg) {
         buzzed = true;
     }
     clearTimeout(timer_timeout);
-    progress(7, 7, true);
+    progress(msg.length, msg.length, true);
     timer_set = true;
     buzz_button.disabled = true;
     question_text += bell_str;
