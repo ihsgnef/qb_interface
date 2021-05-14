@@ -6,7 +6,7 @@ import numpy as np
 class ExpectedWins:
 
     def __init__(self):
-        ckp_dir = 'data/curve_pipeline.pkl'
+        ckp_dir = 'fixtures/curve_pipeline.pkl'
         if not os.path.isfile(ckp_dir):
             raise ValueError('curve_pipeline.pkl does not exist')
 
