@@ -131,8 +131,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         WebSocketServerFactory.__init__(self, url)
         self.db = SessionLocal()
 
-        # self.round_number_list = [3, 4, 6, 8, 9, 10]
-        self.round_number_list = [1]
+        self.round_number_list = [3, 4, 6, 8, 9, 10]
+        # self.round_number_list = [1]
         self.round_number_index = None
         self.question_index = None
         self.question = None

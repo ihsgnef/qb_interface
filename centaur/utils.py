@@ -30,7 +30,7 @@ PLAYER_RESPONSE_TIME_OUT = 3
 HISTORY_LENGTH = 30
 THRESHOLD = 0
 
-ALLOW_PLAYER_CHOICE = True
+ALLOW_PLAYER_CHOICE = False
 EXPLANATIONS = ['Alternatives', 'Evidence', 'Highlights_Question', 'Highlights_Evidence', 'Autopilot']
 
 ID_TO_CONFIG = []
