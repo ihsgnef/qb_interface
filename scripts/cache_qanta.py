@@ -12,7 +12,7 @@ def generate_cache():
     session = SessionLocal()
     model = GuesserBuzzer()
 
-    questions = session.query(Question).filter(Question.tournament.startswith('spring_novice_round_01'))
+    questions = session.query(Question).filter(Question.tournament.startswith('spring_novice_round'))
     for q in tqdm(questions, total=questions.count()):
         model.new_question(q.id)
         guesses, buzz_scores, matches, text_highlight, matches_highlight = None, None, None, None, None

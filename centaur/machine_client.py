@@ -61,16 +61,16 @@ class GuesserBuzzer:
             data={'text': text},
         ).json()
 
-        buzz_scores = [0, 1]  # [wait, buzz]
-        if self.ok_to_buzz:
-            buzz_scores = self.buzzer.buzz(guesses)
-            if isinstance(buzz_scores, np.ndarray):
-                buzz_scores = buzz_scores.tolist()
-
         guesses = sorted(guesses.items(), key=lambda x: x[1])[::-1]
         self.guesses = guesses
         if len(guesses) > 0:
             self.answer = guesses[0][0]
+
+        buzz_scores = [0, 1]  # [score_for_buzz, score_for_wait]
+        if self.ok_to_buzz:
+            buzz_scores = self.buzzer.buzz(guesses)
+            if isinstance(buzz_scores, np.ndarray):
+                buzz_scores = buzz_scores.tolist()
 
         self.matches = requests.post(
             'http://0.0.0.0:6000/api/get_highlights',
