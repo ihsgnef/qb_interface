@@ -133,8 +133,8 @@ pause_button.onclick = function(event) {
     }
     clearTimeout(timer_timeout);
     timer_set = false;
-    sockt.onclose = function() {};
-    sockt.onmessage = function() {};
+    // sockt.onclose = function() {};
+    // sockt.onmessage = function() {};
     // sockt.close();
 };
 
@@ -579,9 +579,10 @@ function handle_buzzing(msg) {
 
     if (msg.type === MSG_TYPE_BUZZING_GREEN) {
         answer_group.style.display = "initial";
-        if (alternatives_checkbox.checked) {
-            $('#answer_area').typeahead('val', curr_answer);
-        }
+        $('#answer_area').typeahead('val', curr_answer);
+        // if (alternatives_checkbox.checked) {
+        //     $('#answer_area').typeahead('val', curr_answer);
+        // }
         if (buzzing_on_guess == false) {
             answer_area.value = "";
         }
@@ -596,10 +597,6 @@ function handle_buzzing(msg) {
     question_text += bell_str;
     question_text_color += bell_str;
     update_question_display();
-}
-
-
-function new_round() {
 }
 
 
@@ -648,6 +645,9 @@ function start() {
                 console.log('showing resume button to admin');
                 resume_button.style.display = "block";
             }
+        } else if (msg.type === MSG_TYPE_NEW_ROUND) {
+            console.log('******* new round ******');
+            resume_button.click();
         }
         if (typeof msg.length != 'undefined') {
             if (timer_set === false) {

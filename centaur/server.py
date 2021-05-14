@@ -347,6 +347,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         logger.info('*********** new round *************')
         logger.info(f'Loaded {len(self.questions)} questions for {tournament_str}')
 
+        for player_id, player in self.players.items():
+            player.sendMessage({'type': MSG_TYPE_NEW_ROUND})
+
         self.question_index = None
         self.all_paused = False
         self.new_question()
