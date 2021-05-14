@@ -1,10 +1,8 @@
 var sockt;
-var socket_addr = "ws://127.0.0.1:9011";
+var socket_addr = "ws://localhost:9000";
 // var socket_addr = "ws://play.qanta.org:9000";
-// var socket_addr = "ws://35.167.89.95:9000";
-var answer_json_dir = "http://localhost:8000/answers.0212.json";
+var answer_json_dir = "http://localhost:8000/answers.0515.json";
 // var answer_json_dir = "http://play.qanta.org/answers.0212.json";
-// var answer_json_dir = "http://35.167.89.95/answers.0212.json";
 $("#consent_form").load("consent_form.html"); 
 
 
@@ -19,10 +17,11 @@ var MSG_TYPE_BUZZING_RED = 6; // tell user you cannot buzz now
 var MSG_TYPE_RESULT_MINE = 7; // result of my answer
 var MSG_TYPE_RESULT_OTHER = 8; // result of someone else's answer
 var MSG_TYPE_COMPLETE = 9; // answered all questions
+var MSG_TYPE_NEW_ROUND = 10; // start_new_round
 
 
 ///////// CONFIGS ///////// 
-var SECOND_PER_WORD = 0.4;
+var SECOND_PER_WORD = 0.3;
 
 
 ///////// HTML Elements ///////// 
@@ -73,6 +72,7 @@ var speech_starting_position = 0;
 var PAUSE_COUNTDOWN = 5;
 var pause_countdown = PAUSE_COUNTDOWN;
 var task_completed = false;
+var start_new_round = false;  // when this is true, send a start new round signal to server on register
 
 
 ///////// Constants ///////// 
@@ -127,18 +127,19 @@ logout_button.onclick = function(event) {
 pause_button.onclick = function(event) {
     $('#pause_modal').modal('show');
     if (task_completed) {
-        $('#pause_modal_content').text('Congrats! You have finished 40 questions. Your code is: ' + player_id);
+        $('#pause_modal_content').text('Round finished.');
     }
     clearTimeout(timer_timeout);
     timer_set = false;
     sockt.onclose = function() {};
     sockt.onmessage = function() {};
-    sockt.close();
+    // sockt.close();
 };
 
 resume_button.onclick = function(event) {
     clearTimeout(timer_timeout);
     timer_set = false;
+    start_new_round = true;
     start();
 };
 
@@ -152,8 +153,8 @@ introJs.fn.oncomplete(function() {start();});
 introJs.fn.onexit(function() {start();});
 
 // var consent_accepted = "";
-// if (consent_accepted == "N_O_T_S_E_T") {
-if (false) {
+if (consent_accepted == "N_O_T_S_E_T") {
+// if (true) {
     ///////// Consent Form ///////// 
     $('#consent_modal').modal('show');
     accept_button.onclick = function(event) {
@@ -320,15 +321,36 @@ function new_question(msg) {
 
     if (typeof msg.task_completed != 'undefined') {
         task_completed = msg.task_completed;
-        console.log('setting completed ' + task_completed);
+        console.log('setting completed to ' + task_completed);
+        if (task_completed) {
+            pause_button.click();
+            if (player_name == 'ihsgnef') {
+                console.log('showing resume button to admin');
+                resume_button.style.display = "block";
+            }
+        }
     }
 
-    var m = {
-        type: MSG_TYPE_NEW,
-        qid: msg.qid,
-        player_name: player_name,
-        player_id: player_id,
-    };
+    console.log('new question ' + msg.qid);
+
+    if (start_new_round == true) {
+        var m = {
+            type: MSG_TYPE_NEW,
+            qid: msg.qid,
+            player_name: player_name,
+            player_id: player_id,
+            start_new_round: true,
+        };
+        start_new_round = false;
+    } else {
+        var m = {
+            type: MSG_TYPE_NEW,
+            qid: msg.qid,
+            player_name: player_name,
+            player_id: player_id,
+        };
+    }
+
     sockt.send(JSON.stringify(m));
 }
 
@@ -563,6 +585,10 @@ function handle_buzzing(msg) {
 }
 
 
+function new_round() {
+}
+
+
 function start() {
     pause_countdown = PAUSE_COUNTDOWN;
     sockt = new WebSocket(socket_addr);
@@ -604,6 +630,10 @@ function start() {
             // alert("Congrats! You have answered all the questions.");
             task_completed = true;
             pause_button.click();
+            if (player_name == 'ihsgnef') {
+                console.log('showing resume button to admin');
+                resume_button.style.display = "block";
+            }
         }
         if (typeof msg.length != 'undefined') {
             if (timer_set === false) {

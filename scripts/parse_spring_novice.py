@@ -61,11 +61,12 @@ def load_question_to_db():
             raw_text = text.split()
             tokens = word_tokenize(text)
 
-            answers = answers.split(',')
-            alternative_answers = [] if len(answers) == 1 else answers[1:]
+            answers = answers.strip().split(',')
+            answer = answers[0].title()
+            alternative_answers = [] if len(answers) == 1 else [x.title() for x in answers[1:]]
             new_question = Question(
                 id=f'spring_novice_round_{round_name}_question_{i}',
-                answer=answers[0],
+                answer=answer,
                 raw_text=raw_text,  # it's actually question.split()
                 length=len(raw_text),
                 tokens=tokens,

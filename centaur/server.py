@@ -30,6 +30,7 @@ from centaur.utils import (
     MSG_TYPE_RESULT_MINE,
     MSG_TYPE_RESULT_OTHER,
     MSG_TYPE_COMPLETE,
+    MSG_TYPE_NEW_ROUND,
     BADGE_CORRECT,
     BADGE_WRONG,
     BADGE_BUZZ,
@@ -130,15 +131,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
         WebSocketServerFactory.__init__(self, url)
         self.db = SessionLocal()
 
-        self.questions = self.db.query(Question).filter(Question.tournament.startswith('spring_novice_round_01')).all()
-        logger.info('Loaded {} questions'.format(len(self.questions)))
+        self.round_number = 0
         self.question_index = None
-        self.question = self.next_question()
+        self.question = None
 
         self.socket_to_player = dict()  # client.peer -> Player
         self.players = dict()  # player_id -> Player
         self.deferreds = []
-        self.started = False  # wait for the first player to show up
         self.position = 0
         self.info_text = ''
         self.history_entries = []
@@ -149,13 +148,17 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.latest_resume_msg = None
         self.latest_buzzing_msg = None
 
+        self.started = False  # wait for the first player to show up
+        self.all_paused = True  # everyone is stopped
+
     def register(self, client):
         if client.peer not in self.socket_to_player:
             new_player = PlayerClient(client)
             self.socket_to_player[client.peer] = new_player
+            qid = 'PAUSED' if self.question is None else self.question.id
             msg = {
                 'type': MSG_TYPE_NEW,
-                'qid': self.question.id,
+                'qid': qid,
                 'player_id': new_player.player_id,
                 'player_name': new_player.player_name,
             }
@@ -206,16 +209,21 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         logger.info("[register] new player {} ({})".format(
                             player_name, client.peer))
 
+                    if new_player.response.get('start_new_round', False):
+                        self.all_paused = False
+
                     self.player_list = self.get_player_list()
+                    qid = 'PAUSED' if self.question is None else self.question.id
+                    length = 0 if self.question is None else self.question.length
                     msg = {
                         'type': MSG_TYPE_NEW,
-                        'qid': self.question.id,
+                        'qid': qid,
                         'player_list': self.player_list,
                         'info_text': self.info_text,
                         'history_entries': self.history_entries,
-                        'length': self.question.length,
+                        'length': length,
                         'position': self.position,
-                        'task_completed': self.players[player_id].task_completed,
+                        'task_completed': self.all_paused,
                     }
                     self.players[player_id].sendMessage(msg)
 
@@ -225,21 +233,26 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     if self.latest_buzzing_msg is not None:
                         self.players[player_id].sendMessage(self.latest_buzzing_msg)
 
-                    if len(self.players) == 1 and not self.started:
-                        self.started = True
-                        self.new_question()
+                    if new_player.response.get('start_new_round', False):
+                        self.new_round()
+
+                    # if len(self.players) == 1 and not self.started:
+                    #     self.started = True
+                    #     self.new_question()
                 except Exception:
                     traceback.print_exc(file=sys.stdout)
+                # end of callback
 
             def errback(x):
                 logger.info('[register] client {} timed out'.format(client.peer))
 
             # check if the qid returned by the player client matches the current one
+            qid = 'PAUSED' if self.question is None else self.question.id
             condition = partial(
                 self.check_player_response,
                 player=new_player,
                 key='qid',
-                value=self.question.id,
+                value=qid,
             )
             if condition():
                 callback(None)
@@ -288,7 +301,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         else:
             logger.warning("Unknown source {}:\n{}".format(client.peer, msg))
 
-    def next_question(self):
+    def get_next_question(self):
         # # choose next question based on what currently active players have not seen
         # counter = Counter()
         # counter.update({qid: 0 for qid in self.questions})
@@ -307,7 +320,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.question_index = 0
         else:
             self.question_index += 1
-        return self.questions[self.question_index]
+        if self.question_index < len(self.questions):
+            return self.questions[self.question_index]
+        else:
+            return None
 
     def update_explanation_config(self):
         for player_id, player in self.players.items():
@@ -318,17 +334,60 @@ class BroadcastServerFactory(WebSocketServerFactory):
             explanation_config['allow_player_choice'] = ALLOW_PLAYER_CHOICE
             player.explanation_config = explanation_config
 
+    def new_round(self):
+        self.round_number += 1
+        round_str = f'0{self.round_number}' if self.round_number < 10 else str(self.round_number)
+        tournament_str = f'spring_novice_round_{round_str}'
+        self.questions = self.db.query(Question).filter(Question.tournament.startswith(tournament_str)).all()[:3]
+        logger.info('*********** new round *************')
+        logger.info(f'Loaded {len(self.questions)} questions for {tournament_str}')
+
+        self.question_index = None
+        self.all_paused = False
+        self.new_question()
+
+    def end_of_round(self):
+        self.all_paused = True
+        for player_id, player in self.players.items():
+            player.sendMessage({'type': MSG_TYPE_COMPLETE})
+
+        admin_player = [x for x in self.players.values() if x.player_name == 'ihsgnef'][0]
+
+        condition = partial(
+            self.check_player_response,
+            admin_player,
+            'type',
+            MSG_TYPE_NEW_ROUND,
+        )
+
+        def callback(x):
+            self.new_round()
+
+        def errback(x):
+            logger.info('failed to start new round')
+
+        if condition():
+            callback(None)
+        else:
+            deferred = Deferred()
+            # deferred.addTimeout(ANSWER_TIME_OUT, reactor)
+            deferred.addCallbacks(callback, errback)
+            self.deferreds.append((deferred, condition))
+
     def new_question(self):
         try:
-            self.question = self.next_question()
+            self.question = self.get_next_question()
+            if self.question is None:
+                self.end_of_round()
+                return
+
             self.info_text = ''
             self.bell_positions = []
             self.position = 0
             self.latest_resume_msg = None
             self.latest_buzzing_msg = None
 
-            logger.info('[new question] {}'.format(self.question.answer))
-            logger.info('alternatives: {}'.format(self.question.meta['alternative_answers']))
+            logger.info(f'[new question] {self.question.id} {self.question.answer}')
 
             def make_callback(player):
                 def f(x):
@@ -537,8 +596,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         self.latest_buzzing_msg = msg
 
-        condition = partial(self.check_player_response,
-                            green_player, 'type', MSG_TYPE_BUZZING_ANSWER)
+        condition = partial(
+            self.check_player_response,
+            green_player,
+            'type',
+            MSG_TYPE_BUZZING_ANSWER,
+        )
 
         def callback(x):
             self._buzzing_after(buzzing_id, end_of_question, timed_out=False)
@@ -557,12 +620,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.deferreds.append((deferred, condition))
 
     def judge(self, guess):
-        answer = self.question.answer.lower()
-        if guess.lower() == answer:
+        answer = self.question.answer.strip().lower()
+        if guess.strip().lower() == answer:
             return True
 
-        alternatives = [x.strip().lower() for x in self.question.meta.get('alternative_answer', [])]
-        if guess.lower() in alternatives:
+        alternatives = [x.strip().lower() for x in self.question.meta.get('alternative_answers', [])]
+        if guess.strip().lower() in alternatives:
             return True
 
         return False
@@ -746,7 +809,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
 
 if __name__ == '__main__':
-    factory = BroadcastServerFactory(u"ws://127.0.0.1:9011")
+    factory = BroadcastServerFactory(u"ws://127.0.0.1:9000")
     factory.protocol = BroadcastServerProtocol
     listenWS(factory)
 
