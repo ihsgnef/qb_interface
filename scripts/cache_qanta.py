@@ -12,44 +12,31 @@ def generate_cache():
     session = SessionLocal()
     model = GuesserBuzzer()
 
-    questions = session.query(Question).filter(Question.tournament.startswith('spring_novice'))
+    questions = session.query(Question).filter(Question.tournament.startswith('spring_novice_round_01'))
     for q in tqdm(questions, total=questions.count()):
         model.new_question(q.id)
-        matches, text_highlight, matches_highlight = None, None, None
+        guesses, buzz_scores, matches, text_highlight, matches_highlight = None, None, None, None, None
         for i in range(1, q.length + 1):  # +1 because we take [:i]
             if i % 5 == 1:
-                buzz_scores = model.buzz(q.tokens[:i], i)
                 guesses = [(x.replace('_', ' '), s) for x, s in model.guesses]
+                buzz_scores = model.buzz(q.tokens[:i], i)
                 matches = model.tokenized_matches
                 text_highlight = model.text_highlight
                 matches_highlight = model.matches_highlight
-
-                entry = QantaCache(
-                    question_id=q.id,
-                    position=i,
-                    answer=q.answer,
-                    guesses=guesses,
-                    buzz_scores=buzz_scores,
-                    matches=matches,
-                    text_highlight=text_highlight,
-                    matches_highlight=matches_highlight,
-                )
-                session.add(entry)
-                session.commit()
             else:
                 text_highlight.append(False)
-                entry = QantaCache(
-                    question_id=q.id,
-                    position=i,
-                    answer=q.answer,
-                    guesses=guesses,
-                    buzz_scores=buzz_scores,
-                    matches=matches,
-                    text_highlight=text_highlight,
-                    matches_highlight=matches_highlight,
-                )
-                session.add(entry)
-                session.commit()
+            entry = QantaCache(
+                question_id=q.id,
+                position=i,
+                answer=q.answer,
+                guesses=guesses,
+                buzz_scores=buzz_scores,
+                matches=matches,
+                text_highlight=text_highlight,
+                matches_highlight=matches_highlight,
+            )
+            session.add(entry)
+            session.commit()
 
     session.commit()
     session.close()

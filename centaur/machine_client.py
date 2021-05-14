@@ -101,10 +101,12 @@ class GuesserBuzzer:
         # find the highlighted words in the question
         matched_words = set()  # words matched in the question
         text_highlight = []  # mark highlight or not in the displayed text
-        for ts in tokens[:position]:
-            matched = [t in highlighted_words for t in ts]
-            text_highlight.append(any(matched))
-            matched_words.update(t for t, m in zip(ts, matched) if m)
+        for token in tokens[:position]:
+            if token.strip().lower() in highlighted_words:
+                text_highlight.append(True)
+                matched_words.add(token.strip().lower())
+            else:
+                text_highlight.append(False)
 
         # mark words in the matches
         tokenized_matches = []
