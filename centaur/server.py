@@ -49,7 +49,7 @@ from centaur.utils import (
 )
 from centaur.mediator import RandomDynamicMediator
 from centaur.db.session import SessionLocal
-from centaur.models import Question, Player, Record, QantaCache
+from centaur.models import Question, Player, Record, QantaCache, PlayerRoundStat
 from centaur.expected_wins import ExpectedWins
 
 
@@ -79,6 +79,7 @@ class PlayerClient:
         client: BroadcastServerProtocol,
         player_id: str = None,
         player_name: str = None,
+        player_email: str = None,
     ):
         self.client = client
 
@@ -88,8 +89,12 @@ class PlayerClient:
         if player_name is None:
             player_name = haikunator.haikunate(token_length=0, delimiter=' ').title()
 
+        if player_email is None:
+            player_email = f'{player_name}@qanta.org'
+
         self.player_id = player_id
         self.player_name = player_name
+        self.player_email = player_email
 
         self.active = True
         self.buzzed = False
@@ -150,7 +155,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.all_paused = True  # everyone is stopped
 
         self.room_id_base = 'room_1'
-        self.room_id = None
+        self.room_id_and_round = None
 
     def register(self, client):
         if client.peer not in self.socket_to_player:
@@ -162,6 +167,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'qid': qid,
                 'player_id': new_player.player_id,
                 'player_name': new_player.player_name,
+                'player_email': new_player.player_email,
             }
             new_player.sendMessage(msg)
 
@@ -169,20 +175,22 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 try:
                     player_id = new_player.response['player_id']
                     player_name = new_player.response['player_name']
+                    player_email = new_player.response['player_email']
                     if player_id in self.players:
                         # same player_id exists
                         old_peer = self.players[player_id].client.peer
                         self.socket_to_player[client.peer] = self.players[player_id]
                         self.players[player_id].client = client
                         self.players[player_id].player_name = player_name
+                        self.players[player_id].player_email = player_email
                         self.socket_to_player.pop(old_peer, None)
                         self.players[player_id].active = True
-                        logger.info("[register] old player {} ({} -> {})".format(
-                            player_name, old_peer, client.peer))
+                        logger.info(f"[register] old player {player_name} {player_email} ({old_peer} -> {client.peer})")
                         logger.info(self.players[player_id].task_completed)
                     else:
                         new_player.player_id = player_id
                         new_player.player_name = player_name
+                        new_player.player_email = player_email
                         new_player.position_start = self.position
                         self.players[player_id] = new_player
 
@@ -199,6 +207,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                                 id=new_player.player_id,
                                 ip_addr=new_player.client.peer,
                                 name=new_player.player_name,
+                                email=new_player.player_email,
                                 mediator_name=new_player.mediator.__class__.__name__,
                                 score=0,
                                 questions_seen=[],
@@ -207,8 +216,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             )
                             self.db.add(player_in_db)
                             self.db.commit()
-                        logger.info("[register] new player {} ({})".format(
-                            player_name, client.peer))
+                        logger.info(f"[register] new player {player_name} {player_email} ({client.peer})")
 
                     if new_player.response.get('start_new_round', False):
                         self.all_paused = False
@@ -357,7 +365,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         logger.info('*********** new round *************')
         logger.info(f'Loaded {len(self.questions)} questions for {tournament_str}')
 
-        self.room_id = f'{self.room_id_base}_{tournament_str}'
+        self.room_id_and_round = f'{self.room_id_base}_{tournament_str}'
 
         for player_id, player in self.players.items():
             player.sendMessage({'type': MSG_TYPE_NEW_ROUND})
@@ -370,6 +378,22 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.all_paused = True
         for player_id, player in self.players.items():
             player.sendMessage({'type': MSG_TYPE_COMPLETE})
+
+        # TODO print leaderboard
+        player_qb_scores = {}
+        player_ew_scores = {}
+        for player in self.db.query(Player):
+            round_stat = self.db.query(PlayerRoundStat).get((player.id, self.room_id_and_round))
+            if round_stat is not None:
+                player_qb_scores[player.id] = round_stat.qb_score
+                player_ew_scores[player.id] = round_stat.ew_score
+
+        print('===================', self.room_id_and_round)
+        for i, (player_id, qb_score) in enumerate(sorted(player_qb_scores.items(), key=lambda x: -x[1])):
+            player = self.db.query(Player).get(player_id)
+            print('{:<3}  {:<20}  {:<50}  {:<3}  {:<5}'.format(i, player.name, player.email, qb_score, player_ew_scores[player_id]))
+        print('===================')
+        print()
 
         try:
             admin_player = [x for x in self.players.values() if x.player_name == 'ihsgnef'][0]
@@ -594,13 +618,36 @@ class BroadcastServerFactory(WebSocketServerFactory):
         player_list = []
         for p in self.db.query(Player):
             active = (p.id in self.players) and (self.players[p.id].active)
+            if self.room_id_and_round is not None:
+                round_stat = self.db.query(PlayerRoundStat).get((p.id, self.room_id_and_round))
+                if round_stat is None:
+                    round_stat = PlayerRoundStat(
+                        player_id=p.id,
+                        room_id=self.room_id_and_round,
+                        qb_score=0,
+                        ew_score=0,
+                        questions_answered=[],
+                        questions_correct=[],
+                    )
+                    self.db.add(round_stat)
+                    self.db.commit()
+                qb_score = round_stat.qb_score
+                ew_score = round_stat.ew_score
+                questions_answered = len(set(round_stat.questions_answered))
+                questions_correct = len(set(round_stat.questions_correct))
+            else:
+                qb_score = 0
+                ew_score = 0
+                questions_answered = 0
+                questions_correct = 0
+
             player_list.append({
                 'player_id': p.id,
                 'player_name': p.name,
-                'score': p.score,
-                'questions_seen': len(set(p.questions_seen)),
-                'questions_answered': len(set(p.questions_answered)),
-                'questions_correct': len(set(p.questions_correct)),
+                'score': qb_score,
+                'ew_score': ew_score,
+                'questions_answered': questions_answered,
+                'questions_correct': questions_correct,
                 'active': active,
             })
         player_list = sorted(player_list, key=lambda x: (x['active'], x['score']), reverse=True)
@@ -773,7 +820,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         for player in self.players.values():
             player.sendMessage(msg)
 
-        # self.player_list = self.get_player_list()
+        self.player_list = self.get_player_list()
 
         try:
             to_remove = []  # list of inactive users to be removed
@@ -808,11 +855,33 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     ew_score=player.buzz_info.get('ew_score', None),
                     explanation_config=json.dumps(player.explanation_config),
                     mediator_name=player.mediator.__class__.__name__,
-                    room_id=self.room_id,
+                    room_id=self.room_id_and_round,
                     player_list=self.player_list,
                     date=date,
                 )
                 self.db.add(record)
+                self.db.commit()
+
+                round_stat = self.db.query(PlayerRoundStat).get((player.player_id, self.room_id_and_round))
+                if round_stat is None:
+                    round_stat = PlayerRoundStat(
+                        player_id=player.player_id,
+                        room_id=self.room_id_and_round,
+                        qb_score=0,
+                        ew_score=0,
+                        questions_answered=[],
+                        questions_correct=[],
+                    )
+                    self.db.add(round_stat)
+                    self.db.commit()
+
+                round_stat.qb_score += player.buzz_info.get('qb_score', 0)
+                round_stat.ew_score += player.buzz_info.get('ew_score', 0)
+                if 'result' in player.buzz_info:
+                    round_stat.questions_answered = round_stat.questions_answered + [self.question.id]
+                    if player.buzz_info['result']:
+                        round_stat.questions_correct = round_stat.questions_correct + [self.question.id]
+
                 self.db.commit()
 
                 # clear player response
@@ -821,19 +890,19 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 player.position_start = 0
                 player.position_buzz = -1
                 player.buzz_info = dict()
-                n_answered = len(set(player.questions_answered))
 
-                if (
-                    not player.task_completed
-                    and THRESHOLD > 0
-                    and n_answered >= THRESHOLD
-                    and player.score > 0
-                ):
-                    # first time the player answers THRESHOLD questions
-                    if player.before_half_correct >= 10:
-                        logger.info("player {} complete".format(player.player_name))
-                        player.task_completed = True
-                        player.sendMessage({'type': MSG_TYPE_COMPLETE})
+                # n_answered = len(set(player.questions_answered))
+                # if (
+                #     not player.task_completed
+                #     and THRESHOLD > 0
+                #     and n_answered >= THRESHOLD
+                #     and player.score > 0
+                # ):
+                #     # first time the player answers THRESHOLD questions
+                #     if player.before_half_correct >= 10:
+                #         logger.info("player {} complete".format(player.player_name))
+                #         player.task_completed = True
+                #         player.sendMessage({'type': MSG_TYPE_COMPLETE})
 
             # remove inactive users
             for player_id in to_remove:

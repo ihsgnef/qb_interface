@@ -27,6 +27,7 @@ var SECOND_PER_WORD = 0.3;
 ///////// HTML Elements ///////// 
 var accept_button      = document.getElementById("accept_button");
 var username_area      = document.getElementById("choose_user_name");
+var email_area         = document.getElementById("emailAddress");
 var question_area      = document.getElementById("question_area");
 var question_title     = document.getElementById("question_title");
 var answer_area        = document.getElementById("answer_area");
@@ -149,6 +150,7 @@ resume_button.onclick = function(event) {
 
 var player_name = getCookie("player_name");
 var player_id = getCookie("player_id");
+var player_email = getCookie("player_email");
 var consent_accepted = getCookie("consent_accepted");
 
 introJs.fn.oncomplete(function() {start();});
@@ -166,6 +168,13 @@ if (consent_accepted == "N_O_T_S_E_T") {
             player_name = uname;
         } else {
             setCookie("player_name", "N_O_T_S_E_T");
+        }
+        var email = email_area.value;
+        if (email.length > 0) {
+            setCookie("player_email", email);
+            player_email= email;
+        } else {
+            setCookie("player_email", "N_O_T_S_E_T");
         }
         setCookie("player_id", "N_O_T_S_E_T");
         setCookie("consent_accepted", "True");
@@ -359,6 +368,7 @@ function new_question(msg) {
             type: MSG_TYPE_NEW,
             qid: msg.qid,
             player_name: player_name,
+            player_email: player_email,
             player_id: player_id,
             start_new_round: true,
         };
@@ -368,6 +378,7 @@ function new_question(msg) {
             type: MSG_TYPE_NEW,
             qid: msg.qid,
             player_name: player_name,
+            player_email: player_email,
             player_id: player_id,
         };
     }
@@ -620,6 +631,13 @@ function start() {
                 player_name = msg.player_name;
                 console.log('set player name', player_name);
                 setCookie("player_name", player_name);
+            }
+        }
+        if (typeof msg.player_email != 'undefined') {
+            if (player_email == "N_O_T_S_E_T") {
+                player_email = msg.player_email;
+                console.log('set player email', player_email);
+                setCookie("player_email", player_email);
             }
         }
         if (typeof msg.player_id != 'undefined') {

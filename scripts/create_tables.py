@@ -24,6 +24,7 @@ Table(
     Column('id', String, primary_key=True, index=True),
     Column('ip_addr', String, index=True),
     Column('name', String),
+    Column('email', String),
     Column('mediator_name', String),
     Column('score', Integer),
     Column('questions_seen', JSONB),
@@ -76,6 +77,16 @@ Table(
     Column('room_id', String),
     Column('player_list', JSONB),
     Column('date', TIMESTAMP(timezone=True)),
+)
+
+Table(
+    'playerroundstat', meta,
+    Column('player_id', String, ForeignKey(Player.id), primary_key=True, nullable=False, index=True),
+    Column('room_id', String, primary_key=True, nullable=False, index=True),
+    Column('qb_score', Integer),
+    Column('ew_score', Float),
+    Column('questions_answered', JSONB),
+    Column('questions_correct', JSONB),
 )
 
 meta.create_all(engine)
