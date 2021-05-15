@@ -390,7 +390,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             print('{:<3}  {:<20}  {:<50}  {:<3}  {:<5}'.format(i, player.name, player.email, qb_score, player_ew_scores[player_id]))
         print('===================')
         print()
-        pause_msg = f'{self.room_id_base} Round {self.round_number_index+1} complete. Please visit https://cutt.ly/human_ai_spring_novice for next round room assignment'
+        pause_msg = f'{self.room_id_base} Round {self.round_number_index+1} complete. Please visit </br><a href="https://cutt.ly/human_ai_spring_novice">https://cutt.ly/human_ai_spring_novice</a></br>for next round room assignment'
         print(pause_msg)
 
         for player_id, player in self.players.items():
@@ -651,7 +651,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'player_id': p.id,
                 'player_name': p.name,
                 'score': qb_score,
-                'ew_score': ew_score,
+                'ew_score': round(ew_score, 2),
                 'questions_answered': questions_answered,
                 'questions_correct': questions_correct,
                 'active': active,

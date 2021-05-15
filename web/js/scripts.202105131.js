@@ -54,6 +54,7 @@ var prediction_card_autopilot  = document.getElementById("prediction_card_autopi
 var alternatives_checkbox       = document.getElementById("alternatives_checkbox");
 var highlight_question_checkbox = document.getElementById("highlight_question_checkbox");
 var highlight_evidence_checkbox = document.getElementById("highlight_evidence_checkbox");
+var pause_modal_content = document.getElementById("pause_modal_content");
 
 
 ///////// State variables ///////// 
@@ -130,7 +131,7 @@ function deleteAllCookies() {
 pause_button.onclick = function(event) {
     $('#pause_modal').modal('show');
     if (task_completed) {
-        $('#pause_modal_content').text('Round finished. Please wait for the next round to begin.');
+        pause_modal_content.innerHTML = 'Round finished. Please visit </br><a href="https://cutt.ly/human_ai_spring_novice">https://cutt.ly/human_ai_spring_novice</a></br>for next round room assignment.';
     }
     clearTimeout(timer_timeout);
     timer_set = false;
@@ -673,7 +674,7 @@ function start() {
                 resume_button.style.display = "block";
             }
             if (typeof msg.message!= 'undefined') {
-                $('#pause_modal_content').text(msg.message);
+                pause_modal_content.innerHTML = msg.message;
             }
         } else if (msg.type === MSG_TYPE_NEW_ROUND) {
             console.log('******* new round ******');
@@ -713,6 +714,10 @@ function start() {
 
                 var td = document.createElement('td');
                 td.appendChild(document.createTextNode(stat));
+                tr.appendChild(td);
+
+                var td = document.createElement('td');
+                td.appendChild(document.createTextNode(ply.ew_score));
                 tr.appendChild(td);
 
                 new_tbody.appendChild(tr);
