@@ -310,11 +310,16 @@ function new_question(msg) {
     info_text = '';
     answer_area.value = "";
     buzzing_on_guess = false;
-    question_title.innerHTML = qid;
     update_question_display();
     prediction_area.innerHTML = '';
     buzz_button.disabled = false;
     answer_group.style.display = "none";
+
+    if (typeof msg.room_id != 'undefined') {
+        question_title.innerHTML = '[' + msg.room_id + '] ' + msg.tournament + ' Question ' + msg.question_index + '/' + msg.n_questions;
+    } else {
+        question_title.innerHTML = qid;
+    }
 
     for (var i = 0; i < 5; i++) {
         alternatives_table.rows[i + 1].cells[1].innerHTML = '-';

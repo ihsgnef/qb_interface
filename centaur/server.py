@@ -216,6 +216,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     self.player_list = self.get_player_list()
                     qid = 'PAUSED' if self.question is None else self.question.id
                     length = 0 if self.question is None else self.question.length
+
                     msg = {
                         'type': MSG_TYPE_NEW,
                         'qid': qid,
@@ -225,7 +226,16 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         'length': length,
                         'position': self.position,
                         'task_completed': self.all_paused,
+                        'room_id': self.room_id_base,
                     }
+                    if self.question is not None:
+                        tournament_str = f'Round {self.round_number_index + 1}'
+                        msg.update({
+                            'tournament': tournament_str,
+                            'question_index': self.question_index + 1,
+                            'n_questions': len(self.questions),
+                        })
+
                     self.players[player_id].sendMessage(msg)
 
                     # keep player up to date
@@ -414,6 +424,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 return f
 
             self.player_list = self.get_player_list()
+
+            tournament_str = f'Round {self.round_number_index + 1}'
             msg = {
                 'type': MSG_TYPE_NEW,
                 'qid': self.question.id,
@@ -421,6 +433,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 'length': self.question.length,
                 'position': 0,
                 'player_list': self.player_list,
+                'room_id': self.room_id_base,
+                'tournament': tournament_str,
+                'question_index': self.question_index + 1,
+                'n_questions': len(self.questions),
             }
 
             self.update_explanation_config()
