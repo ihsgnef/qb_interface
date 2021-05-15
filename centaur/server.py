@@ -370,7 +370,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         round_number = self.round_number_list[self.round_number_index]
         round_str = f'0{round_number}' if round_number < 10 else str(round_number)
         tournament_str = f'spring_novice_round_{round_str}'
-        self.questions = self.db.query(Question).filter(Question.tournament.startswith(tournament_str)).all()[:2]
+        self.questions = self.db.query(Question).filter(Question.tournament.startswith(tournament_str)).all()
         logger.info('*********** new round *************')
         logger.info(f'{self.room_id_base} Loaded {len(self.questions)} questions for {tournament_str} (round {self.round_number_index + 1})')
 
