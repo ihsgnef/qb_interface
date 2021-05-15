@@ -666,12 +666,14 @@ function start() {
         } else if (msg.type === MSG_TYPE_RESULT_OTHER) {
             handle_result(msg);
         } else if (msg.type === MSG_TYPE_COMPLETE) {
-            // alert("Congrats! You have answered all the questions.");
             task_completed = true;
             pause_button.click();
             if (player_name == 'ihsgnef') {
                 console.log('showing resume button to admin');
                 resume_button.style.display = "block";
+            }
+            if (typeof msg.message!= 'undefined') {
+                $('#pause_modal_content').text(msg.message);
             }
         } else if (msg.type === MSG_TYPE_NEW_ROUND) {
             console.log('******* new round ******');

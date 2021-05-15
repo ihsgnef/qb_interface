@@ -185,8 +185,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         self.players[player_id].player_email = player_email
                         self.socket_to_player.pop(old_peer, None)
                         self.players[player_id].active = True
-                        logger.info(f"[register] old player {player_name} {player_email} ({old_peer} -> {client.peer})")
-                        logger.info(self.players[player_id].task_completed)
+                        logger.info(f"{self.room_id_base} [register] old player {player_name} {player_email} ({old_peer} -> {client.peer})")
                     else:
                         new_player.player_id = player_id
                         new_player.player_name = player_name
@@ -202,7 +201,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             new_player.questions_correct = player_in_db.questions_correct
                             new_player.task_completed = len(set(player_in_db.questions_answered)) >= THRESHOLD
                         else:
-                            logger.info('add player {} to db'.format(new_player.player_id))
+                            logger.info(f'{self.room_id_base} add player {new_player.player_id} to db')
                             player_in_db = Player(
                                 id=new_player.player_id,
                                 ip_addr=new_player.client.peer,
@@ -216,7 +215,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                             )
                             self.db.add(player_in_db)
                             self.db.commit()
-                        logger.info(f"[register] new player {player_name} {player_email} ({client.peer})")
+                        logger.info(f"{self.room_id_base} [register] new player {player_name} {player_email} ({client.peer})")
 
                     if new_player.response.get('start_new_round', False):
                         self.all_paused = False
@@ -260,7 +259,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 # end of callback
 
             def errback(x):
-                logger.info('[register] client {} timed out'.format(client.peer))
+                logger.info(f'{self.room_id_base} [register] client {client.peer} timed out')
 
             # check if the qid returned by the player client matches the current one
             qid = 'PAUSED' if self.question is None else self.question.id
@@ -283,7 +282,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             player = self.socket_to_player.pop(client.peer, None)
         if player is not None:
             player.active = False
-            logger.info("[unregister] player {} inactive".format(player.player_name))
+            logger.info(f"{self.room_id_base} [unregister] player {player.player_name} inactive")
 
     def check_player_response(self, player, key, value):
         return (
@@ -361,9 +360,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         round_number = self.round_number_list[self.round_number_index]
         round_str = f'0{round_number}' if round_number < 10 else str(round_number)
         tournament_str = f'spring_novice_round_{round_str}'
-        self.questions = self.db.query(Question).filter(Question.tournament.startswith(tournament_str)).all()[:3]
+        self.questions = self.db.query(Question).filter(Question.tournament.startswith(tournament_str)).all()[:2]
         logger.info('*********** new round *************')
-        logger.info(f'Loaded {len(self.questions)} questions for {tournament_str}')
+        logger.info(f'{self.room_id_base} Loaded {len(self.questions)} questions for {tournament_str}')
 
         self.room_id_and_round = f'{self.room_id_base}_{tournament_str}'
 
@@ -376,10 +375,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
     def end_of_round(self):
         self.all_paused = True
-        for player_id, player in self.players.items():
-            player.sendMessage({'type': MSG_TYPE_COMPLETE})
 
-        # TODO print leaderboard
         player_qb_scores = {}
         player_ew_scores = {}
         for player in self.db.query(Player):
@@ -394,6 +390,14 @@ class BroadcastServerFactory(WebSocketServerFactory):
             print('{:<3}  {:<20}  {:<50}  {:<3}  {:<5}'.format(i, player.name, player.email, qb_score, player_ew_scores[player_id]))
         print('===================')
         print()
+        pause_msg = f'{self.room_id_base} Round {self.round_number_index+1} complete. Please visit https://cutt.ly/human_ai_spring_novice for next round room assignment'
+        print(pause_msg)
+
+        for player_id, player in self.players.items():
+            player.sendMessage({
+                'type': MSG_TYPE_COMPLETE,
+                'message': pause_msg,
+            })
 
         try:
             admin_player = [x for x in self.players.values() if x.player_name == 'ihsgnef'][0]
@@ -411,7 +415,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.new_round()
 
         def errback(x):
-            logger.info('failed to start new round')
+            logger.info('{self.room_id_base} failed to start new round')
 
         if condition():
             callback(None)
@@ -434,16 +438,16 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self.latest_resume_msg = None
             self.latest_buzzing_msg = None
 
-            logger.info(f'[new question] {self.question.id} {self.question.answer}')
+            logger.info(f'{self.room_id_base} [new question] {self.question.id} {self.question.answer}')
 
             def make_callback(player):
                 def f(x):
-                    logger.info(f'[new question] player {player.player_name} ready')
+                    logger.info(f'{self.room_id_base} [new question] player {player.player_name} ready')
                 return f
 
             def make_errback(player):
                 def f(x):
-                    logger.info(f'[new question] player {player.player_name} timed out')
+                    logger.info(f'{self.room_id_base} [new question] player {player.player_name} timed out')
                     self.unregister(player=player)
                 return f
 
@@ -489,8 +493,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
         def calllater():
             for player in self.players.values():
-                logger.info("player {} score {}".format(
-                    player.player_name, player.score))
+                logger.info(f"{self.room_id_base} player {player.player_name} score {player.score}")
                 player.questions_seen.append(self.question.id)
             self.pbar = tqdm(total=self.question.length, leave=False)
 
@@ -618,6 +621,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         player_list = []
         for p in self.db.query(Player):
             active = (p.id in self.players) and (self.players[p.id].active)
+            if not active:
+                continue
+
             if self.room_id_and_round is not None:
                 round_stat = self.db.query(PlayerRoundStat).get((p.id, self.room_id_and_round))
                 if round_stat is None:
@@ -657,7 +663,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         random.shuffle(buzzing_ids)
         buzzing_id = buzzing_ids[0]
         green_player = self.players[buzzing_id]
-        logger.info('[buzzing] player {} answering'.format(green_player.player_name))
+        logger.info(f'{self.room_id_base} [buzzing] player {green_player.player_name} answering')
 
         self.info_text += NEW_LINE + BADGE_BUZZ
         self.info_text += ' {}: '.format(boldify(green_player.player_name))
@@ -693,8 +699,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             self._buzzing_after(buzzing_id, end_of_question, timed_out=False)
 
         def errback(x):
-            logger.info('[buzzing] player {} answer time out'.format(
-                green_player.player_name))
+            logger.info(f'{self.room_id_base} [buzzing] player {green_player.player_name} answer time out')
             self._buzzing_after(buzzing_id, end_of_question, timed_out=True)
 
         if condition():
@@ -744,7 +749,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
             if result:
                 green_player.questions_correct.append(self.question.id)
             if not timed_out:
-                logger.info('[buzzing] answer [{}] is {}'.format(answer, result))
+                logger.info(f'{self.room_id_base} [buzzing] answer [{answer}] is {result}')
 
             if result and self.position <= self.question.length / 2 + 1:
                 green_player.before_half_correct += 1
@@ -911,7 +916,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         except Exception:
             traceback.print_exc(file=sys.stdout)
 
-        logger.info('-' * 60)
+        logger.info(self.room_id_base + '-' * 60)
         self.pbar.close()
 
         reactor.callLater(SECONDS_TILL_NEW_QUESTION, self.new_question)
