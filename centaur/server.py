@@ -112,10 +112,6 @@ class PlayerClient:
             return False
         if self.buzzed:
             return False
-        # TODO
-        # prevent player from answering a question more than once
-        # if qid in self.questions_answered:
-        #     return False
         return True
 
     def sendMessage(self, msg: dict):
@@ -152,6 +148,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.latest_buzzing_msg = None
 
         self.all_paused = True  # everyone is stopped
+
+        self.room_id_base = 'room_1'
+        self.room_id = None
 
     def register(self, client):
         if client.peer not in self.socket_to_player:
@@ -347,6 +346,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         self.questions = self.db.query(Question).filter(Question.tournament.startswith(tournament_str)).all()[:3]
         logger.info('*********** new round *************')
         logger.info(f'Loaded {len(self.questions)} questions for {tournament_str}')
+
+        self.room_id = f'{self.room_id_base}_{tournament_str}'
 
         for player_id, player in self.players.items():
             player.sendMessage({'type': MSG_TYPE_NEW_ROUND})
@@ -756,6 +757,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
         for player in self.players.values():
             player.sendMessage(msg)
 
+        # self.player_list = self.get_player_list()
+
         try:
             to_remove = []  # list of inactive users to be removed
             for player_id, player in self.players.items():
@@ -789,6 +792,8 @@ class BroadcastServerFactory(WebSocketServerFactory):
                     ew_score=player.buzz_info.get('ew_score', None),
                     explanation_config=json.dumps(player.explanation_config),
                     mediator_name=player.mediator.__class__.__name__,
+                    room_id=self.room_id,
+                    player_list=self.player_list,
                     date=date,
                 )
                 self.db.add(record)

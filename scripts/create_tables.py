@@ -73,6 +73,8 @@ Table(
     Column('ew_score', Float),
     Column('explanation_config', String),
     Column('mediator_name', String),
+    Column('room_id', String),
+    Column('player_list', JSONB),
     Column('date', TIMESTAMP(timezone=True)),
 )
 

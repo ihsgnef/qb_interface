@@ -1,5 +1,6 @@
 from sqlalchemy import Column, String, Integer, Float, ForeignKey, TIMESTAMP
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import JSONB
 
 from centaur.db.base_class import Base
 from centaur.models import Player, Question
@@ -17,6 +18,8 @@ class Record(Base):
     ew_score = Column(Float)
     explanation_config = Column(String)
     mediator_name = Column(String)
+    room_id = Column(String)
+    player_list = Column(JSONB)
     date = Column(TIMESTAMP(timezone=True))
 
     player = relationship("Player", back_populates="records")
