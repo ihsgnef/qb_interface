@@ -47,6 +47,7 @@ var buzz_button        = document.getElementById("buzz_button");
 // var logout_button      = document.getElementById("logout_button");
 var pause_button       = document.getElementById("pause_button");
 var resume_button      = document.getElementById("resume_button");
+var admin_options      = document.getElementById("admin_options");
 var evidence_checkbox  = document.getElementById("evidence_checkbox");
 var autopilot_checkbox = document.getElementById("autopilot_checkbox");
 var prediction_card    = document.getElementById("prediction_card");
@@ -77,6 +78,7 @@ var PAUSE_COUNTDOWN = 5;
 var pause_countdown = PAUSE_COUNTDOWN;
 var task_completed = false;
 var start_new_round = false;  // when this is true, send a start new round signal to server on register
+var chosen_round = 0;  // when this is 0, go to default next round
 
 
 ///////// Constants ///////// 
@@ -144,6 +146,8 @@ resume_button.onclick = function(event) {
     clearTimeout(timer_timeout);
     timer_set = false;
     start_new_round = true;
+    chosen_round = $("#choose_round_number").val();
+    console.log('choosen round' + chosen_round);
     start();
 };
 
@@ -357,7 +361,7 @@ function new_question(msg) {
             pause_button.click();
             if (player_name == 'ihsgnef') {
                 console.log('showing resume button to admin');
-                resume_button.style.display = "block";
+                admin_options.style.display = "block";
             }
         }
     }
@@ -372,8 +376,10 @@ function new_question(msg) {
             player_email: player_email,
             player_id: player_id,
             start_new_round: true,
+            chosen_round: chosen_round,
         };
         start_new_round = false;
+        chosen_round = 0;
     } else {
         var m = {
             type: MSG_TYPE_NEW,
@@ -671,7 +677,7 @@ function start() {
             pause_button.click();
             if (player_name == 'ihsgnef') {
                 console.log('showing resume button to admin');
-                resume_button.style.display = "block";
+                admin_options.style.display = "block";
             }
             if (typeof msg.message!= 'undefined') {
                 pause_modal_content.innerHTML = msg.message;

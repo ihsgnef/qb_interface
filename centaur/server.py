@@ -252,7 +252,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
                         self.players[player_id].sendMessage(self.latest_buzzing_msg)
 
                     if new_player.response.get('start_new_round', False):
-                        self.new_round()
+                        chosen_round = int(new_player.response.get('chosen_round', 0))
+                        # next round index = chosen_round - 1
+                        # if chosen_round is 0, go to default next round
+                        if chosen_round != 0:
+                            self.new_round(chosen_round - 1)
+                        else:
+                            self.new_round()
 
                 except Exception:
                     traceback.print_exc(file=sys.stdout)
@@ -349,11 +355,15 @@ class BroadcastServerFactory(WebSocketServerFactory):
             explanation_config['allow_player_choice'] = ALLOW_PLAYER_CHOICE
             player.explanation_config = explanation_config
 
-    def new_round(self):
-        if self.round_number_index is None:
-            self.round_number_index = 0
+    def new_round(self, chosen_round=None):
+        if chosen_round is not None:
+            self.round_number_index = chosen_round
+            assert self.round_number_index >= 0
         else:
-            self.round_number_index += 1
+            if self.round_number_index is None:
+                self.round_number_index = 0
+            else:
+                self.round_number_index += 1
         if self.round_number_index >= len(self.round_number_list):
             return
 
@@ -362,7 +372,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
         tournament_str = f'spring_novice_round_{round_str}'
         self.questions = self.db.query(Question).filter(Question.tournament.startswith(tournament_str)).all()[:2]
         logger.info('*********** new round *************')
-        logger.info(f'{self.room_id_base} Loaded {len(self.questions)} questions for {tournament_str}')
+        logger.info(f'{self.room_id_base} Loaded {len(self.questions)} questions for {tournament_str} (round {self.round_number_index + 1})')
 
         self.room_id_and_round = f'{self.room_id_base}_{tournament_str}'
 
@@ -384,7 +394,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
                 player_qb_scores[player.id] = round_stat.qb_score
                 player_ew_scores[player.id] = round_stat.ew_score
 
-        print('===================', self.room_id_and_round)
+        print('===================', self.room_id_and_round, '/', self.round_number_index + 1)
         for i, (player_id, qb_score) in enumerate(sorted(player_qb_scores.items(), key=lambda x: -x[1])):
             player = self.db.query(Player).get(player_id)
             print('{:<3}  {:<20}  {:<50}  {:<3}  {:<5}'.format(i, player.name, player.email, qb_score, player_ew_scores[player_id]))
@@ -412,7 +422,13 @@ class BroadcastServerFactory(WebSocketServerFactory):
         )
 
         def callback(x):
-            self.new_round()
+            chosen_round = int(admin_player.response.get('chosen_round', 0))
+            # next round index = chosen_round - 1
+            # if chosen_round is 0, go to default next round
+            if chosen_round != 0:
+                self.new_round(chosen_round - 1)
+            else:
+                self.new_round()
 
         def errback(x):
             logger.info('{self.room_id_base} failed to start new round')
