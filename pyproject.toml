@@ -7,7 +7,7 @@ authors = ["Your Name <you@example.com>"]
 [tool.poetry.dependencies]
 python = "^3.7"
 SQLAlchemy = "^1.4.15"
-Twisted = "17.9.0"
+Twisted = "20.3.0"
 autobahn = "17.10.1"
 contextualbandits = "^0.3.14"
 bs4 = "^0.0.1"
