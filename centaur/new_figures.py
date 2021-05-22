@@ -2,9 +2,9 @@ import os
 import json
 import altair as alt
 import pandas as pd
-from augment.db.session import SessionLocal
-from augment.models import Record, Player
-from augment.utils import EXPLANATIONS, ID_TO_CONFIG
+from centaur.db.session import SessionLocal
+from centaur.models import Record, Player
+from centaur.utils import EXPLANATIONS, ID_TO_CONFIG
 
 alt.data_transformers.disable_max_rows()
 alt.renderers.enable('mimetype')
@@ -15,12 +15,33 @@ def save_chart_and_pdf(chart, path):
     os.system(f'vl2vg {path}.json | vg2pdf > {path}.pdf')
 
 
+def filter_player_spring_novice(player: Player):
+    spring_novice_email_list = [
+        'Brandonisqiu@gmail.com',
+        'alexakridge2@gmail.com',
+        'alexbenjaminjacob@outlook.com',
+        'avi.a.mehta@gmail.com',
+        'chuang.grace@gmail.com',
+        'clement.aldebert.21@gmail.com',
+        'dn285@cornell.edu',
+        'donalishere@gmail.com',
+        'eb.wolf@verizon.net',
+        'eyhung@gmail.com',
+        'jeanrw@live.com',
+        'jordan.davidsen@yale.edu',
+        'mrbolesclassroom@gmail.com',
+        'ned.tagtmeier@gmail.com',
+        'tonychen2001@gmail.com',
+    ]
+    return player.email in spring_novice_email_list
+
+
 def fig_cumulative_reward(path: str):
     '''
     Cumulative reward by number of examples, break down by condition.
     '''
     session = SessionLocal()
-    players = [x for x in session.query(Player) if x.id.startswith('dummy')]
+    players = [x for x in session.query(Player) if filter_player_spring_novice(x)]
     all_records = []
     for player in players:
         records = session.query(Record).filter(Record.player_id == player.id).order_by(Record.date)
@@ -28,8 +49,10 @@ def fig_cumulative_reward(path: str):
         for i, r in enumerate(records):
             r.pop('_sa_instance_state')
             r['index'] = i
+            r['player_email'] = player.email
         all_records += records
     source = pd.DataFrame(all_records)
+
     condition_names = {
         'NoneFixedMediator': 'None-fixed',
         'EverythingFixedMediator': 'Everything-fixed',
@@ -39,7 +62,7 @@ def fig_cumulative_reward(path: str):
         'BanditMediator': 'Mediated-dynamic',
     }
     source['condition'] = source['mediator_name'].apply(lambda x: condition_names[x])
-    source['ew_cumsum'] = source.groupby(['player_id'])['ew_score'].cumsum()
+    source['ew_cumsum'] = source.groupby(['player_email'])['ew_score'].cumsum()
 
     selection = alt.selection_multi(fields=['condition'], bind='legend')
     line = alt.Chart().mark_line().encode(
@@ -122,7 +145,7 @@ def fig_explanation_cumulative_count(path: str):
                 source[(i, condition)][config] = 0
 
     session = SessionLocal()
-    players = [x for x in session.query(Player) if x.id.startswith('dummy')]
+    players = [x for x in session.query(Player) if filter_player_spring_novice(x)]
     for player in players:
         records = session.query(Record).filter(Record.player_id == player.id).order_by(Record.date)
         condition = condition_names[records[0].mediator_name]
@@ -162,7 +185,7 @@ def fig_explanation_cumulative_count(path: str):
 
 
 if __name__ == '__main__':
-    path = '/Users/shifeng/workspace/qb_interface/figures'
-    fig_cumulative_reward(path)
-    fig_config_cumulative_count(path)
+    path = '/Users/shifeng/workspace/centaur/figures'
+    # fig_cumulative_reward(path)
+    # fig_config_cumulative_count(path)
     fig_explanation_cumulative_count(path)

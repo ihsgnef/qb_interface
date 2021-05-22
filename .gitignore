@@ -4,3 +4,5 @@ __pycache__
 auto_fig
 *.log
 .ipynb_checkpoints
+*.pyc
+.DS_Store

@@ -16,6 +16,7 @@ nltk = "^3.6.2"
 requests = "^2.25.1"
 haikunator = "^2.1.0"
 dill = "^0.3.3"
+altair = "^4.1.0"
 
 [tool.poetry.dev-dependencies]
 
